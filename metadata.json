@@ -1,0 +1,6 @@
+{
+  "name": "Fitkode",
+  "description": "Fitkode - Fitness Simplified. Rebuilt with elegant visuals, responsive layout, and Razorpay plan purchasing integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
