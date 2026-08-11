@@ -70,13 +70,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-natural-oat flex flex-col justify-between selection:bg-brand-light-green selection:text-brand-dark-green">
-      
-      {/* Top Banner Notice */}
-      <div className="bg-brand-dark-green text-natural-oat text-[11px] font-bold py-2.5 px-4 text-center tracking-wider flex items-center justify-center gap-1.5 shadow-sm">
-        <Sparkles className="h-3.5 w-3.5 animate-pulse text-amber-200" />
-        <span>LIMITED TIME OFFER: Get 100% satisfying results with free starter kits on all custom annual programs!</span>
-      </div>
-
       <Header 
         activePage={activePage} 
         setActivePage={setActivePage} 

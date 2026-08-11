@@ -14,6 +14,30 @@ export default function ContactForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Trim & sanitize input fields
+    const sanitizedFirstName = formData.firstName.trim().slice(0, 50);
+    const sanitizedLastName = formData.lastName.trim().slice(0, 50);
+    const sanitizedEmail = formData.email.trim().toLowerCase().slice(0, 100);
+    const sanitizedPhone = formData.phone.trim().replace(/[^\d\s\-\+\(\)]/g, '').slice(0, 20);
+    const sanitizedGoal = formData.goal.trim().slice(0, 1000);
+
+    // Basic email pattern verification
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      alert("Please provide a valid email address.");
+      return;
+    }
+
+    console.log("Sanitized submission data:", {
+      firstName: sanitizedFirstName,
+      lastName: sanitizedLastName,
+      email: sanitizedEmail,
+      phone: sanitizedPhone,
+      goal: sanitizedGoal,
+      code: formData.code,
+    });
+
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
