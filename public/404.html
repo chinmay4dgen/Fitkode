@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>Redirecting… | Fitkode</title>
+<meta name="robots" content="noindex">
+<script>
+  var legacy = {
+    "/contact-us": "/contact",
+    "/plans-pricing": "/coaching-plans",
+    "/about-us": "/about"
+  };
+  var p = window.location.pathname.replace(/\/$/, "");
+  if (legacy[p]) { window.location.replace(legacy[p]); }
+  else { sessionStorage.setItem("fk_redirect", window.location.href); window.location.replace("/"); }
+</script>
+</head><body></body></html>

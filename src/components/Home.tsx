@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Award, Zap, Heart, Shield, Dumbbell, Sparkles, Send, Phone, Mail, MapPin, CheckCircle, ChevronDown, ChevronUp, User, GraduationCap, Trophy, Briefcase, Star, Quote, Linkedin, Instagram, Play, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ContactForm from './ContactForm';
+import Seo from './Seo';
 import chinmayImg from '../../assets/Chinmay_compresed_webp.webp';
 import alankarImg from '../../assets/Alankar_Bhatnagar.jpg';
 import dhawalImg from '../../assets/Dhawal_Kapil.png';
@@ -15,16 +17,6 @@ interface HomeProps {
 }
 
 export default function Home({ onPlanClick }: HomeProps) {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    goal: '',
-    code: 'IN +91',
-  });
-  const [submitted, setSubmitted] = useState(false);
-  
   // Interactive FAQ State
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
@@ -153,7 +145,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Arnav Jain',
       role: 'Fitkode Graduate',
       quote: 'Found the 3-month journey fun and helpful for balancing life and remaining consistent with physical targets.',
-      img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
+      img: null,
       rating: 5,
       score: '10 / 10',
       achievements: 'Learned about fitness, diet, and supplements; achieved consistency in workouts.',
@@ -201,7 +193,7 @@ export default function Home({ onPlanClick }: HomeProps) {
   const faqItems = [
     {
       q: 'Is this program suitable for busy corporate professionals with long working hours?',
-      a: 'Absolutely. In fact, this is our core specialization. Coach Chinmay spent 13 years in executive corporate leadership (MBA & Computer Science Engineer) before becoming a nutrition consultant. We build the workouts (45 minutes, highly optimized) and nutrition around your board meetings, client dinners, and travel schedules—not the other way around.'
+      a: 'Absolutely. In fact, this is our core specialization. Coach Chinmay spent 14 years in executive corporate leadership (MBA & Computer Science Engineer) before becoming a nutrition consultant. We build the workouts (45 minutes, highly optimized) and nutrition around your board meetings, client dinners, and travel schedules—not the other way around.'
     },
     {
       q: 'What credentials does Coach Chinmay hold to ensure safety?',
@@ -221,36 +213,68 @@ export default function Home({ onPlanClick }: HomeProps) {
     }
   ];
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        goal: '',
-        code: 'IN +91',
-      });
-    }, 5000);
-  };
-
   const toggleFaq = (index: number) => {
     setOpenFaqIndex(openFaqIndex === index ? null : index);
   };
 
+  const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://fitkode.com/#org",
+    "name": "Fitkode",
+    "legalName": "Fitkode",
+    "url": "https://fitkode.com",
+    "logo": "https://fitkode.com/icon-512.png",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "telephone": "+91-9828402190",
+      "contactType": "customer service",
+      "email": "myfitkode@gmail.com",
+      "areaServed": "IN"
+    }
+  };
+
+  const personSchema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": "https://fitkode.com/#chinmay",
+    "name": "Chinmay Jain",
+    "jobTitle": "INFS Certified Fitness & Nutrition Consultant",
+    "worksFor": { "@id": "https://fitkode.com/#org" },
+    "description": "INFS Certified Nutrition Consultant, ICN Natural Bodybuilding Medalist, former corporate executive with 14+ years experience.",
+    "telephone": "+91-9828402190",
+    "email": "myfitkode@gmail.com"
+  };
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqItems.map(f => ({
+      "@type": "Question",
+      "name": f.q,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": f.a
+      }
+    }))
+  };
+
   return (
     <div className="space-y-24 pb-20 overflow-x-hidden">
+      <Seo 
+        title="Fitkode — Fitness Simplified | Personalized Coaching by Chinmay Jain"
+        description="Evidence-based nutrition and workout coaching built by INFS-certified consultant Chinmay Jain. Simplified Indian diets, 45-minute workouts, 10 masterclasses."
+        canonicalPath="/"
+        schema={[orgSchema, personSchema, faqSchema]}
+      />
       
       {/* Premium Hero Section Inspired by Inspiration Design */}
-      <section className="relative overflow-hidden bg-amber-50/40 border-b border-amber-200/50 min-h-[550px] sm:min-h-[620px] flex items-center">
-        {/* Atmospheric Sunset / Warm Background */}
+      <section className="relative overflow-hidden bg-gradient-to-r from-brand-dark-green via-[#1f2d1f] to-brand-green border-b border-brand-light-green/20 min-h-[550px] sm:min-h-[620px] flex items-center text-white">
+        {/* Subtle Atmospheric Overlay */}
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-80 pointer-events-none"
+          className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(to right, rgba(255,248,240,0.95) 0%, rgba(255,240,225,0.75) 50%, rgba(0,0,0,0.2) 100%), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80')`
+            backgroundImage: `linear-gradient(to right, rgba(20,30,20,0.95) 0%, rgba(20,30,20,0.8) 50%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80')`
           }}
         />
 
@@ -262,10 +286,10 @@ export default function Home({ onPlanClick }: HomeProps) {
               
               {/* Stacked Large Display Name */}
               <div className="space-y-1">
-                <h1 className="font-sans font-black text-6xl sm:text-7xl lg:text-8xl tracking-wider text-neutral-900 uppercase leading-[0.92] select-none">
+                <h1 className="font-sans font-black text-6xl sm:text-7xl lg:text-8xl tracking-wider text-white uppercase leading-[0.92] select-none drop-shadow-sm">
                   CHINMAY<br />JAIN
                 </h1>
-                <p className="pt-3 sm:pt-4 text-base sm:text-xl md:text-2xl font-bold tracking-[0.2em] sm:tracking-[0.26em] text-neutral-800 uppercase font-sans">
+                <p className="pt-3 sm:pt-4 text-base sm:text-xl md:text-2xl font-bold tracking-[0.2em] sm:tracking-[0.26em] text-brand-light-green uppercase font-mono">
                   FITNESS &amp; LIFESTYLE COACH
                 </p>
               </div>
@@ -284,22 +308,22 @@ export default function Home({ onPlanClick }: HomeProps) {
                 </a>
                 <button
                   onClick={onPlanClick}
-                  className="px-6 sm:px-8 py-3.5 sm:py-4 border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white text-neutral-900 font-bold tracking-wider text-sm uppercase transition-all inline-block text-center cursor-pointer rounded-sm"
+                  className="px-6 sm:px-8 py-3.5 sm:py-4 border-2 border-white hover:bg-white hover:text-brand-dark-green text-white font-bold tracking-wider text-sm uppercase transition-all inline-block text-center cursor-pointer rounded-sm"
                 >
                   EXPLORE PLANS
                 </button>
               </div>
 
               {/* Sub-Badges / Quick Credentials */}
-              <div className="pt-2 flex flex-wrap items-center gap-2.5 text-xs font-semibold text-neutral-800">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-neutral-300 shadow-sm">
-                  <GraduationCap className="h-3.5 w-3.5 text-brand-green" /> INFS Certified Consultant
+              <div className="pt-2 flex flex-wrap items-center gap-2.5 text-xs font-medium text-brand-light-green">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-brand-light-green/30 shadow-sm text-white">
+                  <GraduationCap className="h-3.5 w-3.5 text-brand-light-green" /> INFS Certified Consultant
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-neutral-300 shadow-sm">
-                  <Trophy className="h-3.5 w-3.5 text-brand-green" /> ICN Natural Athlete Medalist
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-brand-light-green/30 shadow-sm text-white">
+                  <Trophy className="h-3.5 w-3.5 text-brand-light-green" /> ICN Natural Athlete Medalist
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-neutral-300 shadow-sm">
-                  <Briefcase className="h-3.5 w-3.5 text-brand-green" /> 13+ Yrs Corporate Executive Empathy
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-brand-light-green/30 shadow-sm text-white">
+                  <Briefcase className="h-3.5 w-3.5 text-brand-light-green" /> 14+ Yrs Corporate Executive Empathy
                 </span>
               </div>
 
@@ -351,11 +375,187 @@ export default function Home({ onPlanClick }: HomeProps) {
             </div>
 
             <div className="space-y-1">
-              <h4 className="font-display font-extrabold text-sm tracking-wide text-brand-light-green">13+ YRS CORPORATE</h4>
+              <h4 className="font-display font-extrabold text-sm tracking-wide text-brand-light-green">14+ YRS CORPORATE</h4>
               <p className="text-[9px] uppercase tracking-wider text-white/70">Executive Lifestyle Empathy</p>
             </div>
 
           </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section - Weblium Studio Style Split Layout */}
+      <section className="bg-[#F8F8F6] py-16 sm:py-24 border-y border-neutral-200/80 overflow-hidden relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          
+          {/* Main Weblium Studio Card */}
+          <div className="bg-white rounded-[2.5rem] border border-neutral-200/90 shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
+            
+            {/* Left Half: Large Client Photo (Weblium Style) */}
+            <div className="lg:col-span-5 relative bg-neutral-100 flex items-center justify-center overflow-hidden min-h-[350px] sm:min-h-[450px] lg:min-h-[540px]">
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={clientSuccesses[activeTestimonialIndex].id}
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.35 }}
+                  src={clientSuccesses[activeTestimonialIndex].img}
+                  alt={clientSuccesses[activeTestimonialIndex].name}
+                  className="absolute inset-0 w-full h-full object-cover object-top"
+                  referrerPolicy="no-referrer"
+                />
+              </AnimatePresence>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent lg:hidden" />
+            </div>
+
+            {/* Right Half: Testimonial Details (Weblium Style) */}
+            <div className="lg:col-span-7 p-8 sm:p-12 lg:p-14 flex flex-col justify-between text-left space-y-8 bg-white">
+              <div>
+                {/* Heading & Underline Line */}
+                <div className="mb-8">
+                  <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold text-neutral-900 tracking-tight">
+                    What our Students say
+                  </h2>
+                  <p className="text-xs sm:text-sm text-neutral-500 font-medium mt-1.5 tracking-wide">
+                    Real people .. real transformations.
+                  </p>
+                  <div className="w-20 h-1 bg-brand-green mt-3 rounded-full" />
+                </div>
+
+                {/* Main Quote Content */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={clientSuccesses[activeTestimonialIndex].id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                  >
+                    {clientSuccesses[activeTestimonialIndex].quote ? (
+                      <p className="text-base sm:text-lg lg:text-xl text-neutral-800 leading-relaxed font-normal">
+                        "{clientSuccesses[activeTestimonialIndex].quote}"
+                      </p>
+                    ) : (
+                      <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 text-emerald-800 font-medium text-sm flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-brand-green flex-shrink-0" />
+                        <span>Verified Fitkode Graduate Alumnus</span>
+                      </div>
+                    )}
+
+                    {/* Complete textual information for each student */}
+                    {(clientSuccesses[activeTestimonialIndex].achievements || clientSuccesses[activeTestimonialIndex].feedback) && (
+                      <div className="space-y-3 pt-2">
+                        {clientSuccesses[activeTestimonialIndex].achievements && (
+                          <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200/80">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green block mb-1 font-mono">
+                              VERIFIED ACHIEVEMENTS
+                            </span>
+                            <p className="text-xs sm:text-sm text-neutral-700 font-medium leading-relaxed">
+                              {clientSuccesses[activeTestimonialIndex].achievements}
+                            </p>
+                          </div>
+                        )}
+
+                        {clientSuccesses[activeTestimonialIndex].feedback && (
+                          <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200/80">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green block mb-1 font-mono">
+                              COACH FEEDBACK & REQUESTS
+                            </span>
+                            <p className="text-xs sm:text-sm text-neutral-700 font-medium leading-relaxed">
+                              {clientSuccesses[activeTestimonialIndex].feedback}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Client Name & Profession (Weblium Accent Style) */}
+              <div className="pt-6 border-t border-neutral-100 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+                <div>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
+                    {clientSuccesses[activeTestimonialIndex].name}
+                  </h3>
+                  <p className="text-sm font-bold text-brand-green mt-1 tracking-wide">
+                    {clientSuccesses[activeTestimonialIndex].role}
+                  </p>
+                  <p className="text-xs font-mono text-neutral-400 mt-1 uppercase tracking-wider">
+                    {clientSuccesses[activeTestimonialIndex].focus}
+                  </p>
+                </div>
+
+                {/* Dot Pagination Controls & Prev/Next */}
+                <div className="flex items-center gap-3 self-end sm:self-auto">
+                  <button
+                    onClick={() => setActiveTestimonialIndex((prev) => (prev - 1 + clientSuccesses.length) % clientSuccesses.length)}
+                    className="w-10 h-10 rounded-full border border-neutral-300 hover:border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all flex items-center justify-center text-neutral-700 cursor-pointer shadow-sm"
+                    aria-label="Previous Testimonial"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {clientSuccesses.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveTestimonialIndex(idx)}
+                        className={`transition-all rounded-full cursor-pointer ${
+                          activeTestimonialIndex === idx
+                            ? 'w-7 h-2 bg-brand-green'
+                            : 'w-2 h-2 bg-neutral-300 hover:bg-neutral-500'
+                        }`}
+                        aria-label={`Go to student ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setActiveTestimonialIndex((prev) => (prev + 1) % clientSuccesses.length)}
+                    className="w-10 h-10 rounded-full border border-neutral-300 hover:border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all flex items-center justify-center text-neutral-700 cursor-pointer shadow-sm"
+                    aria-label="Next Testimonial"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Interactive Student Avatar Selector Thumbnails at Bottom */}
+          <div className="pt-2 space-y-3">
+            <div className="text-center">
+              <span className="text-[11px] font-mono font-bold text-neutral-400 uppercase tracking-widest">
+                SELECT A GRADUATE TO READ THEIR STORY
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap">
+              {clientSuccesses.map((student, idx) => (
+                <button
+                  key={student.id}
+                  onClick={() => setActiveTestimonialIndex(idx)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-full border transition-all duration-200 cursor-pointer ${
+                    activeTestimonialIndex === idx
+                      ? 'bg-neutral-900 text-white border-neutral-900 shadow-md scale-105'
+                      : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50'
+                  }`}
+                >
+                  <img
+                    src={student.img}
+                    alt={student.name}
+                    className="w-6 h-6 rounded-full object-cover border border-white/40"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-xs font-bold tracking-tight">{student.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -663,7 +863,7 @@ export default function Home({ onPlanClick }: HomeProps) {
                 The Founder's Journey: From Executive to Consultant
               </h4>
               <p className="text-xs text-gray-600 leading-relaxed font-medium">
-                "For 13 years, I worked in intense corporate executive roles. I sat at a desk for 11 hours, ate processed meals during deadlines, and faced severe chronic fatigue. I hold an MBA in Marketing and an Engineering degree in Computer Science, so analytical metrics are in my blood. When I discovered the clinical science of nutrition and transformed my own life, I became an INFS Certified Nutrition & Fitness Consultant to share this simplified science with the world."
+                "For 14 years, I worked in intense corporate executive roles. I sat at a desk for 11 hours, ate processed meals during deadlines, and faced severe chronic fatigue. I hold an MBA in Marketing and an Engineering degree in Computer Science, so analytical metrics are in my blood. When I discovered the clinical science of nutrition and transformed my own life, I became an INFS Certified Nutrition & Fitness Consultant to share this simplified science with the world."
               </p>
               <div className="text-[11px] text-brand-green font-bold uppercase tracking-wider font-mono">
                 My Promise: I will help you master the metrics so you never need to hire a coach again.
@@ -684,179 +884,6 @@ export default function Home({ onPlanClick }: HomeProps) {
         </div>
       </section>
 
-      {/* Testimonials Section - Weblium Studio Style Split Layout */}
-      <section className="bg-[#F8F8F6] py-16 sm:py-24 border-y border-neutral-200/80 overflow-hidden relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          
-          {/* Main Weblium Studio Card */}
-          <div className="bg-white rounded-[2.5rem] border border-neutral-200/90 shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
-            
-            {/* Left Half: Large Client Photo (Weblium Style) */}
-            <div className="lg:col-span-5 relative bg-neutral-100 flex items-center justify-center overflow-hidden min-h-[350px] sm:min-h-[450px] lg:min-h-[540px]">
-              <AnimatePresence mode="wait">
-                <motion.img
-                  key={clientSuccesses[activeTestimonialIndex].id}
-                  initial={{ opacity: 0, scale: 1.05 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.35 }}
-                  src={clientSuccesses[activeTestimonialIndex].img}
-                  alt={clientSuccesses[activeTestimonialIndex].name}
-                  className="absolute inset-0 w-full h-full object-cover object-top"
-                  referrerPolicy="no-referrer"
-                />
-              </AnimatePresence>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent lg:hidden" />
-            </div>
-
-            {/* Right Half: Testimonial Details (Weblium Style) */}
-            <div className="lg:col-span-7 p-8 sm:p-12 lg:p-14 flex flex-col justify-between text-left space-y-8 bg-white">
-              <div>
-                {/* Heading & Underline Line */}
-                <div className="mb-8">
-                  <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold text-neutral-900 tracking-tight">
-                    What our clients say
-                  </h2>
-                  <div className="w-20 h-1 bg-brand-green mt-3 rounded-full" />
-                </div>
-
-                {/* Main Quote Content */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={clientSuccesses[activeTestimonialIndex].id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-6"
-                  >
-                    {clientSuccesses[activeTestimonialIndex].quote ? (
-                      <p className="text-base sm:text-lg lg:text-xl text-neutral-800 leading-relaxed font-normal">
-                        "{clientSuccesses[activeTestimonialIndex].quote}"
-                      </p>
-                    ) : (
-                      <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 text-emerald-800 font-medium text-sm flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-brand-green flex-shrink-0" />
-                        <span>Verified Fitkode Graduate Alumnus</span>
-                      </div>
-                    )}
-
-                    {/* Complete textual information for each student */}
-                    {(clientSuccesses[activeTestimonialIndex].achievements || clientSuccesses[activeTestimonialIndex].feedback) && (
-                      <div className="space-y-3 pt-2">
-                        {clientSuccesses[activeTestimonialIndex].achievements && (
-                          <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200/80">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green block mb-1 font-mono">
-                              VERIFIED ACHIEVEMENTS
-                            </span>
-                            <p className="text-xs sm:text-sm text-neutral-700 font-medium leading-relaxed">
-                              {clientSuccesses[activeTestimonialIndex].achievements}
-                            </p>
-                          </div>
-                        )}
-
-                        {clientSuccesses[activeTestimonialIndex].feedback && (
-                          <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200/80">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green block mb-1 font-mono">
-                              COACH FEEDBACK & REQUESTS
-                            </span>
-                            <p className="text-xs sm:text-sm text-neutral-700 font-medium leading-relaxed">
-                              {clientSuccesses[activeTestimonialIndex].feedback}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              {/* Client Name & Profession (Weblium Accent Style) */}
-              <div className="pt-6 border-t border-neutral-100 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-                <div>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
-                    {clientSuccesses[activeTestimonialIndex].name}
-                  </h3>
-                  <p className="text-sm font-bold text-brand-green mt-1 tracking-wide">
-                    {clientSuccesses[activeTestimonialIndex].role}
-                  </p>
-                  <p className="text-xs font-mono text-neutral-400 mt-1 uppercase tracking-wider">
-                    {clientSuccesses[activeTestimonialIndex].focus}
-                  </p>
-                </div>
-
-                {/* Dot Pagination Controls & Prev/Next */}
-                <div className="flex items-center gap-3 self-end sm:self-auto">
-                  <button
-                    onClick={() => setActiveTestimonialIndex((prev) => (prev - 1 + clientSuccesses.length) % clientSuccesses.length)}
-                    className="w-10 h-10 rounded-full border border-neutral-300 hover:border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all flex items-center justify-center text-neutral-700 cursor-pointer shadow-sm"
-                    aria-label="Previous Testimonial"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-
-                  <div className="flex items-center gap-1.5">
-                    {clientSuccesses.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveTestimonialIndex(idx)}
-                        className={`transition-all rounded-full cursor-pointer ${
-                          activeTestimonialIndex === idx
-                            ? 'w-7 h-2 bg-brand-green'
-                            : 'w-2 h-2 bg-neutral-300 hover:bg-neutral-500'
-                        }`}
-                        aria-label={`Go to student ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setActiveTestimonialIndex((prev) => (prev + 1) % clientSuccesses.length)}
-                    className="w-10 h-10 rounded-full border border-neutral-300 hover:border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all flex items-center justify-center text-neutral-700 cursor-pointer shadow-sm"
-                    aria-label="Next Testimonial"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* Interactive Student Avatar Selector Thumbnails at Bottom */}
-          <div className="pt-2 space-y-3">
-            <div className="text-center">
-              <span className="text-[11px] font-mono font-bold text-neutral-400 uppercase tracking-widest">
-                SELECT A GRADUATE TO READ THEIR STORY
-              </span>
-            </div>
-            <div className="flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap">
-              {clientSuccesses.map((student, idx) => (
-                <button
-                  key={student.id}
-                  onClick={() => setActiveTestimonialIndex(idx)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-full border transition-all duration-200 cursor-pointer ${
-                    activeTestimonialIndex === idx
-                      ? 'bg-neutral-900 text-white border-neutral-900 shadow-md scale-105'
-                      : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50'
-                  }`}
-                >
-                  <img
-                    src={student.img}
-                    alt={student.name}
-                    className="w-6 h-6 rounded-full object-cover border border-white/40"
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className="text-xs font-bold tracking-tight">{student.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </section>
-
       {/* Instagram Grid CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="text-center space-y-2">
@@ -864,7 +891,7 @@ export default function Home({ onPlanClick }: HomeProps) {
             INSTAGRAM FEED
           </span>
           <h2 className="font-display text-2xl md:text-3xl font-extrabold text-brand-dark-green">
-            Join 10K+ Followers <a href="https://www.instagram.com/fitkode/" target="_blank" rel="noreferrer" className="text-brand-green hover:underline">@fitkode</a>
+            Join us on Instagram <a href="https://www.instagram.com/fitkode/" target="_blank" rel="noreferrer" className="text-brand-green hover:underline">@fitkode</a>
           </h2>
           <p className="text-xs text-gray-500 max-w-md mx-auto">Get daily posture correction exercises, meal-swapping masterclasses, and scientific calorie metrics directly on your social feed.</p>
         </div>
@@ -934,163 +961,8 @@ export default function Home({ onPlanClick }: HomeProps) {
       </section>
 
       {/* Get in Touch / Consultation Intake Form Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-3xl border border-brand-light-green overflow-hidden shadow-md grid grid-cols-1 md:grid-cols-5">
-          
-          {/* Quick Info Sidebar */}
-          <div className="md:col-span-2 bg-brand-green text-white p-8 flex flex-col justify-between space-y-8 relative overflow-hidden">
-            <div className="absolute -right-12 -bottom-12 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
-            
-            <div className="space-y-3 z-10">
-              <span className="text-[9px] uppercase tracking-wider text-brand-light-green font-extrabold font-mono bg-white/10 px-2 py-0.5 rounded">INTAKE FORM</span>
-              <h3 className="font-display text-2xl font-bold leading-tight">Start Your Transformation</h3>
-              <p className="text-xs text-brand-light-green/90 leading-relaxed">
-                Connect for personalized checkup requests, high-net-worth individual (HNW) physical optimizations, corporate fitness seminars, or general questions.
-              </p>
-            </div>
-
-            <div className="space-y-4 z-10">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/10 text-white">
-                  <Phone className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-brand-light-green font-medium">CALL DIRECTLY</p>
-                  <p className="text-xs font-bold font-mono">+91-9828402190</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/10 text-white">
-                  <Mail className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-brand-light-green font-medium">SECURE EMAIL</p>
-                  <p className="text-xs font-bold font-mono">myfitkode@gmail.com</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/10 text-white">
-                  <MapPin className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-brand-light-green font-medium">HEADQUARTERS</p>
-                  <p className="text-xs font-medium font-sans">A1905, Prateek Wisteria, Sec-77, Noida-201301</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-[9px] text-brand-light-green/75 z-10 border-t border-white/15 pt-3">
-              We respond to scientific inquiry forms within 4 corporate hours.
-            </div>
-          </div>
-
-          {/* Interactive Form */}
-          <div className="md:col-span-3 p-8 space-y-5 text-left">
-            <div className="space-y-1">
-              <h4 className="font-display font-extrabold text-brand-dark-green text-lg">Personal Consultation Inquiry</h4>
-              <p className="text-[10px] text-gray-400 font-semibold uppercase">Provide your baseline parameters to begin</p>
-            </div>
-            
-            {submitted ? (
-              <div className="h-64 flex flex-col items-center justify-center text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-brand-light-green text-brand-green flex items-center justify-center font-bold text-xl shadow-inner">
-                  ✓
-                </div>
-                <p className="font-display font-extrabold text-brand-dark-green text-lg">Inquiry Securely Logged!</p>
-                <p className="text-xs text-gray-500">Coach Chinmay Jain or a Fitkode specialist will call you directly to organize your metabolic review.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">First Name *</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="e.g. Sanjay"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                      className="w-full px-3 py-2 bg-white border border-brand-light-green rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-green text-brand-dark-green placeholder:text-gray-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Last Name *</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="e.g. Verma"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                      className="w-full px-3 py-2 bg-white border border-brand-light-green rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-green text-brand-dark-green placeholder:text-gray-300"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Email Address *</label>
-                  <input 
-                    type="email" 
-                    required
-                    placeholder="sanjay@gmail.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full px-3 py-2 bg-white border border-brand-light-green rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-green text-brand-dark-green placeholder:text-gray-300"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-1">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Country</label>
-                    <select 
-                      value={formData.code}
-                      onChange={(e) => setFormData({...formData, code: e.target.value})}
-                      className="w-full px-2 py-2.5 border border-brand-light-green bg-white rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-green text-brand-dark-green"
-                    >
-                      <option value="IN +91">IN +91</option>
-                      <option value="US +1">US +1</option>
-                      <option value="UK +44">UK +44</option>
-                      <option value="AE +971">AE +971</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Active Contact Number *</label>
-                    <input 
-                      type="tel" 
-                      required
-                      placeholder="98284 02190"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      className="w-full px-3 py-2 bg-white border border-brand-light-green rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-green text-brand-dark-green placeholder:text-gray-300"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">What goal or health challenge are you chasing?</label>
-                  <textarea 
-                    rows={2}
-                    placeholder="e.g. Want to shed 12kg, reverse heavy corporate stress, and correct desk-bound posture..."
-                    value={formData.goal}
-                    onChange={(e) => setFormData({...formData, goal: e.target.value})}
-                    className="w-full px-3 py-2 bg-white border border-brand-light-green rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-green resize-none text-brand-dark-green placeholder:text-gray-300"
-                  />
-                </div>
-
-                <button 
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-lg bg-brand-green text-white font-bold text-xs shadow hover:bg-brand-dark-green transition-all uppercase tracking-wider"
-                >
-                  <Send className="h-4 w-4" />
-                  Submit Intake Form Securely
-                </button>
-              </form>
-            )}
-
-          </div>
-
-        </div>
+      <section className="w-full">
+        <ContactForm />
       </section>
 
     </div>

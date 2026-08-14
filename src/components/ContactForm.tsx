@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
 import { Send, Phone, Mail, MapPin, CheckCircle, Clock } from 'lucide-react';
+import Seo from './Seo';
 
-export default function ContactForm() {
+interface ContactFormProps {
+  title?: string;
+  subtitle?: string;
+  showHeader?: boolean;
+}
+
+export default function ContactForm({
+  title = "Contact Fitkode Studio",
+  subtitle = "Embark on your holistic body transformation journey. Send over any custom questions or coaching queries today.",
+  showHeader = true,
+}: ContactFormProps = {}) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -54,14 +65,23 @@ export default function ContactForm() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <Seo 
+        title="Contact Coach Chinmay Jain | Fitkode Studio"
+        description="Book your personal consultation with INFS-certified coach Chinmay Jain. Direct phone, email and studio address in Noida."
+        canonicalPath="/contact"
+      />
       
       {/* Title */}
-      <div className="text-center space-y-2 mb-12">
-        <h1 className="font-display text-4xl font-extrabold text-[#111] tracking-tight">Contact Fitkode Studio</h1>
-        <p className="text-xs text-gray-500 font-medium max-w-lg mx-auto leading-relaxed">
-          Embark on your holistic body transformation journey. Send over any custom questions or coaching queries today.
-        </p>
-      </div>
+      {showHeader && (
+        <div className="text-center space-y-2 mb-12">
+          <h1 className="font-display text-4xl font-extrabold text-[#111] tracking-tight">{title}</h1>
+          {subtitle && (
+            <p className="text-xs text-gray-500 font-medium max-w-lg mx-auto leading-relaxed">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
         

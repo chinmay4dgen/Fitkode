@@ -1,85 +1,51 @@
-import React, { useState } from 'react';
-import { ActivePage } from './types';
+import React, { useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Home from './components/Home';
 import PlansPricing from './components/PlansPricing';
 import FitnessTools from './components/FitnessTools';
 import ContactForm from './components/ContactForm';
+import AboutPage from './components/AboutPage';
+import ResultsPage from './components/ResultsPage';
+import PrivacyPolicyPage from './components/PrivacyPolicyPage';
+import TermsPage from './components/TermsPage';
+import RefundPolicyPage from './components/RefundPolicyPage';
 import Footer from './components/Footer';
-import { motion, AnimatePresence } from 'motion/react';
-import { ShieldCheck, Dumbbell, Sparkles } from 'lucide-react';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
 
 export default function App() {
-  const [activePage, setActivePage] = useState<ActivePage>('home');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const renderPage = () => {
-    switch (activePage) {
-      case 'home':
-        return (
-          <motion.div
-            key="home"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-          >
-            <Home onPlanClick={() => setActivePage('plans-pricing')} />
-          </motion.div>
-        );
-      case 'plans-pricing':
-        return (
-          <motion.div
-            key="plans"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-          >
-            <PlansPricing searchTerm={searchTerm} />
-          </motion.div>
-        );
-      case 'fitness-tools':
-        return (
-          <motion.div
-            key="tools"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-          >
-            <FitnessTools />
-          </motion.div>
-        );
-      case 'contact-us':
-        return (
-          <motion.div
-            key="contact"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-          >
-            <ContactForm />
-          </motion.div>
-        );
-      default:
-        return <Home onPlanClick={() => setActivePage('plans-pricing')} />;
-    }
-  };
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-natural-oat flex flex-col justify-between selection:bg-brand-light-green selection:text-brand-dark-green">
-      <Header 
-        activePage={activePage} 
-        setActivePage={setActivePage} 
-        onSearch={setSearchTerm} 
-      />
+      <ScrollToTop />
+      <Header />
 
       <main className="flex-grow">
-        <AnimatePresence mode="wait">
-          {renderPage()}
-        </AnimatePresence>
+        <Routes>
+          <Route path="/" element={<Home onPlanClick={() => navigate('/coaching-plans')} />} />
+          <Route path="/coaching-plans" element={<PlansPricing searchTerm="" />} />
+          <Route path="/tools" element={<FitnessTools />} />
+          <Route path="/tools/bmi-calculator" element={<FitnessTools focusedTool="bmi" />} />
+          <Route path="/tools/tdee-calculator" element={<FitnessTools focusedTool="tdee" />} />
+          <Route path="/tools/macro-calculator" element={<FitnessTools focusedTool="macro" />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/results" element={<ResultsPage />} />
+          <Route path="/contact" element={<ContactForm />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="*" element={<Home onPlanClick={() => navigate('/coaching-plans')} />} />
+        </Routes>
       </main>
 
       <Footer />

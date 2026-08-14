@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plan } from '../types';
 import { Check, Info, HelpCircle, ShieldCheck, Sparkles, CreditCard, X, Settings } from 'lucide-react';
+import Seo from './Seo';
 
 interface PlansPricingProps {
   searchTerm: string;
@@ -14,19 +15,21 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'success'>('form');
   const [paymentId, setPaymentId] = useState('');
 
-  // Auto-loaded Razorpay script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      // safe cleanup if element exists
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
+  // Load Razorpay script dynamically on demand
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ('Razorpay' in window) {
+        resolve(true);
+        return;
       }
-    };
-  }, []);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const plans: Plan[] = [
     {
@@ -139,9 +142,11 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     setShowKeyConfig(false);
   };
 
-  const invokeRazorpayCheckout = (e: React.FormEvent) => {
+  const invokeRazorpayCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlan) return;
+
+    await loadRazorpayScript();
 
     // Retrieve active key: custom user input key -> env variable -> mock fallback testing key
     const activeKeyId = customKey || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_mockKeyId777';
@@ -189,14 +194,39 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     }
   };
 
+  const serviceSchema = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "serviceType": "Online Fitness and Nutrition Coaching",
+    "provider": { "@id": "https://fitkode.com/#org" },
+    "areaServed": { "@type": "Country", "name": "India" },
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Fitkode Coaching Plans",
+      "itemListElement": [
+        { "@type": "Offer", "name": "3 Months Plan — Fitness Fundamentals", "price": "20999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" },
+        { "@type": "Offer", "name": "6 Months Plan — Comprehensive", "price": "38999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" },
+        { "@type": "Offer", "name": "Annual Plan — Longevity & Habits Builder", "price": "71999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" },
+        { "@type": "Offer", "name": "Diet & Nutrition Plan", "price": "3999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" },
+        { "@type": "Offer", "name": "Workout Science Plan", "price": "3999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" }
+      ]
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 py-12">
+      <Seo 
+        title="Coaching Plans & Pricing — From ₹3,999 | Fitkode"
+        description="Compare Fitkode's 3-month, 6-month and annual coaching plans. Custom diets, supervised workouts and 10 masterclasses. 30-day transparent guarantee."
+        canonicalPath="/coaching-plans"
+        schema={serviceSchema}
+      />
       
       {/* Page Title & Razorpay Seal */}
       <div className="flex flex-col lg:flex-row gap-8 items-center justify-between bg-white/80 backdrop-blur-md rounded-3xl border border-brand-light-green p-8 shadow-sm">
         <div className="space-y-4 max-w-2xl text-center lg:text-left">
           <h1 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-brand-dark-green leading-tight">
-            Your Life's Best Investment <br /> For Your & Family's Health
+            Your Life's Best Investment <br /> For Your &amp; Family's Health
           </h1>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs md:text-sm text-gray-600 font-medium">
             <li className="flex items-center gap-2">
@@ -232,13 +262,15 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
             referrerPolicy="no-referrer"
           />
 
-          <button 
-            onClick={() => setShowKeyConfig(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-brand-light-green text-[10px] font-bold text-brand-dark-green hover:bg-brand-light-green/20 hover:text-brand-green transition-all"
-          >
-            <Settings className="h-3 w-3" />
-            {customKey ? 'Razorpay Configured ✓' : 'Setup Razorpay API Key'}
-          </button>
+          {(import.meta.env.DEV || customKey) && (
+            <button 
+              onClick={() => setShowKeyConfig(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-brand-light-green text-[10px] font-bold text-brand-dark-green hover:bg-brand-light-green/20 hover:text-brand-green transition-all"
+            >
+              <Settings className="h-3 w-3" />
+              {customKey ? 'Razorpay Configured ✓' : 'Setup Razorpay API Key'}
+            </button>
+          )}
         </div>
       </div>
 

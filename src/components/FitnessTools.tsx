@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ActivityLevel, TDEEInput, MacroSplit } from '../types';
 import { Dumbbell, Scale, Flame, Sparkles, AlertCircle, TrendingDown, TrendingUp, Sparkle, ArrowRight, UserCheck } from 'lucide-react';
+import Seo from './Seo';
 
-export default function FitnessTools() {
+interface FitnessToolsProps {
+  focusedTool?: 'bmi' | 'tdee' | 'macro';
+}
+
+export default function FitnessTools({ focusedTool }: FitnessToolsProps) {
   // BMI Calculator States
   const [bmiWeight, setBmiWeight] = useState(75); // kg
   const [bmiHeight, setBmiHeight] = useState(178); // cm
@@ -138,8 +143,46 @@ export default function FitnessTools() {
 
   const advice = getCoachAdvice();
 
+  let seoTitle = 'Free Fitness Calculators — BMI, TDEE, Macros | Fitkode';
+  let seoDesc = 'Evidence-based calculators for body mass index, daily energy expenditure and macronutrient splits, built for Indian diets and real schedules.';
+  let seoCanonical = '/tools';
+
+  if (focusedTool === 'bmi') {
+    seoTitle = 'BMI Calculator for Indian Adults — Free | Fitkode';
+    seoDesc = 'Calculate your BMI instantly and see what the number actually means for Indian body composition, plus the metrics that matter more than BMI.';
+    seoCanonical = '/tools/bmi-calculator';
+  } else if (focusedTool === 'tdee') {
+    seoTitle = 'TDEE Calculator — Daily Calorie Needs | Fitkode';
+    seoDesc = 'Find your maintenance calories with the Mifflin-St Jeor formula, adjusted for your real activity level, then split them into protein, carbs and fats.';
+    seoCanonical = '/tools/tdee-calculator';
+  } else if (focusedTool === 'macro') {
+    seoTitle = 'Macro Calculator for Fat Loss & Muscle | Fitkode';
+    seoDesc = 'Split your calories into protein, carbs and fats for fat loss, maintenance or muscle gain — with guidance for vegetarian Indian meals.';
+    seoCanonical = '/tools/macro-calculator';
+  }
+
+  const webAppSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": seoTitle,
+    "url": `https://fitkode.com${seoCanonical}`,
+    "applicationCategory": "HealthApplication",
+    "operatingSystem": "All",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "INR"
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 text-left">
+      <Seo 
+        title={seoTitle}
+        description={seoDesc}
+        canonicalPath={seoCanonical}
+        schema={webAppSchema}
+      />
       
       {/* Upper Description Header */}
       <div className="text-center space-y-3 bg-white rounded-3xl p-8 md:p-10 border border-brand-light-green shadow-sm max-w-4xl mx-auto">

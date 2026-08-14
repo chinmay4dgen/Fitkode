@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /*?utm_
+Disallow: /*?fbclid
+
+Sitemap: https://fitkode.com/sitemap.xml
