@@ -3,14 +3,14 @@ import { Award, Zap, Heart, Shield, Dumbbell, Sparkles, Send, Phone, Mail, MapPi
 import { motion, AnimatePresence } from 'motion/react';
 import ContactForm from './ContactForm';
 import Seo from './Seo';
-import chinmayImg from '../../assets/Chinmay_compresed_webp.webp';
-import alankarImg from '../../assets/Alankar_Bhatnagar.jpg';
-import dhawalImg from '../../assets/Dhawal_Kapil.png';
-import karamjitImg from '../../assets/Karamjit _Singh.jpg';
-import nitishImg from '../../assets/Nitish_Srivastave.jpeg';
-import sanketImg from '../../assets/Sanket_Sarda.jpg';
-import shuchiImg from '../../assets/Shuchi.png';
-import snehaImg from '../../assets/Sneha_Sharma.png';
+import chinmayImg from '../assets/images/Chinmay_compresed_webp.webp';
+import alankarImg from '../assets/images/Alankar_Bhatnagar.jpg';
+import dhawalImg from '../assets/images/Dhawal_Kapil.png';
+import karamjitImg from '../assets/images/Karamjit _Singh.jpg';
+import nitishImg from '../assets/images/Nitish_Srivastave.jpeg';
+import sanketImg from '../assets/images/Sanket_Sarda.jpg';
+import shuchiImg from '../assets/images/Shuchi.png';
+import snehaImg from '../assets/images/Sneha_Sharma.png';
 
 interface HomeProps {
   onPlanClick: () => void;

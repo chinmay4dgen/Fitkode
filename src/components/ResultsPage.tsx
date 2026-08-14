@@ -1,13 +1,13 @@
 import React from 'react';
 import Seo from './Seo';
 import { Star, Quote, CheckCircle, ShieldCheck } from 'lucide-react';
-import snehaImg from '../../assets/Sneha_Sharma.png';
-import shuchiImg from '../../assets/Shuchi.png';
-import sanketImg from '../../assets/Sanket_Sarda.jpg';
-import karamjitImg from '../../assets/Karamjit _Singh.jpg';
-import alankarImg from '../../assets/Alankar_Bhatnagar.jpg';
-import dhawalImg from '../../assets/Dhawal_Kapil.png';
-import nitishImg from '../../assets/Nitish_Srivastave.jpeg';
+import snehaImg from '../assets/images/Sneha_Sharma.png';
+import shuchiImg from '../assets/images/Shuchi.png';
+import sanketImg from '../assets/images/Sanket_Sarda.jpg';
+import karamjitImg from '../assets/images/Karamjit _Singh.jpg';
+import alankarImg from '../assets/images/Alankar_Bhatnagar.jpg';
+import dhawalImg from '../assets/images/Dhawal_Kapil.png';
+import nitishImg from '../assets/images/Nitish_Srivastave.jpeg';
 
 export default function ResultsPage() {
   const testimonials = [
