@@ -25,6 +25,24 @@ function ScrollToTop() {
 export default function App() {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const redirect = sessionStorage.getItem('fk_redirect');
+    if (redirect) {
+      sessionStorage.removeItem('fk_redirect');
+      try {
+        const url = new URL(redirect);
+        if (url.pathname && url.pathname !== '/') {
+          navigate(url.pathname + url.search + url.hash, { replace: true });
+        }
+      } catch {
+        // Fallback for relative paths
+        if (redirect.startsWith('/') && redirect !== '/') {
+          navigate(redirect, { replace: true });
+        }
+      }
+    }
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-natural-oat flex flex-col justify-between selection:bg-brand-light-green selection:text-brand-dark-green">
       <ScrollToTop />

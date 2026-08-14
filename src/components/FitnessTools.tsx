@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ActivityLevel, TDEEInput, MacroSplit } from '../types';
 import { Dumbbell, Scale, Flame, Sparkles, AlertCircle, TrendingDown, TrendingUp, Sparkle, ArrowRight, UserCheck } from 'lucide-react';
 import Seo from './Seo';
@@ -499,17 +500,12 @@ export default function FitnessTools({ focusedTool }: FitnessToolsProps) {
                   <p className="text-xs font-extrabold text-brand-dark-green">{advice.recoPlan}</p>
                 </div>
 
-                <a 
-                  href="#plans"
-                  onClick={() => {
-                    // Navigate to plans-pricing tab if required
-                    const navBtn = document.querySelector('button[active-tab="plans-pricing"]');
-                    if (navBtn) (navBtn as HTMLButtonElement).click();
-                  }}
+                <Link 
+                  to="/coaching-plans"
                   className="px-4 py-2 bg-brand-green hover:bg-brand-dark-green text-white font-bold text-xs rounded-lg shadow-sm transition-all flex items-center gap-1.5 uppercase tracking-wide cursor-pointer"
                 >
                   Apply Metrics to Coaching Program <ArrowRight className="h-3 w-3" />
-                </a>
+                </Link>
               </div>
 
             </div>

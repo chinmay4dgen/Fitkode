@@ -4,7 +4,7 @@ import { Star, Quote, CheckCircle, ShieldCheck } from 'lucide-react';
 import snehaImg from '../assets/images/Sneha_Sharma.png';
 import shuchiImg from '../assets/images/Shuchi.png';
 import sanketImg from '../assets/images/Sanket_Sarda.jpg';
-import karamjitImg from '../assets/images/Karamjit _Singh.jpg';
+import karamjitImg from '../assets/images/Karamjit_Singh.jpg';
 import alankarImg from '../assets/images/Alankar_Bhatnagar.jpg';
 import dhawalImg from '../assets/images/Dhawal_Kapil.png';
 import nitishImg from '../assets/images/Nitish_Srivastave.jpeg';

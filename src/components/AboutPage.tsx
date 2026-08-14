@@ -3,7 +3,7 @@ import Seo from './Seo';
 import { Award, GraduationCap, Briefcase, Trophy, Sparkles, CheckCircle, Heart, ArrowRight, ShieldCheck, ExternalLink, Maximize2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import chinmayImg from '../assets/images/Chinmay_compresed_webp.webp';
-import diplomaImg from '../assets/images/Diploma in Nutrition & Fitness.webp';
+import diplomaImg from '../assets/images/Diploma_Nutrition_Fitness.webp';
 
 export default function AboutPage() {
   const [showFullCertificate, setShowFullCertificate] = useState(false);

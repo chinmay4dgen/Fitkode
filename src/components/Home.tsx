@@ -6,7 +6,7 @@ import Seo from './Seo';
 import chinmayImg from '../assets/images/Chinmay_compresed_webp.webp';
 import alankarImg from '../assets/images/Alankar_Bhatnagar.jpg';
 import dhawalImg from '../assets/images/Dhawal_Kapil.png';
-import karamjitImg from '../assets/images/Karamjit _Singh.jpg';
+import karamjitImg from '../assets/images/Karamjit_Singh.jpg';
 import nitishImg from '../assets/images/Nitish_Srivastave.jpeg';
 import sanketImg from '../assets/images/Sanket_Sarda.jpg';
 import shuchiImg from '../assets/images/Shuchi.png';
