@@ -20,6 +20,13 @@ export default function Footer() {
                 src={fitkodeLogo} 
                 alt="Fitkode" 
                 className="h-10 sm:h-11 w-auto object-contain brightness-0 invert"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.dataset.triedPublic) {
+                    target.dataset.triedPublic = 'true';
+                    target.src = '/images/regenerated_image_1786680575798.webp';
+                  }
+                }}
               />
             </div>
             <p className="text-xs text-white/80 max-w-sm mx-auto md:mx-0 leading-relaxed">

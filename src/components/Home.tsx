@@ -337,6 +337,13 @@ export default function Home({ onPlanClick }: HomeProps) {
                     src={chinmayImg} 
                     alt="Coach Chinmay Jain - Fitness & Lifestyle Coach" 
                     className="w-full aspect-[4/3] sm:aspect-[5/4] lg:aspect-square object-cover object-top brightness-[1.02] contrast-[1.02] hover:scale-[1.02] transition-all duration-500 rounded-2xl shadow-2xl"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.dataset.triedPublic) {
+                        target.dataset.triedPublic = 'true';
+                        target.src = '/images/Chinmay_compresed_webp.webp';
+                      }
+                    }}
                   />
                   {/* Status Overlay */}
                   <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-emerald-900 bg-emerald-50/95 border border-emerald-500/20 shadow-md backdrop-blur-sm">
@@ -393,19 +400,47 @@ export default function Home({ onPlanClick }: HomeProps) {
             {/* Left Half: Large Client Photo (Weblium Style) */}
             <div className="lg:col-span-5 relative bg-neutral-100 flex items-center justify-center overflow-hidden min-h-[350px] sm:min-h-[450px] lg:min-h-[540px]">
               <AnimatePresence mode="wait">
-                <motion.img
-                  key={clientSuccesses[activeTestimonialIndex].id}
-                  initial={{ opacity: 0, scale: 1.05 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.35 }}
-                  src={clientSuccesses[activeTestimonialIndex].img}
-                  alt={clientSuccesses[activeTestimonialIndex].name}
-                  className="absolute inset-0 w-full h-full object-cover object-top"
-                  referrerPolicy="no-referrer"
-                />
+                {clientSuccesses[activeTestimonialIndex].img ? (
+                  <motion.img
+                    key={clientSuccesses[activeTestimonialIndex].id}
+                    initial={{ opacity: 0, scale: 1.05 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.35 }}
+                    src={clientSuccesses[activeTestimonialIndex].img}
+                    alt={clientSuccesses[activeTestimonialIndex].name}
+                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallbackMap: Record<string, string> = {
+                        'sneha-sharma': '/images/Sneha_Sharma.png',
+                        'shuchi-agarwal': '/images/Shuchi.png',
+                        'sanket-sarda': '/images/Sanket_Sarda.jpg',
+                        'karamjit-singh-bedi': '/images/Karamjit_Singh.jpg',
+                        'alankar-bhatnagar': '/images/Alankar_Bhatnagar.jpg',
+                        'dhawal-kapil': '/images/Dhawal_Kapil.png',
+                        'nitish-srivastava': '/images/Nitish_Srivastave.jpeg'
+                      };
+                      const fallback = fallbackMap[clientSuccesses[activeTestimonialIndex].id];
+                      if (fallback && !target.dataset.triedFallback) {
+                        target.dataset.triedFallback = 'true';
+                        target.src = fallback;
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full bg-brand-dark-green flex flex-col items-center justify-center text-white p-8 text-center space-y-4">
+                    <div className="w-24 h-24 rounded-full bg-brand-light-green/20 border-2 border-brand-light-green/40 flex items-center justify-center text-3xl font-mono font-black text-brand-light-green shadow-inner">
+                      {clientSuccesses[activeTestimonialIndex].name.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-display text-2xl font-bold text-white">{clientSuccesses[activeTestimonialIndex].name}</p>
+                      <p className="text-xs text-brand-light-green font-mono uppercase tracking-wider">{clientSuccesses[activeTestimonialIndex].role}</p>
+                    </div>
+                  </div>
+                )}
               </AnimatePresence>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent lg:hidden" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent lg:hidden pointer-events-none" />
             </div>
 
             {/* Right Half: Testimonial Details (Weblium Style) */}
@@ -544,12 +579,34 @@ export default function Home({ onPlanClick }: HomeProps) {
                       : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50'
                   }`}
                 >
-                  <img
-                    src={student.img}
-                    alt={student.name}
-                    className="w-6 h-6 rounded-full object-cover border border-white/40"
-                    referrerPolicy="no-referrer"
-                  />
+                  {student.img ? (
+                    <img
+                      src={student.img}
+                      alt={student.name}
+                      className="w-6 h-6 rounded-full object-cover border border-white/40"
+                      onError={(e) => {
+                        const fallbackMap: Record<string, string> = {
+                          'sneha-sharma': '/images/Sneha_Sharma.png',
+                          'shuchi-agarwal': '/images/Shuchi.png',
+                          'sanket-sarda': '/images/Sanket_Sarda.jpg',
+                          'karamjit-singh-bedi': '/images/Karamjit_Singh.jpg',
+                          'alankar-bhatnagar': '/images/Alankar_Bhatnagar.jpg',
+                          'dhawal-kapil': '/images/Dhawal_Kapil.png',
+                          'nitish-srivastava': '/images/Nitish_Srivastave.jpeg'
+                        };
+                        const target = e.currentTarget;
+                        const fallback = fallbackMap[student.id];
+                        if (fallback && !target.dataset.triedFallback) {
+                          target.dataset.triedFallback = 'true';
+                          target.src = fallback;
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="w-6 h-6 rounded-full bg-brand-green text-white text-[9px] font-bold font-mono flex items-center justify-center border border-white/40">
+                      {student.name.split(' ').map(n => n[0]).join('')}
+                    </span>
+                  )}
                   <span className="text-xs font-bold tracking-tight">{student.name}</span>
                 </button>
               ))}

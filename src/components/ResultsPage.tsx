@@ -114,6 +114,23 @@ export default function ResultsPage() {
                   height="48"
                   loading="lazy"
                   decoding="async"
+                  onError={(e) => {
+                    const fallbackMap: Record<string, string> = {
+                      'Sneha Sharma': '/images/Sneha_Sharma.png',
+                      'Shuchi Agarwal': '/images/Shuchi.png',
+                      'Sanket Sarda': '/images/Sanket_Sarda.jpg',
+                      'Karamjit Singh Bedi': '/images/Karamjit_Singh.jpg',
+                      'Alankar Bhatnagar': '/images/Alankar_Bhatnagar.jpg',
+                      'Dhawal Kapil': '/images/Dhawal_Kapil.png',
+                      'Nitish Srivastava': '/images/Nitish_Srivastave.jpeg'
+                    };
+                    const target = e.currentTarget;
+                    const fallback = fallbackMap[item.name];
+                    if (fallback && !target.dataset.triedFallback) {
+                      target.dataset.triedFallback = 'true';
+                      target.src = fallback;
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-brand-green text-white font-bold text-base flex items-center justify-center font-mono border-2 border-brand-green/30">

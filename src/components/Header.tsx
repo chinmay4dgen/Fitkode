@@ -27,6 +27,13 @@ export default function Header() {
               src={fitkodeLogo} 
               alt="Fitkode" 
               className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.triedPublic) {
+                  target.dataset.triedPublic = 'true';
+                  target.src = '/images/regenerated_image_1786680575798.webp';
+                }
+              }}
             />
           </Link>
 

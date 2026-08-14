@@ -56,6 +56,13 @@ export default function AboutPage() {
               width="400"
               height="500"
               fetchPriority="high"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.triedPublic) {
+                  target.dataset.triedPublic = 'true';
+                  target.src = '/images/Chinmay_compresed_webp.webp';
+                }
+              }}
             />
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white text-center">
               <p className="font-display font-bold text-sm">Chinmay Jain</p>
@@ -106,6 +113,13 @@ export default function AboutPage() {
               onClick={() => setShowFullCertificate(true)}
               width="1200"
               height="850"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.triedPublic) {
+                  target.dataset.triedPublic = 'true';
+                  target.src = '/images/Diploma_Nutrition_Fitness.webp';
+                }
+              }}
             />
             <button
               onClick={() => setShowFullCertificate(true)}
