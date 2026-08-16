@@ -800,11 +800,11 @@ export default function Home({ onPlanClick }: HomeProps) {
                   <div className="grid grid-cols-2 gap-4 bg-brand-light-green/20 p-4 rounded-xl border border-brand-green/5 text-center">
                     <div>
                       <p className="text-[10px] text-gray-400 font-bold uppercase">FOUNDATIONAL WEIGHT</p>
-                      <p className="text-lg font-mono font-extrabold text-red-600">89 kg (Obese DAD)</p>
+                      <p className="text-lg font-mono font-extrabold text-red-600">78 kg (Obese DAD)</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400 font-bold uppercase">OPTIMIZED STATE</p>
-                      <p className="text-lg font-mono font-extrabold text-brand-green">74 kg (Athletic State)</p>
+                      <p className="text-lg font-mono font-extrabold text-brand-green">62 kg (Athletic State)</p>
                     </div>
                   </div>
                   <ul className="text-xs text-gray-600 space-y-2">

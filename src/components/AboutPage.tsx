@@ -12,7 +12,7 @@ export default function AboutPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
       <Seo 
         title="Chinmay Jain — INFS Certified Coach | Fitkode"
-        description="From 89 kg corporate executive to ICN natural bodybuilding medalist and INFS-certified nutrition consultant. The credentials and story behind Fitkode."
+        description="From 78 kg corporate executive to ICN natural bodybuilding medalist and INFS-certified nutrition consultant. The credentials and story behind Fitkode."
         canonicalPath="/about"
       />
 
@@ -29,7 +29,7 @@ export default function AboutPage() {
             INFS Certified Nutrition &amp; Fitness Consultant · ICN Natural Athlete Medalist
           </p>
           <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-            I spent 14 years in demanding corporate executive leadership, sitting at a desk for 11+ hours, battling chronic fatigue, and navigating corporate stress. With an MBA in Marketing and a Computer Science Engineering degree, analytical metrics are in my DNA. When I transformed my own health from 89 kg to competitive peak physical shape, I founded Fitkode to deliver evidence-based, sustainable fitness for busy professionals.
+            I spent 14 years in demanding corporate executive leadership, sitting at a desk for 11+ hours, battling chronic fatigue, and navigating corporate stress. With an MBA in Marketing and a Computer Science Engineering degree, analytical metrics are in my DNA. When I transformed my own health from 78 kg to competitive peak physical shape, I founded Fitkode to deliver evidence-based, sustainable fitness for busy professionals.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link 

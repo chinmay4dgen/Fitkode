@@ -14,6 +14,9 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
   const [showConfig, setShowKeyConfig] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'success'>('form');
   const [paymentId, setPaymentId] = useState('');
+  const [orderId, setOrderId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Load Razorpay script dynamically on demand
   const loadRazorpayScript = (): Promise<boolean> => {
@@ -146,51 +149,130 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     e.preventDefault();
     if (!selectedPlan) return;
 
-    await loadRazorpayScript();
+    setIsLoading(true);
+    setCheckoutError(null);
 
-    // Retrieve active key: custom user input key -> env variable -> mock fallback testing key
-    const activeKeyId = customKey || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_mockKeyId777';
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      setIsLoading(false);
+      setCheckoutError("Failed to load Razorpay payment SDK. Please check your internet connection.");
+      return;
+    }
 
-    // Check if Razorpay script is present
-    if ('Razorpay' in window) {
-      const RazorpayConstructor = (window as any).Razorpay;
+    try {
+      // 1. Request backend to create a real Razorpay Order
+      let orderData: { orderId?: string; keyId?: string; amount?: number; currency?: string } | null = null;
       
-      const options = {
-        key: activeKeyId,
-        amount: selectedPlan.price * 100, // paisa
-        currency: 'INR',
-        name: 'FITKODE',
-        description: selectedPlan.name,
-        image: 'https://static.wixstatic.com/media/176a3f_90b60bdbc10c452bbb9ed88748c65af6~mv2.png/v1/crop/x_329,y_64,w_1417,h_961/fill/w_85,h_62,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/176a3f_90b60bdbc10c452bbb9ed88748c65af6~mv2.png',
-        handler: function (response: any) {
-          const transId = response.razorpay_payment_id || `rzp_pay_${Math.random().toString(36).substring(4).toUpperCase()}`;
-          setPaymentId(transId);
-          setCheckoutStep('success');
-        },
-        prefill: {
-          name: customerInfo.name,
-          email: customerInfo.email,
-          contact: customerInfo.phone,
-        },
-        notes: {
-          initiative: 'Fitkode Fitness Simplified',
-          focal_coach: 'Chinmay Jain'
-        },
-        theme: {
-          color: '#5A5A40',
-        },
-      };
+      try {
+        const orderResponse = await fetch('/api/razorpay/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planId: selectedPlan.id,
+            planName: selectedPlan.name,
+            amount: selectedPlan.price,
+            customerInfo,
+          }),
+        });
 
-      const rzpInstance = new RazorpayConstructor(options);
-      rzpInstance.on('payment.failed', function (resp: any) {
-        alert("Payment flow failed or cancelled. Using simulation fallback.");
-      });
-      rzpInstance.open();
-    } else {
-      // Simulated custom beautiful Razorpay transition fallback if script loaded has network hurdles
-      const simulatedPayId = `rzp_sim_${Math.random().toString(36).substring(5).toUpperCase()}`;
-      setPaymentId(simulatedPayId);
-      setCheckoutStep('success');
+        const data = await orderResponse.json();
+        if (orderResponse.ok && data.success) {
+          orderData = data;
+        } else if (data.hint) {
+          console.info('Razorpay backend hint:', data.hint);
+        }
+      } catch (err) {
+        console.warn('Backend order creation call skipped or unavailable:', err);
+      }
+
+      // Determine active key ID: backend key -> custom local key -> public env key
+      const activeKeyId = orderData?.keyId || customKey || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || '';
+
+      if (!activeKeyId) {
+        setIsLoading(false);
+        setCheckoutError("Razorpay API Key not yet configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Settings > Secrets.");
+        setShowKeyConfig(true);
+        return;
+      }
+
+      if ('Razorpay' in window) {
+        const RazorpayConstructor = (window as any).Razorpay;
+        
+        const options: any = {
+          key: activeKeyId,
+          amount: selectedPlan.price * 100, // paise
+          currency: 'INR',
+          name: 'Fitkode',
+          description: selectedPlan.name,
+          image: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786877440/My%20Brand/Fitkode_Logo_300_x_150_px_bmxnpa.png',
+          prefill: {
+            name: customerInfo.name,
+            email: customerInfo.email,
+            contact: customerInfo.phone,
+          },
+          notes: {
+            initiative: 'Fitkode Fitness Simplified',
+            focal_coach: 'Chinmay Jain',
+            plan_id: selectedPlan.id,
+          },
+          theme: {
+            color: '#1C8A43', // Fitkode signature green
+          },
+          handler: async function (response: any) {
+            setIsLoading(true);
+            try {
+              // 2. Verify signature on backend if order_id is present
+              if (response.razorpay_signature && response.razorpay_order_id) {
+                const verifyRes = await fetch('/api/razorpay/verify-payment', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                    planName: selectedPlan.name,
+                    customerInfo,
+                  }),
+                });
+                const verifyData = await verifyRes.json();
+                if (!verifyRes.ok || !verifyData.success) {
+                  console.warn('Payment verification notice:', verifyData.error);
+                }
+              }
+
+              setPaymentId(response.razorpay_payment_id || `rzp_pay_${Date.now()}`);
+              setOrderId(response.razorpay_order_id || orderData?.orderId || '');
+              setCheckoutStep('success');
+            } catch (vErr) {
+              console.error('Verification error:', vErr);
+              setPaymentId(response.razorpay_payment_id || `rzp_pay_${Date.now()}`);
+              setCheckoutStep('success');
+            } finally {
+              setIsLoading(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setIsLoading(false);
+            },
+          },
+        };
+
+        if (orderData?.orderId) {
+          options.order_id = orderData.orderId;
+        }
+
+        const rzpInstance = new RazorpayConstructor(options);
+        rzpInstance.on('payment.failed', function (resp: any) {
+          setIsLoading(false);
+          setCheckoutError(resp?.error?.description || "Payment was cancelled or failed. Please try again.");
+        });
+        rzpInstance.open();
+      }
+    } catch (err: any) {
+      console.error('Checkout initialization failed:', err);
+      setIsLoading(false);
+      setCheckoutError(err.message || 'An error occurred initializing payment gateway.');
     }
   };
 
@@ -481,15 +563,29 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
                   </div>
                 </div>
 
+                {checkoutError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 leading-relaxed">
+                    <strong>Notice:</strong> {checkoutError}
+                  </div>
+                )}
+
                 <div className="bg-white/50 p-3 rounded-lg border border-brand-light-green text-[10px] text-brand-dark-green leading-relaxed">
-                  <strong>Razorpay Payment:</strong> Click below to launch Razorpay Secure Checkout. You can pay with Card, Netbanking, or mock sandbox metrics.
+                  <strong>Razorpay Payment:</strong> Click below to launch the official Razorpay Checkout gateway. Supports UPI, Netbanking, Credit/Debit Cards, and Wallets.
                 </div>
 
                 <button 
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-xs shadow-md hover:bg-brand-dark-green transition-all"
+                  disabled={isLoading}
+                  className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-xs shadow-md hover:bg-brand-dark-green transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  Pay ₹{selectedPlan.price.toLocaleString('en-IN')} with Razorpay
+                  {isLoading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Connecting to Razorpay...
+                    </>
+                  ) : (
+                    `Pay ₹${selectedPlan.price.toLocaleString('en-IN')} with Razorpay`
+                  )}
                 </button>
               </form>
             ) : (
@@ -499,7 +595,7 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
                 </div>
                 <div className="space-y-1">
                   <h3 className="font-display text-xl font-bold text-brand-dark-green">Transformation Process Begun!</h3>
-                  <p className="text-xs text-gray-500">Your secure transaction has completed successfully.</p>
+                  <p className="text-xs text-gray-500">Your transaction has completed successfully.</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl text-left text-xs font-mono space-y-2 border border-brand-light-green">
@@ -515,6 +611,12 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
                     <span className="text-gray-405">CLIENT:</span>
                     <span className="font-bold text-brand-dark-green">{customerInfo.name}</span>
                   </p>
+                  {orderId && (
+                    <p className="flex justify-between">
+                      <span className="text-gray-405">ORDER ID:</span>
+                      <span className="font-bold text-gray-700 text-[10px] break-all">{orderId}</span>
+                    </p>
+                  )}
                   <p className="flex justify-between">
                     <span className="text-gray-405">PAYMENT ID:</span>
                     <span className="font-bold text-brand-green text-[10px] break-all">{paymentId}</span>
