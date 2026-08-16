@@ -97,7 +97,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Sneha Sharma',
       role: 'Fitkode Graduate',
       quote: 'Gained a better understanding of weight loss through portion control and proper workouts rather than starvation.',
-      img: snehaImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878319/Sneha_Sharma.png',
       rating: 5,
       score: '10 / 10',
       achievements: 'Clothes that didn\'t fit now fit.',
@@ -109,7 +109,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Shuchi Agarwal',
       role: 'Fitkode Graduate',
       quote: 'Feels more confident and appreciates the guidance and support.',
-      img: shuchiImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Shuchi.png',
       rating: 5,
       score: '10 / 10',
       achievements: 'Satisfied with weight and inch loss as per targets.',
@@ -121,7 +121,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Sanket Sarda',
       role: 'Fitkode Graduate',
       quote: 'Praised Coach Chinmay\'s communication skills and ability to quantify diet plans without major changes to preferences.',
-      img: sanketImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Sanket_Sarda.jpg',
       rating: 5,
       score: '10 / 10',
       achievements: 'Loss in waist inches, increased strength and endurance.',
@@ -133,7 +133,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Karamjit Singh Bedi',
       role: 'Fitkode Graduate',
       quote: 'Gained strength, improved sleep and diet, and is seeing steady results.',
-      img: karamjitImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Karamjit__Singh.jpg',
       rating: 5,
       score: '10 / 10',
       achievements: 'Gained strength, improved sleep and diet, and is seeing steady results.',
@@ -157,7 +157,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Alankar Bhatnagar',
       role: 'Fitkode Graduate',
       quote: '',
-      img: alankarImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Alankar_Bhatnagar.jpg',
       rating: 5,
       score: '10 / 10',
       achievements: '',
@@ -169,7 +169,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Dhawal Kapil',
       role: 'Fitkode Graduate',
       quote: '',
-      img: dhawalImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Dhawal_Kapil.png',
       rating: 5,
       score: '10 / 10',
       achievements: '',
@@ -181,7 +181,7 @@ export default function Home({ onPlanClick }: HomeProps) {
       name: 'Nitish Srivastava',
       role: 'Fitkode Graduate',
       quote: '',
-      img: nitishImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878317/Nitish_Srivastave.jpg',
       rating: 5,
       score: '10 / 10',
       achievements: '',
@@ -334,14 +334,14 @@ export default function Home({ onPlanClick }: HomeProps) {
               <div className="relative w-full max-w-md sm:max-w-lg">
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl border-2 border-white/80 bg-neutral-900/10 backdrop-blur-sm group">
                   <img 
-                    src={chinmayImg} 
+                    src="https://res.cloudinary.com/akmvlt3d/image/upload/f_auto,q_auto/Chinmay_compresed" 
                     alt="Coach Chinmay Jain - Fitness & Lifestyle Coach" 
                     className="w-full aspect-[4/3] sm:aspect-[5/4] lg:aspect-square object-cover object-top brightness-[1.02] contrast-[1.02] hover:scale-[1.02] transition-all duration-500 rounded-2xl shadow-2xl"
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.dataset.triedPublic) {
                         target.dataset.triedPublic = 'true';
-                        target.src = '/images/Chinmay_compresed_webp.webp';
+                        target.src = chinmayImg;
                       }
                     }}
                   />

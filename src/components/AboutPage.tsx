@@ -50,7 +50,7 @@ export default function AboutPage() {
         <div className="md:col-span-5 flex justify-center">
           <div className="relative rounded-3xl overflow-hidden border-2 border-brand-light-green shadow-lg max-w-sm w-full bg-neutral-100">
             <img 
-              src={chinmayImg} 
+              src="https://res.cloudinary.com/akmvlt3d/image/upload/v1786877327/Chinmay_compresed.png" 
               alt="Chinmay Jain - INFS Certified Nutrition & Fitness Consultant" 
               className="w-full h-auto object-cover"
               width="400"
@@ -58,9 +58,9 @@ export default function AboutPage() {
               fetchPriority="high"
               onError={(e) => {
                 const target = e.currentTarget;
-                if (!target.dataset.triedPublic) {
-                  target.dataset.triedPublic = 'true';
-                  target.src = '/images/Chinmay_compresed_webp.webp';
+                if (!target.dataset.triedFallback) {
+                  target.dataset.triedFallback = 'true';
+                  target.src = chinmayImg;
                 }
               }}
             />
@@ -107,7 +107,7 @@ export default function AboutPage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-8 shadow-sm flex flex-col items-center space-y-6">
           <div className="relative group max-w-3xl w-full rounded-2xl overflow-hidden border-2 border-brand-light-green/90 shadow-md bg-white">
             <img 
-              src={diplomaImg} 
+              src="https://res.cloudinary.com/akmvlt3d/image/upload/v1786878789/Diploma_in_Nutrition_Fitness.webp" 
               alt="Chinmay Jain - Diploma in Nutrition and Fitness Course (INFS / SPEFL-SC Skill India)" 
               className="w-full h-auto object-contain cursor-zoom-in transition-transform duration-300 group-hover:scale-[1.01]"
               onClick={() => setShowFullCertificate(true)}
@@ -115,9 +115,9 @@ export default function AboutPage() {
               height="850"
               onError={(e) => {
                 const target = e.currentTarget;
-                if (!target.dataset.triedPublic) {
-                  target.dataset.triedPublic = 'true';
-                  target.src = '/images/Diploma_Nutrition_Fitness.webp';
+                if (!target.dataset.triedFallback) {
+                  target.dataset.triedFallback = 'true';
+                  target.src = diplomaImg;
                 }
               }}
             />
@@ -169,9 +169,16 @@ export default function AboutPage() {
 
               <div className="max-h-[80vh] overflow-auto rounded-xl">
                 <img 
-                  src={diplomaImg} 
+                  src="https://res.cloudinary.com/akmvlt3d/image/upload/v1786878789/Diploma_in_Nutrition_Fitness.webp" 
                   alt="Chinmay Jain - Diploma in Nutrition and Fitness Course" 
                   className="w-full h-auto object-contain rounded-lg"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.triedFallback) {
+                      target.dataset.triedFallback = 'true';
+                      target.src = diplomaImg;
+                    }
+                  }}
                 />
               </div>
             </div>

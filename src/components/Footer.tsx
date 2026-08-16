@@ -17,14 +17,14 @@ export default function Footer() {
           <div className="md:col-span-1 space-y-3">
             <div className="flex items-center justify-center md:justify-start">
               <img 
-                src={fitkodeLogo} 
+                src="https://res.cloudinary.com/akmvlt3d/image/upload/v1786877440/My%20Brand/Fitkode_Logo_300_x_150_px_bmxnpa.png" 
                 alt="Fitkode" 
                 className="h-10 sm:h-11 w-auto object-contain brightness-0 invert"
                 onError={(e) => {
                   const target = e.currentTarget;
-                  if (!target.dataset.triedPublic) {
-                    target.dataset.triedPublic = 'true';
-                    target.src = '/images/regenerated_image_1786680575798.webp';
+                  if (!target.dataset.triedFallback) {
+                    target.dataset.triedFallback = 'true';
+                    target.src = fitkodeLogo;
                   }
                 }}
               />

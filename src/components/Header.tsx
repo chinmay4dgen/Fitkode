@@ -24,14 +24,14 @@ export default function Header() {
           {/* Logo Section */}
           <Link to="/" className="flex-shrink-0 flex items-center py-1 group" aria-label="Fitkode Home">
             <img 
-              src={fitkodeLogo} 
+              src="https://res.cloudinary.com/akmvlt3d/image/upload/v1786877440/My%20Brand/Fitkode_Logo_300_x_150_px_bmxnpa.png" 
               alt="Fitkode" 
               className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105"
               onError={(e) => {
                 const target = e.currentTarget;
-                if (!target.dataset.triedPublic) {
-                  target.dataset.triedPublic = 'true';
-                  target.src = '/images/regenerated_image_1786680575798.webp';
+                if (!target.dataset.triedFallback) {
+                  target.dataset.triedFallback = 'true';
+                  target.src = fitkodeLogo;
                 }
               }}
             />

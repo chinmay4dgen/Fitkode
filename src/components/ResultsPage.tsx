@@ -14,28 +14,28 @@ export default function ResultsPage() {
     {
       name: 'Sneha Sharma',
       role: 'Corporate Operations Lead',
-      img: snehaImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878319/Sneha_Sharma.png',
       badge: 'Fat Loss & Portion Control',
       quote: 'Lost 11kg in 4 months while managing late-night international client calls. Coach Chinmay simplified Indian home food without cutting out rice or roti.'
     },
     {
       name: 'Shuchi Agarwal',
       role: 'Senior Product Manager',
-      img: shuchiImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Shuchi.png',
       badge: 'Metabolic Health Reversal',
       quote: 'The masterclasses gave me complete clarity on protein and caloric balance. Reversed my chronic afternoon fatigue without expensive supplements.'
     },
     {
       name: 'Sanket Sarda',
       role: 'Software Architect',
-      img: sanketImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Sanket_Sarda.jpg',
       badge: 'Posture & Strength Gain',
       quote: 'Corrected my desk-bound slouch and built sustainable strength with 45-minute workouts. Supervised video sessions ensured my squat and deadlift form was flawless.'
     },
     {
       name: 'Karamjit Singh Bedi',
       role: 'Business Consultant',
-      img: karamjitImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Karamjit__Singh.jpg',
       badge: 'Executive Recomposition',
       quote: 'Fitkode accommodated my intense travel and dining out commitments seamlessly. I learned how to make smart choices at airports and hotel buffets.'
     },
@@ -50,21 +50,21 @@ export default function ResultsPage() {
     {
       name: 'Alankar Bhatnagar',
       role: 'Engineering Manager',
-      img: alankarImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Alankar_Bhatnagar.jpg',
       badge: 'Muscle Building & Mobility',
       quote: 'The scientific approach to workout programming and progressive overload is exceptional. Coach Chinmay speaks executive language with engineer precision.'
     },
     {
       name: 'Dhawal Kapil',
       role: 'Entrepreneur',
-      img: dhawalImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878318/Dhawal_Kapil.png',
       badge: 'Lifestyle Transformation',
       quote: 'Fitkode gave me the tools to stay fit even during peak startup launches. The fasting day guidelines kept my nutrition on track through family festivals.'
     },
     {
       name: 'Nitish Srivastava',
       role: 'Marketing Lead',
-      img: nitishImg,
+      img: 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786878317/Nitish_Srivastave.jpg',
       badge: 'Body Recomposition',
       quote: 'Gained noticeable muscle while dropping body fat. The step-by-step masterclasses on supplements and nutrition labels were worth every rupee.'
     }
