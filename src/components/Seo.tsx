@@ -6,6 +6,7 @@ interface SeoProps {
   description: string;
   canonicalPath?: string;
   ogImage?: string;
+  noIndex?: boolean;
   schema?: object | object[];
 }
 
@@ -14,6 +15,7 @@ export default function Seo({
   description, 
   canonicalPath = '', 
   ogImage = 'https://res.cloudinary.com/akmvlt3d/image/upload/v1786879810/Fitkode_icon_75_by_75.png',
+  noIndex = false,
   schema 
 }: SeoProps) {
   const url = `https://fitkode.com${canonicalPath}`;
@@ -21,6 +23,11 @@ export default function Seo({
     <Helmet>
       <title>{title}</title>
       <meta name="description" content={description} />
+      {noIndex ? (
+        <meta name="robots" content="noindex, nofollow" />
+      ) : (
+        <meta name="robots" content="index, follow" />
+      )}
       <link rel="canonical" href={url} />
       <link rel="icon" href="https://res.cloudinary.com/akmvlt3d/image/upload/v1786879810/Fitkode_icon_75_by_75.png" type="image/png" />
       <meta property="og:title" content={title} />

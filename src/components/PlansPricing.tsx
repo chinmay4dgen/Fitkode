@@ -190,8 +190,7 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
 
       if (!activeKeyId) {
         setIsLoading(false);
-        setCheckoutError("Razorpay API Key not yet configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Settings > Secrets.");
-        setShowKeyConfig(true);
+        setCheckoutError("Payment gateway configuration is currently being connected. You can also proceed directly with Coach Chinmay on WhatsApp.");
         return;
       }
 
@@ -564,8 +563,16 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
                 </div>
 
                 {checkoutError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 leading-relaxed">
-                    <strong>Notice:</strong> {checkoutError}
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 leading-relaxed space-y-2">
+                    <p><strong>Notice:</strong> {checkoutError}</p>
+                    <a
+                      href={`https://wa.me/919828402190?text=Hi%20Chinmay,%20I%20want%20to%20enroll%20in%20the%20${encodeURIComponent(selectedPlan.name)}%20(₹${selectedPlan.price})`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] text-white font-bold rounded-lg text-[11px] shadow hover:bg-[#1EBE5D] transition-colors"
+                    >
+                      <span>💬 Enroll Directly via WhatsApp</span>
+                    </a>
                   </div>
                 )}
 

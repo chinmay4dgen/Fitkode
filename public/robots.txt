@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 
+Disallow: /test
 Disallow: /*?utm_
 Disallow: /*?fbclid
 

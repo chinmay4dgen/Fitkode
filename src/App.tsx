@@ -10,6 +10,7 @@ import ResultsPage from './components/ResultsPage';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage';
 import TermsPage from './components/TermsPage';
 import RefundPolicyPage from './components/RefundPolicyPage';
+import TestPaymentPage from './components/TestPaymentPage';
 import Footer from './components/Footer';
 
 function ScrollToTop() {
@@ -52,6 +53,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home onPlanClick={() => navigate('/coaching-plans')} />} />
           <Route path="/coaching-plans" element={<PlansPricing searchTerm="" />} />
+          <Route path="/coaching-plan" element={<PlansPricing searchTerm="" />} />
           <Route path="/tools" element={<FitnessTools />} />
           <Route path="/tools/bmi-calculator" element={<FitnessTools focusedTool="bmi" />} />
           <Route path="/tools/tdee-calculator" element={<FitnessTools focusedTool="tdee" />} />
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="/test" element={<TestPaymentPage />} />
           <Route path="*" element={<Home onPlanClick={() => navigate('/coaching-plans')} />} />
         </Routes>
       </main>
