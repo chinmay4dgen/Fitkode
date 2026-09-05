@@ -26,12 +26,17 @@ export function isLiveProductionSite(): boolean {
 
 /**
  * Returns true if test login / developer mode is explicitly enabled
- * (either on dev/preview domain OR via ?dev=true / ?test=true query flag).
+ * (ONLY on dev/preview environments, NEVER on live production).
  */
 export function isDevOrTestingMode(): boolean {
   if (typeof window === 'undefined') return false;
   
-  // Allow explicitly forcing test mode via URL query parameter or localStorage flag
+  // NEVER allow test accounts on the live production site under any circumstances
+  if (isLiveProductionSite()) {
+    return false;
+  }
+  
+  // Allow explicitly forcing test mode via URL query parameter or localStorage flag in dev
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('dev') === 'true' || params.get('test') === 'true' || params.get('admin') === 'true') {
@@ -44,14 +49,23 @@ export function isDevOrTestingMode(): boolean {
     // ignore
   }
 
-  // Otherwise, active on dev and preview environments
-  return !isLiveProductionSite();
+  // Otherwise, active only on dev and preview environments
+  return true;
+}
+
+/**
+ * Strictly determines whether test/sample profiles or test sign-in should be available anywhere.
+ * On live site (fitkode.com), returns false always.
+ */
+export function shouldShowTestProfiles(): boolean {
+  return !isLiveProductionSite() && isDevOrTestingMode();
 }
 
 /**
  * Determines whether the "Test Login" button should be visible in the header.
- * On live site (fitkode.com), returns false by default.
+ * On live site (fitkode.com), returns false always.
  */
 export function shouldShowTestLoginInHeader(): boolean {
-  return isDevOrTestingMode() && !isLiveProductionSite();
+  return shouldShowTestProfiles();
 }
+

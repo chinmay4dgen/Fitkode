@@ -52,7 +52,6 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
   const [customRole, setCustomRole] = useState<UserRole>('unpaid');
   const [showCustomEmailForm, setShowCustomEmailForm] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [showAdminBypass, setShowAdminBypass] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isLive = isLiveProductionSite();
@@ -540,8 +539,8 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
               </div>
             </div>
 
-            {/* LIVE PRODUCTION VIEW: Clean, professional client view */}
-            {isLive && !isDevOrTest ? (
+            {/* LIVE PRODUCTION VIEW: Clean, professional client view - ONLY Google Sign-in */}
+            {isLive ? (
               <div className="space-y-5">
                 {isConfigured ? (
                   <button
@@ -591,74 +590,6 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
                     </p>
                   </div>
                 )}
-
-                {/* Coach / Admin Access on live site */}
-                <div className="pt-2 text-center border-t border-gray-100">
-                  {!showAdminBypass ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminBypass(true)}
-                      className="text-[11px] text-gray-400 hover:text-gray-700 transition-colors underline cursor-pointer"
-                    >
-                      Coach & Admin Sign-in
-                    </button>
-                  ) : (
-                    <div className="space-y-3 pt-2 text-left">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                          <Shield className="w-3.5 h-3.5 text-purple-700" />
-                          Coach & Admin 1-Click Access
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowAdminBypass(false)}
-                          className="text-[10px] text-gray-400 hover:text-gray-600"
-                        >
-                          Hide
-                        </button>
-                      </div>
-
-                      {TEST_USER_PRESETS.map((preset) => {
-                        const isPresetAdmin = preset.role === 'admin';
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            disabled={testLoggingIn}
-                            onClick={() => handleTestAccountSelect(preset.id, preset.role)}
-                            className="w-full text-left p-3 rounded-2xl border border-gray-200 hover:border-brand-green bg-gray-50/80 hover:bg-emerald-50/40 transition-all group cursor-pointer flex items-center justify-between gap-3 shadow-2xs"
-                          >
-                            <div className="flex items-center space-x-3 min-w-0">
-                              <img
-                                src={preset.avatarUrl}
-                                alt={preset.name}
-                                className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-gray-200"
-                              />
-                              <div className="min-w-0">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-xs font-bold text-gray-900 truncate">
-                                    {preset.name}
-                                  </span>
-                                  <span
-                                    className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${
-                                      isPresetAdmin
-                                        ? 'bg-purple-100 text-purple-900'
-                                        : 'bg-emerald-100 text-emerald-900'
-                                    }`}
-                                  >
-                                    {preset.badge}
-                                  </span>
-                                </div>
-                                <p className="text-[11px] text-gray-500 truncate">{preset.email}</p>
-                              </div>
-                            </div>
-                            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-green" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             ) : (
               /* DEV / PREVIEW ENVIRONMENT VIEW */

@@ -20,7 +20,7 @@ import {
   HeartPulse,
 } from 'lucide-react';
 import { useAuth, TEST_USER_PRESETS } from '../context/AuthContext';
-import { isLiveProductionSite, isDevOrTestingMode } from '../lib/environment';
+import { isLiveProductionSite, shouldShowTestProfiles } from '../lib/environment';
 import {
   saveOnboardingToSupabase,
   loadOnboardingFromSupabase,
@@ -51,9 +51,8 @@ export default function ClientOnboardingPage() {
   const [saveToast, setSaveToast] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState(false);
   const [signingInPreset, setSigningInPreset] = useState<string | null>(null);
-  const [showDevPresets, setShowDevPresets] = useState(false);
   const isLive = isLiveProductionSite();
-  const isDevOrTest = isDevOrTestingMode();
+  const canShowTestProfiles = shouldShowTestProfiles();
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -203,25 +202,15 @@ export default function ClientOnboardingPage() {
               </button>
             </div>
 
-            {/* 1-Click Instant Test Accounts */}
-            {(!isLive || isDevOrTest || showDevPresets) ? (
+            {/* 1-Click Instant Test Accounts (Dev/Preview Only) */}
+            {canShowTestProfiles && (
               <div className="pt-3 border-t border-gray-100 text-left space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                    Instant 1-Click Testing Accounts
+                    Instant 1-Click Testing Accounts (Dev Only)
                   </span>
-                  {showDevPresets ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowDevPresets(false)}
-                      className="text-[11px] text-gray-400 hover:text-gray-600"
-                    >
-                      Hide
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-gray-400">1 click to log in</span>
-                  )}
+                  <span className="text-[11px] text-gray-400">1 click to log in</span>
                 </div>
 
                 <div className="space-y-2.5">
@@ -276,16 +265,6 @@ export default function ClientOnboardingPage() {
                     );
                   })}
                 </div>
-              </div>
-            ) : (
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowDevPresets(true)}
-                  className="text-[11px] text-gray-400 hover:text-gray-700 underline cursor-pointer"
-                >
-                  Coach & Sample Accounts
-                </button>
               </div>
             )}
 

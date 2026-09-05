@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth, TEST_USER_PRESETS } from '../context/AuthContext';
 import { WeeklyTrackerEntry } from '../types';
-import { isLiveProductionSite, isDevOrTestingMode } from '../lib/environment';
+import { isLiveProductionSite, shouldShowTestProfiles } from '../lib/environment';
 import {
   loadUserWeeklyEntries,
   saveWeeklyEntry,
@@ -34,9 +34,8 @@ export default function WeeklyTrackerPage() {
   const [entries, setEntries] = useState<WeeklyTrackerEntry[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<WeeklyTrackerEntry | null>(null);
-  const [showDevPresets, setShowDevPresets] = useState(false);
   const isLive = isLiveProductionSite();
-  const isDevOrTest = isDevOrTestingMode();
+  const canShowTestProfiles = shouldShowTestProfiles();
   
   // Photo modal state
   const [photoModalEntryId, setPhotoModalEntryId] = useState<string | null>(null);
@@ -121,20 +120,11 @@ export default function WeeklyTrackerPage() {
             <span>{isConfigured ? 'Continue with Google' : 'Sign In as Super Admin'}</span>
           </button>
 
-          {/* Testing presets: collapsible on live site, direct on dev */}
-          {(!isLive || isDevOrTest || showDevPresets) ? (
+          {/* Testing presets: ONLY in dev / preview environments, NEVER on live site */}
+          {canShowTestProfiles && (
             <div className="space-y-2 text-left pt-2 border-t border-gray-100">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Sample Profiles & Testing:</p>
-                {showDevPresets && (
-                  <button
-                    type="button"
-                    onClick={() => setShowDevPresets(false)}
-                    className="text-[10px] text-gray-400 hover:text-gray-600"
-                  >
-                    Hide
-                  </button>
-                )}
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Sample Profiles & Testing (Dev Only):</p>
               </div>
               {TEST_USER_PRESETS.map((preset) => (
                 <button
@@ -155,16 +145,6 @@ export default function WeeklyTrackerPage() {
                   </span>
                 </button>
               ))}
-            </div>
-          ) : (
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => setShowDevPresets(true)}
-                className="text-[11px] text-gray-400 hover:text-gray-700 underline cursor-pointer"
-              >
-                Coach & Sample Profiles
-              </button>
             </div>
           )}
 
