@@ -17,6 +17,11 @@ import {
 } from 'lucide-react';
 import { useAuth, TEST_USER_PRESETS } from '../context/AuthContext';
 import { UserRole } from '../types';
+import {
+  isLiveProductionSite,
+  isDevOrTestingMode,
+  shouldShowTestLoginInHeader,
+} from '../lib/environment';
 
 interface AuthButtonProps {
   className?: string;
@@ -47,7 +52,12 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
   const [customRole, setCustomRole] = useState<UserRole>('unpaid');
   const [showCustomEmailForm, setShowCustomEmailForm] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showAdminBypass, setShowAdminBypass] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isLive = isLiveProductionSite();
+  const showTestInHeader = shouldShowTestLoginInHeader();
+  const isDevOrTest = isDevOrTestingMode();
 
   // Extract Google photo and name
   const googlePhoto = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
@@ -70,8 +80,12 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSignInClick = () => {
-    setShowSignInModal(true);
+  const handleSignInClick = async () => {
+    if (isConfigured) {
+      await handleLiveGoogleSignIn();
+    } else {
+      setShowSignInModal(true);
+    }
   };
 
   const handleTestAccountSelect = async (presetId: string, roleOverride?: UserRole) => {
@@ -488,15 +502,18 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
             <span>{signingIn ? 'Signing in...' : 'Sign in with Google'}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleSignInClick}
-            className="hidden sm:inline-flex items-center space-x-1 py-1.5 px-2.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold transition-all shadow-xs cursor-pointer"
-            title="Instant Test Sign-In"
-          >
-            <Sparkles className="w-3 h-3 text-purple-600" />
-            <span>Test Login</span>
-          </button>
+          {/* Test Login: Only shown in dev/preview environments or when ?dev=true is set */}
+          {showTestInHeader && (
+            <button
+              type="button"
+              onClick={() => setShowSignInModal(true)}
+              className="hidden sm:inline-flex items-center space-x-1 py-1.5 px-2.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Instant Test Sign-In"
+            >
+              <Sparkles className="w-3 h-3 text-purple-600" />
+              <span>Test Login</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -523,175 +540,300 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
               </div>
             </div>
 
-            {/* SECTION 1: INSTANT 1-CLICK TEST ACCOUNTS */}
-            <div className="space-y-2.5 mb-6">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Instant 1-Click Access (Testing Mode)
-                </span>
-                <span className="text-[11px] text-gray-400 font-medium">No passwords required</span>
-              </div>
-
-              <div className="space-y-2">
-                {TEST_USER_PRESETS.map((preset) => {
-                  const isPresetAdmin = preset.role === 'admin';
-                  const isPresetPaid = preset.role === 'paid';
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      disabled={testLoggingIn}
-                      onClick={() => handleTestAccountSelect(preset.id, preset.role)}
-                      className="w-full text-left p-3.5 rounded-2xl border border-gray-200 hover:border-brand-green/60 bg-gray-50/70 hover:bg-emerald-50/40 transition-all group cursor-pointer flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs"
-                    >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <img
-                          src={preset.avatarUrl}
-                          alt={preset.name}
-                          className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white shadow-xs"
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-bold text-gray-900 group-hover:text-brand-dark-green truncate">
-                              {preset.name}
-                            </span>
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                isPresetAdmin
-                                  ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                                  : isPresetPaid
-                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                                  : 'bg-blue-100 text-blue-900 border border-blue-200'
-                              }`}
-                            >
-                              {preset.badge}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">{preset.email}</p>
-                          <p className="text-[11px] text-gray-400 truncate mt-0.5">{preset.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-brand-green group-hover:bg-brand-green group-hover:text-white flex items-center justify-center shrink-0 text-gray-400 transition-colors shadow-2xs">
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Email Toggle */}
-              <div className="pt-1">
-                {!showCustomEmailForm ? (
+            {/* LIVE PRODUCTION VIEW: Clean, professional client view */}
+            {isLive && !isDevOrTest ? (
+              <div className="space-y-5">
+                {isConfigured ? (
                   <button
                     type="button"
-                    onClick={() => setShowCustomEmailForm(true)}
-                    className="text-xs text-brand-green hover:text-brand-dark-green font-semibold underline cursor-pointer"
+                    onClick={handleLiveGoogleSignIn}
+                    disabled={signingIn}
+                    className="w-full flex items-center justify-center space-x-2.5 py-3.5 px-4 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-sm font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-60"
                   >
-                    + Or test with a custom email & role
+                    {signingIn ? (
+                      <span className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin"></span>
+                    ) : (
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                        />
+                      </svg>
+                    )}
+                    <span>{signingIn ? 'Connecting to Google...' : 'Continue with Google'}</span>
                   </button>
                 ) : (
-                  <form onSubmit={handleCustomEmailSubmit} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200 space-y-3 mt-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-700">Custom Test Account</label>
+                  <div className="bg-emerald-50/80 rounded-2xl p-4.5 border border-brand-light-green space-y-2.5 text-left">
+                    <div className="flex items-center space-x-2 text-brand-dark-green text-xs font-bold">
+                      <Shield className="w-4 h-4 text-brand-green" />
+                      <span>Google Authentication Setup</span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      Google Sign-In is being initialized for Fitkode. To connect your Google OAuth client, configure the Supabase URL and key in your hosting secrets.
+                    </p>
+                    <p className="text-xs text-gray-700">
+                      Need immediate client assistance? Contact{' '}
+                      <a href="mailto:chinmay4jain@gmail.com" className="text-brand-green font-bold underline">
+                        chinmay4jain@gmail.com
+                      </a>.
+                    </p>
+                  </div>
+                )}
+
+                {/* Coach / Admin Access on live site */}
+                <div className="pt-2 text-center border-t border-gray-100">
+                  {!showAdminBypass ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminBypass(true)}
+                      className="text-[11px] text-gray-400 hover:text-gray-700 transition-colors underline cursor-pointer"
+                    >
+                      Coach & Admin Sign-in
+                    </button>
+                  ) : (
+                    <div className="space-y-3 pt-2 text-left">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-purple-700" />
+                          Coach & Admin 1-Click Access
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowAdminBypass(false)}
+                          className="text-[10px] text-gray-400 hover:text-gray-600"
+                        >
+                          Hide
+                        </button>
+                      </div>
+
+                      {TEST_USER_PRESETS.map((preset) => {
+                        const isPresetAdmin = preset.role === 'admin';
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            disabled={testLoggingIn}
+                            onClick={() => handleTestAccountSelect(preset.id, preset.role)}
+                            className="w-full text-left p-3 rounded-2xl border border-gray-200 hover:border-brand-green bg-gray-50/80 hover:bg-emerald-50/40 transition-all group cursor-pointer flex items-center justify-between gap-3 shadow-2xs"
+                          >
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <img
+                                src={preset.avatarUrl}
+                                alt={preset.name}
+                                className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-gray-200"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs font-bold text-gray-900 truncate">
+                                    {preset.name}
+                                  </span>
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                      isPresetAdmin
+                                        ? 'bg-purple-100 text-purple-900'
+                                        : 'bg-emerald-100 text-emerald-900'
+                                    }`}
+                                  >
+                                    {preset.badge}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 truncate">{preset.email}</p>
+                              </div>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-green" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* DEV / PREVIEW ENVIRONMENT VIEW */
+              <>
+                {/* SECTION 1: INSTANT 1-CLICK TEST ACCOUNTS */}
+                <div className="space-y-2.5 mb-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Instant 1-Click Access (Testing Mode)
+                    </span>
+                    <span className="text-[11px] text-gray-400 font-medium">No passwords required</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {TEST_USER_PRESETS.map((preset) => {
+                      const isPresetAdmin = preset.role === 'admin';
+                      const isPresetPaid = preset.role === 'paid';
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          disabled={testLoggingIn}
+                          onClick={() => handleTestAccountSelect(preset.id, preset.role)}
+                          className="w-full text-left p-3.5 rounded-2xl border border-gray-200 hover:border-brand-green/60 bg-gray-50/70 hover:bg-emerald-50/40 transition-all group cursor-pointer flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs"
+                        >
+                          <div className="flex items-center space-x-3 min-w-0">
+                            <img
+                              src={preset.avatarUrl}
+                              alt={preset.name}
+                              className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white shadow-xs"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-bold text-gray-900 group-hover:text-brand-dark-green truncate">
+                                  {preset.name}
+                                </span>
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    isPresetAdmin
+                                      ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                                      : isPresetPaid
+                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                                      : 'bg-blue-100 text-blue-900 border border-blue-200'
+                                  }`}
+                                >
+                                  {preset.badge}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 truncate">{preset.email}</p>
+                              <p className="text-[11px] text-gray-400 truncate mt-0.5">{preset.description}</p>
+                            </div>
+                          </div>
+
+                          <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-brand-green group-hover:bg-brand-green group-hover:text-white flex items-center justify-center shrink-0 text-gray-400 transition-colors shadow-2xs">
+                            <ArrowRight className="w-4 h-4" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Email Toggle */}
+                  <div className="pt-1">
+                    {!showCustomEmailForm ? (
                       <button
                         type="button"
-                        onClick={() => setShowCustomEmailForm(false)}
-                        className="text-[11px] text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowCustomEmailForm(true)}
+                        className="text-xs text-brand-green hover:text-brand-dark-green font-semibold underline cursor-pointer"
                       >
-                        Cancel
+                        + Or test with a custom email & role
                       </button>
-                    </div>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. member@fitkode.com"
-                      value={customEmail}
-                      onChange={(e) => setCustomEmail(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 bg-white focus:outline-brand-green"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <label className="text-[11px] text-gray-500 font-medium">Role:</label>
-                      {(['unpaid', 'paid', 'admin'] as UserRole[]).map((r) => (
+                    ) : (
+                      <form onSubmit={handleCustomEmailSubmit} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200 space-y-3 mt-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-gray-700">Custom Test Account</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomEmailForm(false)}
+                            className="text-[11px] text-gray-400 hover:text-gray-600"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <input
+                          type="email"
+                          required
+                          placeholder="e.g. member@fitkode.com"
+                          value={customEmail}
+                          onChange={(e) => setCustomEmail(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 bg-white focus:outline-brand-green"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <label className="text-[11px] text-gray-500 font-medium">Role:</label>
+                          {(['unpaid', 'paid', 'admin'] as UserRole[]).map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => setCustomRole(r)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize transition-colors ${
+                                customRole === r
+                                  ? 'bg-brand-green text-white shadow-2xs'
+                                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
+                              }`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
                         <button
-                          key={r}
-                          type="button"
-                          onClick={() => setCustomRole(r)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize transition-colors ${
-                            customRole === r
-                              ? 'bg-brand-green text-white shadow-2xs'
-                              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}
+                          type="submit"
+                          disabled={testLoggingIn}
+                          className="w-full py-2 bg-brand-dark-green text-white text-xs font-bold rounded-xl hover:bg-black transition-colors cursor-pointer"
                         >
-                          {r}
+                          {testLoggingIn ? 'Logging In...' : 'Log In with Custom Account'}
                         </button>
-                      ))}
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={testLoggingIn}
-                      className="w-full py-2 bg-brand-dark-green text-white text-xs font-bold rounded-xl hover:bg-black transition-colors cursor-pointer"
-                    >
-                      {testLoggingIn ? 'Logging In...' : 'Log In with Custom Account'}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-
-            {/* SECTION 2: LIVE GOOGLE OAUTH */}
-            <div className="border-t border-gray-100 pt-5 space-y-3">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
-                Live Google OAuth
-              </span>
-
-              {isConfigured ? (
-                <button
-                  type="button"
-                  onClick={handleLiveGoogleSignIn}
-                  disabled={signingIn || testLoggingIn}
-                  className="w-full flex items-center justify-center space-x-2.5 py-3 px-4 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-sm font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-60"
-                >
-                  {signingIn ? (
-                    <span className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin"></span>
-                  ) : (
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                  )}
-                  <span>{signingIn ? 'Connecting to Google...' : 'Continue with Google'}</span>
-                </button>
-              ) : (
-                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200/80 space-y-2">
-                  <div className="flex items-center space-x-2 text-amber-800 text-xs font-bold">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-                    <span>Supabase OAuth Keys Not Configured</span>
+                      </form>
+                    )}
                   </div>
-                  <p className="text-[11px] text-amber-700 leading-relaxed">
-                    To enable live Google Sign-In, add <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-amber-900">VITE_SUPABASE_URL</code> and <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-amber-900">VITE_SUPABASE_ANON_KEY</code> in Settings &gt; Secrets.
-                  </p>
-                  <p className="text-[11px] text-amber-800 font-semibold pt-1">
-                    👉 Click any of the 1-click test accounts above to test immediately with full profile and Super Admin access!
-                  </p>
                 </div>
-              )}
-            </div>
+
+                {/* SECTION 2: LIVE GOOGLE OAUTH */}
+                <div className="border-t border-gray-100 pt-5 space-y-3">
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
+                    Live Google OAuth
+                  </span>
+
+                  {isConfigured ? (
+                    <button
+                      type="button"
+                      onClick={handleLiveGoogleSignIn}
+                      disabled={signingIn || testLoggingIn}
+                      className="w-full flex items-center justify-center space-x-2.5 py-3 px-4 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-sm font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      {signingIn ? (
+                        <span className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin"></span>
+                      ) : (
+                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                          <path
+                            fill="#4285F4"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          />
+                          <path
+                            fill="#34A853"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          />
+                          <path
+                            fill="#FBBC05"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          />
+                          <path
+                            fill="#EA4335"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          />
+                        </svg>
+                      )}
+                      <span>{signingIn ? 'Connecting to Google...' : 'Continue with Google'}</span>
+                    </button>
+                  ) : (
+                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200/80 space-y-2">
+                      <div className="flex items-center space-x-2 text-amber-800 text-xs font-bold">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                        <span>Supabase OAuth Keys Not Configured</span>
+                      </div>
+                      <p className="text-[11px] text-amber-700 leading-relaxed">
+                        To enable live Google Sign-In, add <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-amber-900">VITE_SUPABASE_URL</code> and <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-amber-900">VITE_SUPABASE_ANON_KEY</code> in Settings &gt; Secrets.
+                      </p>
+                      <p className="text-[11px] text-amber-800 font-semibold pt-1">
+                        👉 Click any of the 1-click test accounts above to test immediately with full profile and Super Admin access!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body

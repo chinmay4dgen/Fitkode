@@ -24,6 +24,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { useAuth, TEST_USER_PRESETS } from '../context/AuthContext';
+import { isLiveProductionSite, isDevOrTestingMode } from '../lib/environment';
 import {
   saveProfileToSupabase,
   loadProfileFromSupabase,
@@ -66,6 +67,9 @@ export default function UserProfilePage() {
   const [saveStatusDetail, setSaveStatusDetail] = useState('');
   const [onboardingRate, setOnboardingRate] = useState(0);
   const [signingInPreset, setSigningInPreset] = useState<string | null>(null);
+  const [showDevPresets, setShowDevPresets] = useState(false);
+  const isLive = isLiveProductionSite();
+  const isDevOrTest = isDevOrTestingMode();
 
   // Weekly Tracker State in Profile
   const [profileActiveTab, setProfileActiveTab] = useState<'profile' | 'weekly-tracker'>('profile');
@@ -227,72 +231,8 @@ export default function UserProfilePage() {
               </p>
             </div>
 
-            {/* 1-Click Instant Test Accounts */}
-            <div className="pt-2 text-left space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  Instant 1-Click Testing Accounts
-                </span>
-                <span className="text-[11px] text-gray-400">1 click to log in</span>
-              </div>
-
-              <div className="space-y-2.5">
-                {TEST_USER_PRESETS.map((preset) => {
-                  const isPresetAdmin = preset.role === 'admin';
-                  const isPresetPaid = preset.role === 'paid';
-                  const isBusy = signingInPreset === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      disabled={Boolean(signingInPreset)}
-                      onClick={() => handleTestSignIn(preset.id, preset.role)}
-                      className="w-full p-4 rounded-2xl border border-gray-200 hover:border-brand-green bg-gray-50/80 hover:bg-emerald-50/40 transition-all text-left flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs group cursor-pointer"
-                    >
-                      <div className="flex items-center space-x-3.5 min-w-0">
-                        <img
-                          src={preset.avatarUrl}
-                          alt={preset.name}
-                          className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-white shadow-xs"
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-bold text-gray-900 group-hover:text-brand-dark-green truncate">
-                              {preset.name}
-                            </span>
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                isPresetAdmin
-                                  ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                                  : isPresetPaid
-                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                                  : 'bg-blue-100 text-blue-900 border border-blue-200'
-                              }`}
-                            >
-                              {preset.badge}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">{preset.email}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{preset.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-brand-green group-hover:bg-brand-green group-hover:text-white flex items-center justify-center shrink-0 text-gray-400 transition-colors shadow-2xs">
-                        {isBusy ? (
-                          <div className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <ArrowRight className="w-4 h-4" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Live Google Sign-in */}
-            <div className="pt-4 border-t border-gray-100 space-y-3">
+            {/* Primary Google Sign-in */}
+            <div className="pt-2 space-y-3">
               <button
                 type="button"
                 onClick={async () => {
@@ -312,7 +252,95 @@ export default function UserProfilePage() {
                 </svg>
                 <span>{isConfigured ? 'Continue with Google' : 'Sign In as Super Admin'}</span>
               </button>
+            </div>
 
+            {/* 1-Click Instant Test Accounts */}
+            {(!isLive || isDevOrTest || showDevPresets) ? (
+              <div className="pt-3 border-t border-gray-100 text-left space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                    Instant 1-Click Testing Accounts
+                  </span>
+                  {showDevPresets ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowDevPresets(false)}
+                      className="text-[11px] text-gray-400 hover:text-gray-600"
+                    >
+                      Hide
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-gray-400">1 click to log in</span>
+                  )}
+                </div>
+
+                <div className="space-y-2.5">
+                  {TEST_USER_PRESETS.map((preset) => {
+                    const isPresetAdmin = preset.role === 'admin';
+                    const isPresetPaid = preset.role === 'paid';
+                    const isBusy = signingInPreset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        disabled={Boolean(signingInPreset)}
+                        onClick={() => handleTestSignIn(preset.id, preset.role)}
+                        className="w-full p-4 rounded-2xl border border-gray-200 hover:border-brand-green bg-gray-50/80 hover:bg-emerald-50/40 transition-all text-left flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-3.5 min-w-0">
+                          <img
+                            src={preset.avatarUrl}
+                            alt={preset.name}
+                            className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-white shadow-xs"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-bold text-gray-900 group-hover:text-brand-dark-green truncate">
+                                {preset.name}
+                              </span>
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  isPresetAdmin
+                                    ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                                    : isPresetPaid
+                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                                    : 'bg-blue-100 text-blue-900 border border-blue-200'
+                                }`}
+                              >
+                                {preset.badge}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">{preset.email}</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{preset.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-brand-green group-hover:bg-brand-green group-hover:text-white flex items-center justify-center shrink-0 text-gray-400 transition-colors shadow-2xs">
+                          {isBusy ? (
+                            <div className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <ArrowRight className="w-4 h-4" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowDevPresets(true)}
+                  className="text-[11px] text-gray-400 hover:text-gray-700 underline cursor-pointer"
+                >
+                  Coach & Sample Accounts
+                </button>
+              </div>
+            )}
+
+            <div className="pt-2">
               <Link
                 to="/"
                 className="inline-block text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors"
