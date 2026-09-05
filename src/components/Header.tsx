@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import fitkodeLogo from '../assets/images/regenerated_image_1786680575798.webp';
+import AuthButton from './AuthButton';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -17,7 +18,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-natural-oat/90 backdrop-blur-md border-b border-brand-light-green shadow-sm">
+    <header className="sticky top-0 z-40 bg-natural-oat border-b border-brand-light-green shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           
@@ -38,28 +39,35 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`px-3 py-2 rounded-lg text-xs lg:text-sm font-semibold tracking-wide transition-all ${
-                    isActive 
-                      ? 'text-brand-green bg-brand-light-green/40 font-bold' 
-                      : 'text-gray-600 hover:text-brand-green hover:bg-gray-50'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-3">
+            <nav className="flex items-center space-x-1 lg:space-x-2">
+              {menuItems.map((item) => {
+                const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`px-3 py-2 rounded-lg text-xs lg:text-sm font-semibold tracking-wide transition-all ${
+                      isActive 
+                        ? 'text-brand-green bg-brand-light-green/40 font-bold' 
+                        : 'text-gray-600 hover:text-brand-green hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
+            <div className="pl-2 border-l border-gray-200">
+              <AuthButton />
+            </div>
+          </div>
+
+          {/* Mobile Right Controls: Auth Button + Hamburger */}
+          <div className="md:hidden flex items-center space-x-2">
+            <AuthButton />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-md text-gray-500 hover:text-brand-green hover:bg-gray-100 focus:outline-none"
@@ -74,8 +82,13 @@ export default function Header() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-natural-oat border-b border-brand-light-green px-4 pt-2 pb-4 space-y-2 shadow-inner">
-          <div className="space-y-1">
+        <div className="md:hidden bg-natural-oat border-b border-brand-light-green px-4 pt-2 pb-4 space-y-3 shadow-inner">
+          {/* Mobile Auth Status Card */}
+          <div className="pt-1">
+            <AuthButton mobile onActionComplete={() => setMobileMenuOpen(false)} />
+          </div>
+
+          <div className="space-y-1 border-t border-brand-light-green/60 pt-2">
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
               return (
