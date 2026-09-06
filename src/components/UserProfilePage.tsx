@@ -46,6 +46,7 @@ import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
 import WeeklyTrackerModal from './WeeklyTrackerModal';
 import PhotoCompareModal from './PhotoCompareModal';
+import { ToastContainer, ToastMessage } from './Toast';
 
 export default function UserProfilePage() {
   const {
@@ -62,13 +63,21 @@ export default function UserProfilePage() {
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfile>(() => loadUserProfile());
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatusDetail, setSaveStatusDetail] = useState('');
   const [onboardingRate, setOnboardingRate] = useState(0);
   const [signingInPreset, setSigningInPreset] = useState<string | null>(null);
   const isLive = isLiveProductionSite();
   const canShowTestProfiles = shouldShowTestProfiles();
+
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration || 5000 }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Weekly Tracker State in Profile
   const [profileActiveTab, setProfileActiveTab] = useState<'profile' | 'weekly-tracker'>('profile');
@@ -85,15 +94,47 @@ export default function UserProfilePage() {
 
   const handleSaveWeeklyEntry = async (entry: WeeklyTrackerEntry) => {
     if (!user?.email) return;
-    const updated = await saveWeeklyEntry(entry, user.email);
-    setWeeklyEntries(updated);
-    setEditingWeeklyEntry(null);
+    try {
+      const updated = await saveWeeklyEntry(entry, user.email);
+      setWeeklyEntries(updated);
+      setEditingWeeklyEntry(null);
+      addToast({
+        type: 'success',
+        title: 'Check-in Saved',
+        message: `Week ${entry.weekNumber} metrics have been recorded.`,
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Unable to save your check-in. Please try again.',
+        duration: 5000,
+      });
+    }
   };
 
   const handleDeleteWeeklyEntry = async (entryId: string) => {
     if (!user?.email) return;
-    const updated = await deleteWeeklyEntry(entryId, user.email, user.email);
-    setWeeklyEntries(updated);
+    try {
+      const updated = await deleteWeeklyEntry(entryId, user.email, user.email);
+      setWeeklyEntries(updated);
+      addToast({
+        type: 'info',
+        title: 'Check-in Removed',
+        message: 'The check-in entry was removed.',
+        duration: 4000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Action Failed',
+        message: 'Unable to remove the check-in entry.',
+        duration: 5000,
+      });
+    }
   };
 
   // Sync with logged-in user details and Supabase
@@ -172,26 +213,25 @@ export default function UserProfilePage() {
       saveUserProfile(profile, user.id || user.email);
 
       // 2. Persist directly to Supabase
-      const supaRes = await saveProfileToSupabase(profile, user.id || user.email);
+      await saveProfileToSupabase(profile, user.id || user.email);
 
       // 3. Sync to member directory
       await syncCurrentMember({ profile });
 
-      if (supaRes.channel === 'supabase_table') {
-        setSaveStatusDetail('Persisted to Supabase profiles database table');
-      } else if (supaRes.channel === 'supabase_auth_metadata') {
-        setSaveStatusDetail('Persisted to Supabase Auth cloud metadata');
-      } else {
-        setSaveStatusDetail('Persisted to Fitkode cloud member store');
-      }
-
-      setSaveSuccess(true);
-      setTimeout(() => {
-        setSaveSuccess(false);
-        setSaveStatusDetail('');
-      }, 4500);
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your profile changes have been saved successfully.',
+        duration: 5000,
+      });
     } catch (err: any) {
       console.error('Error saving profile:', err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Unable to save profile changes. Please try again.',
+        duration: 5000,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -339,6 +379,9 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-natural-oat py-8 px-4 sm:px-6 lg:px-8">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Super Admin Notice Banner if Admin */}
         {isAdmin && (
@@ -971,55 +1014,32 @@ export default function UserProfilePage() {
           </div>
 
           {/* Bottom Save & Next Step Controls */}
-          <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              {saveSuccess ? (
-                <div className="inline-flex flex-col text-xs text-emerald-800 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 font-semibold animate-in fade-in space-y-0.5">
-                  <div className="flex items-center">
-                    <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600 shrink-0" />
-                    <span>Profile information saved and synced!</span>
-                  </div>
-                  {saveStatusDetail && (
-                    <span className="text-[11px] text-emerald-700 font-normal pl-5.5">
-                      ✓ {saveStatusDetail}
-                    </span>
-                  )}
-                </div>
+          <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-end gap-3">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-brand-green hover:bg-brand-dark-green text-white text-sm font-bold shadow-sm transition-all cursor-pointer flex items-center justify-center disabled:opacity-60"
+            >
+              {isSaving ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                  <span>Saving Changes...</span>
+                </>
               ) : (
-                <div className="flex items-center space-x-2 text-xs text-gray-500">
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Direct persistence: Changes save to Supabase cloud &amp; account store</span>
-                </div>
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  <span>Save Profile Changes</span>
+                </>
               )}
-            </div>
+            </button>
 
-            <div className="flex items-center space-x-3">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-6 py-3 rounded-xl bg-brand-green hover:bg-brand-dark-green text-white text-sm font-bold shadow-sm transition-all cursor-pointer flex items-center disabled:opacity-60"
-              >
-                {isSaving ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
-                    <span>Saving to Supabase...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    <span>Save Profile Changes</span>
-                  </>
-                )}
-              </button>
-
-              <Link
-                to="/onboarding"
-                className="px-5 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold transition-all flex items-center"
-              >
-                <span>Onboarding Form</span>
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Link>
-            </div>
+            <Link
+              to="/onboarding"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold transition-all flex items-center justify-center"
+            >
+              <span>Onboarding Form</span>
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Link>
           </div>
 
         </form>
@@ -1088,6 +1108,7 @@ export default function UserProfilePage() {
         defaultFirstName={profile.firstName || ''}
         defaultLastName={profile.lastName || ''}
         suggestedWeekNumber={weeklyEntries.length + 1}
+        allEntries={weeklyEntries}
         onSave={handleSaveWeeklyEntry}
         onClose={() => {
           setIsWeeklyModalOpen(false);

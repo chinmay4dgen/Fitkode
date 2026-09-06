@@ -33,6 +33,7 @@ import {
 import { ClientOnboarding, UserRole } from '../types';
 import { GoalsReadinessSection } from './onboarding/GoalsReadinessSection';
 import { LifestyleHabitsSection } from './onboarding/LifestyleHabitsSection';
+import { ToastContainer, ToastMessage } from './Toast';
 
 export default function ClientOnboardingPage() {
   const {
@@ -48,11 +49,20 @@ export default function ClientOnboardingPage() {
 
   const [activeTab, setActiveTab] = useState<number>(1);
   const [formData, setFormData] = useState<ClientOnboarding>(() => loadClientOnboarding());
-  const [saveToast, setSaveToast] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [submittedMessage, setSubmittedMessage] = useState(false);
   const [signingInPreset, setSigningInPreset] = useState<string | null>(null);
   const isLive = isLiveProductionSite();
   const canShowTestProfiles = shouldShowTestProfiles();
+
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration || 5000 }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -101,11 +111,24 @@ export default function ClientOnboardingPage() {
 
   const handleSaveDraft = async () => {
     if (!user) return;
-    saveClientOnboarding(formData, user.id || user.email);
-    saveOnboardingToSupabase(formData, user.id || user.email);
-    syncCurrentMember({ onboarding: formData });
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 3000);
+    try {
+      saveClientOnboarding(formData, user.id || user.email);
+      saveOnboardingToSupabase(formData, user.id || user.email);
+      syncCurrentMember({ onboarding: formData });
+      addToast({
+        type: 'success',
+        title: 'Draft Saved',
+        message: 'Your assessment progress has been saved.',
+        duration: 4000,
+      });
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Unable to save draft progress. Please try again.',
+        duration: 5000,
+      });
+    }
   };
 
   const handleNextSection = () => {
@@ -120,6 +143,12 @@ export default function ClientOnboardingPage() {
     if (activeTab < 7) {
       setActiveTab((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      addToast({
+        type: 'success',
+        title: 'Section Saved',
+        message: `Section ${activeTab} completed and saved.`,
+        duration: 3500,
+      });
     } else {
       // Final Submit
       const submitted = { ...updated, isSubmitted: true };
@@ -129,6 +158,12 @@ export default function ClientOnboardingPage() {
       syncCurrentMember({ onboarding: submitted });
       setSubmittedMessage(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      addToast({
+        type: 'success',
+        title: 'Assessment Submitted',
+        message: 'Your complete health intake has been submitted.',
+        duration: 5000,
+      });
     }
   };
 
@@ -284,6 +319,9 @@ export default function ClientOnboardingPage() {
 
   return (
     <div className="min-h-screen bg-natural-oat py-8 px-4 sm:px-6 lg:px-8">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* Back link and title bar */}
@@ -1255,12 +1293,6 @@ export default function ClientOnboardingPage() {
             </button>
 
             <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
-              {saveToast && (
-                <span className="text-xs text-emerald-700 font-semibold animate-in fade-in">
-                  Progress saved!
-                </span>
-              )}
-
               <button
                 type="button"
                 onClick={handleNextSection}

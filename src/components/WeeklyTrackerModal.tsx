@@ -1,22 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
-  Calendar,
-  Camera,
-  Upload,
-  Ruler,
-  Scale,
   Activity,
-  Flame,
-  Dumbbell,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  Sparkles,
   Info,
+  Calendar,
+  Camera,
 } from 'lucide-react';
 import { WeeklyTrackerEntry } from '../types';
-import { compressImageFile } from '../lib/weeklyTrackerStore';
+import { compressImageFile, loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
 
 interface WeeklyTrackerModalProps {
   existingEntry?: WeeklyTrackerEntry | null;
@@ -24,6 +17,7 @@ interface WeeklyTrackerModalProps {
   defaultFirstName?: string;
   defaultLastName?: string;
   suggestedWeekNumber?: number;
+  allEntries?: WeeklyTrackerEntry[];
   onSave: (entry: WeeklyTrackerEntry) => Promise<void>;
   onClose: () => void;
 }
@@ -34,12 +28,99 @@ export default function WeeklyTrackerModal({
   defaultFirstName = '',
   defaultLastName = '',
   suggestedWeekNumber = 1,
+  allEntries,
   onSave,
   onClose,
 }: WeeklyTrackerModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [showMeasurementGuide, setShowMeasurementGuide] = useState(false);
+  const [showGuidelineBanner, setShowGuidelineBanner] = useState(() => {
+    try {
+      return sessionStorage.getItem('fk_weighin_guideline_dismissed_session') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleDismissGuideline = () => {
+    try {
+      sessionStorage.setItem('fk_weighin_guideline_dismissed_session', 'true');
+    } catch {
+      // Safe fallback
+    }
+    setShowGuidelineBanner(false);
+    setShowMeasurementGuide(false);
+  };
+
+  // Close and record session dismissal so modal does not appear again in this session
+  const handleClose = () => {
+    try {
+      sessionStorage.setItem('fk_weekly_checkin_dismissed_session', 'true');
+    } catch {
+      // Safe fallback
+    }
+    onClose();
+  };
+
+  // Keyboard shortcut: Escape to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Compute today's date and previous check-in info
+  const today = new Date();
+  const todayFormatted = today.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  // Calculate previous logged check-in (only if at least 1 check-in was ever done)
+  const userEntries = (allEntries && allEntries.length > 0)
+    ? allEntries
+    : loadUserWeeklyEntries(defaultEmail);
+
+  const pastEntries = userEntries
+    .filter((e) => !existingEntry || e.id !== existingEntry.id)
+    .sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
+
+  const latestPastEntry = pastEntries.length > 0 ? pastEntries[0] : null;
+
+  let lastLoggedText: string | null = null;
+  if (latestPastEntry && latestPastEntry.checkInDate) {
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const parts = latestPastEntry.checkInDate.split('-');
+    let lastDateMidnight = 0;
+    let formattedPastDate = latestPastEntry.checkInDate;
+    if (parts.length === 3) {
+      const yr = parseInt(parts[0], 10);
+      const mo = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const dObj = new Date(yr, mo, day);
+      lastDateMidnight = dObj.getTime();
+      formattedPastDate = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } else {
+      const dObj = new Date(latestPastEntry.checkInDate);
+      lastDateMidnight = dObj.getTime();
+      formattedPastDate = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    const diffDays = Math.max(0, Math.floor((todayMidnight - lastDateMidnight) / (1000 * 60 * 60 * 24)));
+    if (diffDays === 0) {
+      lastLoggedText = `Last data logged today (${formattedPastDate})`;
+    } else if (diffDays === 1) {
+      lastLoggedText = `Last data logged 1 day before (${formattedPastDate})`;
+    } else {
+      lastLoggedText = `Last data logged ${diffDays} days before (${formattedPastDate})`;
+    }
+  }
 
   // Form State initialized to existingEntry or clean defaults
   const [formData, setFormData] = useState<Partial<WeeklyTrackerEntry>>(() => {
@@ -106,7 +187,8 @@ export default function WeeklyTrackerModal({
     e.preventDefault();
     setFormError('');
 
-    if (!formData.userEmail?.trim()) {
+    const userEmail = formData.userEmail?.trim() || defaultEmail;
+    if (!userEmail) {
       setFormError('User email is required.');
       return;
     }
@@ -124,11 +206,11 @@ export default function WeeklyTrackerModal({
       const finalEntry: WeeklyTrackerEntry = {
         id: formData.id || `chk_${Date.now()}`,
         userId: formData.userId || defaultEmail,
-        userEmail: formData.userEmail.trim(),
+        userEmail: userEmail,
         firstName: formData.firstName || defaultFirstName || '',
         lastName: formData.lastName || defaultLastName || '',
         checkInDate: formData.checkInDate || new Date().toISOString().split('T')[0],
-        weekNumber: Number(formData.weekNumber) || 1,
+        weekNumber: Number(formData.weekNumber) || suggestedWeekNumber || 1,
         avgStepsPerDay: Number(formData.avgStepsPerDay) || 0,
         weightKg: Number(formData.weightKg) || 0,
         waistInches: Number(formData.waistInches) || 0,
@@ -151,6 +233,11 @@ export default function WeeklyTrackerModal({
       };
 
       await onSave(finalEntry);
+      try {
+        sessionStorage.setItem('fk_weekly_checkin_dismissed_session', 'true');
+      } catch {
+        // ignore
+      }
       onClose();
     } catch (err: any) {
       setFormError(err.message || 'Failed to save weekly check-in.');
@@ -160,69 +247,111 @@ export default function WeeklyTrackerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl border border-brand-light-green flex flex-col max-h-[92vh]">
         
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between px-6 py-4.5 border-b border-gray-100 bg-natural-oat/50 shrink-0">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 bg-emerald-50/20 shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-brand-light-green text-brand-green flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-brand-light-green text-brand-green flex items-center justify-center shrink-0">
               <Activity className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900 text-base sm:text-lg">
-                {existingEntry ? 'Edit Weekly Health Check-in' : 'Log Weekly Health Statistics'}
+              <h2 className="font-bold text-gray-900 text-base sm:text-lg tracking-tight">
+                {existingEntry ? 'Edit Weekly Check-in' : 'Weekly Check-in'}
               </h2>
-              <p className="text-xs text-gray-500">
-                Fitkode client weekly tracker update (Questions 1 – 19)
-              </p>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-gray-500 mt-0.5">
+                <span className="flex items-center text-gray-700 font-medium">
+                  <Calendar className="w-3.5 h-3.5 mr-1 text-brand-green shrink-0 inline" />
+                  Today: <strong className="text-gray-900 ml-1">{todayFormatted}</strong>
+                </span>
+                {lastLoggedText && (
+                  <>
+                    <span className="text-gray-300 hidden sm:inline">•</span>
+                    <span className="text-emerald-800 font-semibold bg-emerald-100/70 px-2 py-0.5 rounded-md text-[11px]">
+                      {lastLoggedText}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+            onClick={handleClose}
+            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer shrink-0"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Instructions Alert Banner */}
-        <div className="bg-emerald-50/80 px-6 py-3 border-b border-emerald-100 flex items-center justify-between text-xs text-emerald-900 shrink-0">
-          <div className="flex items-center space-x-2">
-            <Info className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>
-              <strong>Crucial Weigh-in Guideline:</strong> Kindly note your weight after freshening up, empty stomach, 1st thing in the morning.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowMeasurementGuide(!showMeasurementGuide)}
-            className="text-xs font-bold text-emerald-800 underline hover:text-emerald-950 shrink-0 cursor-pointer ml-3"
-          >
-            {showMeasurementGuide ? 'Hide Tape Guide' : 'How to Measure?'}
-          </button>
-        </div>
+        {/* Instructions Alert Banner (Closable for session) */}
+        {showGuidelineBanner && (
+          <>
+            <div className="bg-emerald-50/90 px-4 sm:px-6 py-2.5 sm:py-3 border-b border-emerald-100 flex items-start sm:items-center justify-between text-xs text-emerald-900 shrink-0 gap-2">
+              <div className="flex items-start space-x-2 min-w-0">
+                <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5 sm:mt-0" />
+                <span className="leading-snug">
+                  <strong>Crucial Weigh-in Guideline:</strong> Kindly note your weight after freshening up, empty stomach, 1st thing in the morning.
+                </span>
+              </div>
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowMeasurementGuide(!showMeasurementGuide)}
+                  className="text-xs font-bold text-emerald-800 underline hover:text-emerald-950 shrink-0 cursor-pointer whitespace-nowrap"
+                >
+                  {showMeasurementGuide ? 'Hide Guide' : 'How to Measure?'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissGuideline}
+                  className="p-1 rounded-lg text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100/80 transition-colors cursor-pointer shrink-0"
+                  title="Close for this session"
+                  aria-label="Close guideline for this session"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-        {/* Measurement Guide Drawer if toggled */}
-        {showMeasurementGuide && (
-          <div className="bg-gray-50 p-4 border-b border-gray-200 text-xs text-gray-700 space-y-1.5 shrink-0 animate-in fade-in duration-150">
-            <p className="font-bold text-gray-900">Anatomical Tape Measurement Points:</p>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-gray-600 list-disc list-inside">
-              <li><strong>Waist:</strong> Measure at narrowest point or 1 inch above navel.</li>
-              <li><strong>Hips:</strong> Measure around the widest part of glutes.</li>
-              <li><strong>Neck:</strong> Measure just below the Adam’s apple.</li>
-              <li><strong>Chest:</strong> Measure across the fullest part at nipple line.</li>
-              <li><strong>Quads:</strong> Measure midpoint between hip joint and knee.</li>
-              <li><strong>Upper Right Arm:</strong> Measure at the peak of flexed or relaxed bicep.</li>
-            </ul>
-          </div>
+            {/* Measurement Guide Drawer if toggled */}
+            {showMeasurementGuide && (
+              <div className="bg-gray-50 p-4 border-b border-gray-200 text-xs text-gray-700 space-y-1.5 shrink-0 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between font-bold text-gray-900 mb-1">
+                  <span>Anatomical Tape Measurement Points:</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMeasurementGuide(false)}
+                    className="text-[11px] text-gray-500 hover:text-gray-800 underline cursor-pointer"
+                  >
+                    Close Guide
+                  </button>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-gray-600 list-disc list-inside">
+                  <li><strong>Waist:</strong> Measure at narrowest point or 1 inch above navel.</li>
+                  <li><strong>Hips:</strong> Measure around the widest part of glutes.</li>
+                  <li><strong>Neck:</strong> Measure just below the Adam’s apple.</li>
+                  <li><strong>Chest:</strong> Measure across the fullest part at nipple line.</li>
+                  <li><strong>Quads:</strong> Measure midpoint between hip joint and knee.</li>
+                  <li><strong>Upper Right Arm:</strong> Measure at the peak of flexed or relaxed bicep.</li>
+                </ul>
+              </div>
+            )}
+          </>
         )}
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs">
           
           {formError && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center space-x-2">
@@ -231,201 +360,151 @@ export default function WeeklyTrackerModal({
             </div>
           )}
 
-          {/* Section 1: Check-in Meta & Identity */}
+          {/* Body Weight & Body Circumference Measurements - All 1 in a line with uniform styling */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-green flex items-center">
-              <Calendar className="w-3.5 h-3.5 mr-1.5" />
-              1. Check-in Timeline & Member Details
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Week Number *</label>
+            {/* Weight */}
+            <div className="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-100">
+              <label className="block text-emerald-900 font-bold mb-1 text-xs sm:text-sm">
+                Your Weight (in kgs) *
+              </label>
+              <div className="relative">
                 <input
                   type="number"
-                  min="1"
-                  max="52"
-                  value={formData.weekNumber || 1}
-                  onChange={(e) => handleNumberChange('weekNumber', e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-900 focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+                  step="0.1"
+                  value={formData.weightKg || ''}
+                  onChange={(e) => handleNumberChange('weightKg', e.target.value)}
+                  className="w-full p-2.5 pr-10 rounded-xl border border-emerald-300 bg-white text-sm font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="e.g. 68.4"
                   required
                 />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">kg</span>
               </div>
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Check-in Date *</label>
-                <input
-                  type="date"
-                  value={formData.checkInDate || ''}
-                  onChange={(e) => setFormData((p) => ({ ...p, checkInDate: e.target.value }))}
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-900 focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">First Name *</label>
-                <input
-                  type="text"
-                  value={formData.firstName || ''}
-                  onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs text-gray-900 focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-                  placeholder="First name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Last Name *</label>
-                <input
-                  type="text"
-                  value={formData.lastName || ''}
-                  onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs text-gray-900 focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-                  placeholder="Last name"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-gray-700 font-semibold mb-1">Email Address (Q1) *</label>
-              <input
-                type="email"
-                value={formData.userEmail || ''}
-                readOnly
-                className="w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-500 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          {/* Section 2: Core Body Weight & Circumference Measurements */}
-          <div className="space-y-3 pt-3 border-t border-gray-100">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-green flex items-center">
-              <Scale className="w-3.5 h-3.5 mr-1.5" />
-              2. Body Weight & Body Circumference (Inches)
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Weight */}
-              <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100">
-                <label className="block text-emerald-900 font-bold mb-1">
-                  Your Weight (in kgs) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.weightKg || ''}
-                    onChange={(e) => handleNumberChange('weightKg', e.target.value)}
-                    className="w-full p-2 rounded-xl border border-emerald-300 bg-white text-sm font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. 68.4"
-                    required
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">kg</span>
-                </div>
-                <p className="text-[10px] text-emerald-700 mt-1">Empty stomach, after freshening up</p>
-              </div>
-
-              {/* Waist */}
-              <div className="bg-gray-50 p-3 rounded-2xl border border-gray-200">
-                <label className="block text-gray-800 font-bold mb-1">
-                  Waist (inches) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.waistInches || ''}
-                    onChange={(e) => handleNumberChange('waistInches', e.target.value)}
-                    className="w-full p-2 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
-                    placeholder="e.g. 32.0"
-                    required
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">in</span>
-                </div>
-                <p className="text-[10px] text-gray-500 mt-1">1 inch above navel</p>
-              </div>
-
-              {/* Hips */}
-              <div className="bg-gray-50 p-3 rounded-2xl border border-gray-200">
-                <label className="block text-gray-800 font-bold mb-1">
-                  Hips (inches) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.hipsInches || ''}
-                    onChange={(e) => handleNumberChange('hipsInches', e.target.value)}
-                    className="w-full p-2 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
-                    placeholder="e.g. 38.5"
-                    required
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">in</span>
-                </div>
-                <p className="text-[10px] text-gray-500 mt-1">Widest part of hips/glutes</p>
-              </div>
+              <p className="text-[10px] text-emerald-700 mt-1">Empty stomach, after freshening up</p>
             </div>
 
-            {/* Other Circumference Measurements */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Chest (inches) *</label>
+            {/* Waist */}
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200">
+              <label className="block text-gray-800 font-semibold mb-1 text-xs sm:text-sm">
+                Waist (inches) *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.waistInches || ''}
+                  onChange={(e) => handleNumberChange('waistInches', e.target.value)}
+                  className="w-full p-2.5 pr-10 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  placeholder="e.g. 32.0"
+                  required
+                />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">in</span>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">1 inch above navel</p>
+            </div>
+
+            {/* Hips */}
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200">
+              <label className="block text-gray-800 font-semibold mb-1 text-xs sm:text-sm">
+                Hips (inches) *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.hipsInches || ''}
+                  onChange={(e) => handleNumberChange('hipsInches', e.target.value)}
+                  className="w-full p-2.5 pr-10 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  placeholder="e.g. 38.5"
+                  required
+                />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">in</span>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Widest part of hips/glutes</p>
+            </div>
+
+            {/* Chest */}
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200">
+              <label className="block text-gray-800 font-semibold mb-1 text-xs sm:text-sm">
+                Chest (inches) *
+              </label>
+              <div className="relative">
                 <input
                   type="number"
                   step="0.1"
                   value={formData.chestInches || ''}
                   onChange={(e) => handleNumberChange('chestInches', e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-900"
-                  placeholder="38.0"
+                  className="w-full p-2.5 pr-10 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  placeholder="e.g. 38.0"
                   required
                 />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">in</span>
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">Widest part of chest/bust line</p>
+            </div>
 
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Upper Right Arm *</label>
+            {/* Upper Right Arm */}
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200">
+              <label className="block text-gray-800 font-semibold mb-1 text-xs sm:text-sm">
+                Upper Right Arm (inches) *
+              </label>
+              <div className="relative">
                 <input
                   type="number"
                   step="0.1"
                   value={formData.upperRightArmInches || ''}
                   onChange={(e) => handleNumberChange('upperRightArmInches', e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-900"
-                  placeholder="12.5"
+                  className="w-full p-2.5 pr-10 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  placeholder="e.g. 13.0"
                   required
                 />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">in</span>
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">Midpoint of flexed bicep</p>
+            </div>
 
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Quads (inches) *</label>
+            {/* Quads */}
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200">
+              <label className="block text-gray-800 font-semibold mb-1 text-xs sm:text-sm">
+                Quads (inches) *
+              </label>
+              <div className="relative">
                 <input
                   type="number"
                   step="0.1"
                   value={formData.quadsInches || ''}
                   onChange={(e) => handleNumberChange('quadsInches', e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-900"
-                  placeholder="22.0"
+                  className="w-full p-2.5 pr-10 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  placeholder="e.g. 22.0"
                   required
                 />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">in</span>
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">Midpoint between hip joint and knee</p>
+            </div>
 
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Neck (inches) *</label>
+            {/* Neck */}
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200">
+              <label className="block text-gray-800 font-semibold mb-1 text-xs sm:text-sm">
+                Neck (inches) *
+              </label>
+              <div className="relative">
                 <input
                   type="number"
                   step="0.1"
                   value={formData.neckInches || ''}
                   onChange={(e) => handleNumberChange('neckInches', e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-900"
-                  placeholder="14.0"
+                  className="w-full p-2.5 pr-10 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  placeholder="e.g. 14.0"
                   required
                 />
+                <span className="absolute right-3.5 top-3 text-xs text-gray-400 font-bold pointer-events-none">in</span>
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">Below Adam's apple, narrowest point</p>
             </div>
           </div>
 
-          {/* Section 3: Activity, Nutrition & Workout Consistency */}
-          <div className="space-y-3 pt-3 border-t border-gray-100">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-green flex items-center">
-              <Activity className="w-3.5 h-3.5 mr-1.5" />
-              3. Weekly Activity & Caloric Intake
-            </h4>
-
+          {/* Weekly Activity & Caloric Intake */}
+          <div className="space-y-4 pt-3 border-t border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">
@@ -436,7 +515,7 @@ export default function WeeklyTrackerModal({
                   step="100"
                   value={formData.avgStepsPerDay || ''}
                   onChange={(e) => handleNumberChange('avgStepsPerDay', e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-blue-700 focus:border-brand-green"
+                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-blue-700 focus:border-brand-green focus:ring-1 focus:ring-brand-green"
                   placeholder="e.g. 8500"
                   required
                 />
@@ -451,104 +530,95 @@ export default function WeeklyTrackerModal({
                   step="50"
                   value={formData.avgCaloriesPerDay || ''}
                   onChange={(e) => handleNumberChange('avgCaloriesPerDay', e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-amber-700 focus:border-brand-green"
+                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-amber-700 focus:border-brand-green focus:ring-1 focus:ring-brand-green"
                   placeholder="e.g. 1950"
                   required
                 />
               </div>
             </div>
 
-            {/* Days Selection: Resistance and HIIT */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            {/* Workout Days Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">
-                  Number of days Resistance workout done in last week? *
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Resistance workout done in last week (0-7 days) *
                 </label>
-                <div className="flex items-center space-x-1.5">
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((days) => {
-                    const isSelected = formData.resistanceWorkoutDays === days;
-                    return (
-                      <button
-                        key={`res-${days}`}
-                        type="button"
-                        onClick={() => setFormData((p) => ({ ...p, resistanceWorkoutDays: days }))}
-                        className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        }`}
-                      >
-                        {days}
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center space-x-1">
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, resistanceWorkoutDays: num }))}
+                      className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        formData.resistanceWorkoutDays === num
+                          ? 'bg-brand-green text-white shadow-xs'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">
-                  Number of days HIIT/cardio done in last week? *
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Cardio or HIIT sessions in last week (0-7 days) *
                 </label>
-                <div className="flex items-center space-x-1.5">
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((days) => {
-                    const isSelected = formData.hiitCardioDays === days;
-                    return (
-                      <button
-                        key={`cardio-${days}`}
-                        type="button"
-                        onClick={() => setFormData((p) => ({ ...p, hiitCardioDays: days }))}
-                        className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        }`}
-                      >
-                        {days}
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center space-x-1">
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, hiitCardioDays: num }))}
+                      className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        formData.hiitCardioDays === num
+                          ? 'bg-brand-green text-white shadow-xs'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Section 4: Member Progression Photos (Q15 - Q18) */}
+          {/* Member Progression Photos */}
           <div className="space-y-3 pt-3 border-t border-gray-100">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-brand-green flex items-center">
-                <Camera className="w-3.5 h-3.5 mr-1.5" />
-                4. Weekly Progression Photos (4 Poses)
-              </h4>
+              <span className="font-semibold text-gray-800 text-xs">
+                Progression Photos (Optional)
+              </span>
               <span className="text-[10px] text-gray-400">
-                Visible to Super Admin Chinmay & you only
+                Visible only to your coach and you
               </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               
-              {/* 1. Front Body Pic */}
-              <div className="bg-gray-50 p-2.5 rounded-2xl border border-gray-200 flex flex-col items-center text-center">
-                <span className="text-[11px] font-bold text-gray-800 mb-1.5">Front Body Pic</span>
-                <div className="w-full aspect-[3/4] rounded-xl overflow-hidden bg-white border border-dashed border-gray-300 flex items-center justify-center relative group">
-                  {formData.frontPicUrl ? (
-                    <img
-                      src={formData.frontPicUrl}
-                      alt="Front"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="p-2 text-gray-400 flex flex-col items-center">
-                      <Camera className="w-6 h-6 mb-1 text-gray-300" />
-                      <span className="text-[10px]">Front Pose</span>
-                    </div>
-                  )}
-                  {compressingPose === 'frontPicUrl' && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-[10px] font-bold text-brand-green">
-                      Optimizing...
-                    </div>
-                  )}
-                </div>
-                <label className="mt-2 w-full py-1.5 px-2 bg-white hover:bg-brand-light-green/40 border border-gray-200 rounded-lg text-[11px] font-semibold text-gray-700 hover:text-brand-green cursor-pointer text-center truncate">
+              {/* Front Pose */}
+              <div className="border border-gray-200 rounded-2xl p-2.5 bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 relative">
+                <span className="text-[10px] font-bold text-gray-600 uppercase">Front Pose</span>
+                {formData.frontPicUrl ? (
+                  <div className="relative w-full h-24 rounded-xl overflow-hidden group">
+                    <img src={formData.frontPicUrl} alt="Front" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, frontPicUrl: '' }))}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full h-24 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 bg-white">
+                    <Camera className="w-5 h-5 mb-1 text-gray-300" />
+                    <span className="text-[10px]">No photo</span>
+                  </div>
+                )}
+                <label className="w-full py-1 px-2 rounded-lg bg-white border border-gray-200 hover:border-brand-green text-[11px] font-semibold text-gray-700 text-center cursor-pointer transition-colors block">
                   {formData.frontPicUrl ? 'Change Photo' : 'Upload Front'}
                   <input
                     type="file"
@@ -559,29 +629,27 @@ export default function WeeklyTrackerModal({
                 </label>
               </div>
 
-              {/* 2. Left Profile Pic */}
-              <div className="bg-gray-50 p-2.5 rounded-2xl border border-gray-200 flex flex-col items-center text-center">
-                <span className="text-[11px] font-bold text-gray-800 mb-1.5">Left Profile Pic</span>
-                <div className="w-full aspect-[3/4] rounded-xl overflow-hidden bg-white border border-dashed border-gray-300 flex items-center justify-center relative group">
-                  {formData.leftPicUrl ? (
-                    <img
-                      src={formData.leftPicUrl}
-                      alt="Left"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="p-2 text-gray-400 flex flex-col items-center">
-                      <Camera className="w-6 h-6 mb-1 text-gray-300" />
-                      <span className="text-[10px]">Left 90°</span>
-                    </div>
-                  )}
-                  {compressingPose === 'leftPicUrl' && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-[10px] font-bold text-brand-green">
-                      Optimizing...
-                    </div>
-                  )}
-                </div>
-                <label className="mt-2 w-full py-1.5 px-2 bg-white hover:bg-brand-light-green/40 border border-gray-200 rounded-lg text-[11px] font-semibold text-gray-700 hover:text-brand-green cursor-pointer text-center truncate">
+              {/* Left Side Pose */}
+              <div className="border border-gray-200 rounded-2xl p-2.5 bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 relative">
+                <span className="text-[10px] font-bold text-gray-600 uppercase">Left Side Pose</span>
+                {formData.leftPicUrl ? (
+                  <div className="relative w-full h-24 rounded-xl overflow-hidden group">
+                    <img src={formData.leftPicUrl} alt="Left" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, leftPicUrl: '' }))}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full h-24 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 bg-white">
+                    <Camera className="w-5 h-5 mb-1 text-gray-300" />
+                    <span className="text-[10px]">No photo</span>
+                  </div>
+                )}
+                <label className="w-full py-1 px-2 rounded-lg bg-white border border-gray-200 hover:border-brand-green text-[11px] font-semibold text-gray-700 text-center cursor-pointer transition-colors block">
                   {formData.leftPicUrl ? 'Change Photo' : 'Upload Left'}
                   <input
                     type="file"
@@ -592,29 +660,27 @@ export default function WeeklyTrackerModal({
                 </label>
               </div>
 
-              {/* 3. Right Profile Pic */}
-              <div className="bg-gray-50 p-2.5 rounded-2xl border border-gray-200 flex flex-col items-center text-center">
-                <span className="text-[11px] font-bold text-gray-800 mb-1.5">Right Profile Pic</span>
-                <div className="w-full aspect-[3/4] rounded-xl overflow-hidden bg-white border border-dashed border-gray-300 flex items-center justify-center relative group">
-                  {formData.rightPicUrl ? (
-                    <img
-                      src={formData.rightPicUrl}
-                      alt="Right"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="p-2 text-gray-400 flex flex-col items-center">
-                      <Camera className="w-6 h-6 mb-1 text-gray-300" />
-                      <span className="text-[10px]">Right 90°</span>
-                    </div>
-                  )}
-                  {compressingPose === 'rightPicUrl' && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-[10px] font-bold text-brand-green">
-                      Optimizing...
-                    </div>
-                  )}
-                </div>
-                <label className="mt-2 w-full py-1.5 px-2 bg-white hover:bg-brand-light-green/40 border border-gray-200 rounded-lg text-[11px] font-semibold text-gray-700 hover:text-brand-green cursor-pointer text-center truncate">
+              {/* Right Side Pose */}
+              <div className="border border-gray-200 rounded-2xl p-2.5 bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 relative">
+                <span className="text-[10px] font-bold text-gray-600 uppercase">Right Side Pose</span>
+                {formData.rightPicUrl ? (
+                  <div className="relative w-full h-24 rounded-xl overflow-hidden group">
+                    <img src={formData.rightPicUrl} alt="Right" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, rightPicUrl: '' }))}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full h-24 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 bg-white">
+                    <Camera className="w-5 h-5 mb-1 text-gray-300" />
+                    <span className="text-[10px]">No photo</span>
+                  </div>
+                )}
+                <label className="w-full py-1 px-2 rounded-lg bg-white border border-gray-200 hover:border-brand-green text-[11px] font-semibold text-gray-700 text-center cursor-pointer transition-colors block">
                   {formData.rightPicUrl ? 'Change Photo' : 'Upload Right'}
                   <input
                     type="file"
@@ -625,29 +691,27 @@ export default function WeeklyTrackerModal({
                 </label>
               </div>
 
-              {/* 4. Back Profile Pic */}
-              <div className="bg-gray-50 p-2.5 rounded-2xl border border-gray-200 flex flex-col items-center text-center">
-                <span className="text-[11px] font-bold text-gray-800 mb-1.5">Back Profile Pic</span>
-                <div className="w-full aspect-[3/4] rounded-xl overflow-hidden bg-white border border-dashed border-gray-300 flex items-center justify-center relative group">
-                  {formData.backPicUrl ? (
-                    <img
-                      src={formData.backPicUrl}
-                      alt="Back"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="p-2 text-gray-400 flex flex-col items-center">
-                      <Camera className="w-6 h-6 mb-1 text-gray-300" />
-                      <span className="text-[10px]">Back Pose</span>
-                    </div>
-                  )}
-                  {compressingPose === 'backPicUrl' && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-[10px] font-bold text-brand-green">
-                      Optimizing...
-                    </div>
-                  )}
-                </div>
-                <label className="mt-2 w-full py-1.5 px-2 bg-white hover:bg-brand-light-green/40 border border-gray-200 rounded-lg text-[11px] font-semibold text-gray-700 hover:text-brand-green cursor-pointer text-center truncate">
+              {/* Back Pose */}
+              <div className="border border-gray-200 rounded-2xl p-2.5 bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 relative">
+                <span className="text-[10px] font-bold text-gray-600 uppercase">Back Pose</span>
+                {formData.backPicUrl ? (
+                  <div className="relative w-full h-24 rounded-xl overflow-hidden group">
+                    <img src={formData.backPicUrl} alt="Back" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, backPicUrl: '' }))}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full h-24 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 bg-white">
+                    <Camera className="w-5 h-5 mb-1 text-gray-300" />
+                    <span className="text-[10px]">No photo</span>
+                  </div>
+                )}
+                <label className="w-full py-1 px-2 rounded-lg bg-white border border-gray-200 hover:border-brand-green text-[11px] font-semibold text-gray-700 text-center cursor-pointer transition-colors block">
                   {formData.backPicUrl ? 'Change Photo' : 'Upload Back'}
                   <input
                     type="file"
@@ -661,10 +725,10 @@ export default function WeeklyTrackerModal({
             </div>
           </div>
 
-          {/* Section 5: Client Challenges / Reflections (Q19) */}
+          {/* Client Challenges / Reflections */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
-            <label className="block text-gray-800 font-bold">
-              Q19: Any challenges faced in workout or diet or anything? *
+            <label className="block text-gray-800 font-semibold">
+              Any challenges faced in workout, diet, or routine?
             </label>
             <textarea
               rows={3}
@@ -674,7 +738,7 @@ export default function WeeklyTrackerModal({
               className="w-full p-3 rounded-2xl border border-gray-200 text-xs text-gray-900 focus:border-brand-green focus:ring-1 focus:ring-brand-green leading-relaxed"
             />
             <p className="text-[11px] text-gray-400">
-              This field is reviewed by Super Admin Coach Chinmay to adjust your workouts, rest periods, and macro breakdown.
+              Reviewed by your coach to adjust your workouts, rest periods, and nutrition.
             </p>
           </div>
 
@@ -682,7 +746,7 @@ export default function WeeklyTrackerModal({
           <div className="pt-4 border-t border-gray-100 flex items-center justify-end space-x-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-bold transition-colors cursor-pointer"
             >
               Cancel

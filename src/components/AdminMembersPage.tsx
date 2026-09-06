@@ -10,6 +10,7 @@ import {
   XCircle,
   AlertCircle,
   ArrowLeft,
+  ChevronLeft,
   Mail,
   Phone,
   Calendar,
@@ -50,6 +51,7 @@ import { loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
 import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
 import PhotoCompareModal from './PhotoCompareModal';
+import { ToastContainer, ToastMessage } from './Toast';
 
 export default function AdminMembersPage() {
   const { user, role, isAdmin, setTestingRole, signInWithTestAccount } = useAuth();
@@ -61,15 +63,28 @@ export default function AdminMembersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'paid' | 'unpaid' | 'admin'>('all');
   const [selectedMember, setSelectedMember] = useState<AppMember | null>(null);
+  const [showDirectory, setShowDirectory] = useState(true);
+  const [quickSwitchOpen, setQuickSwitchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'assessment' | 'weekly-tracker' | 'coaching'>('profile');
   const [updatingRole, setUpdatingRole] = useState(false);
   const [coachNotes, setCoachNotes] = useState('');
   const [notesSaved, setNotesSaved] = useState(false);
   const [adminLoggingIn, setAdminLoggingIn] = useState(false);
   const [adminPhotoModalEntryId, setAdminPhotoModalEntryId] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Toast Notification helper (5s auto-dismiss or manual dismiss)
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration || 5000 }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Load all members
-  const loadData = async () => {
+  const loadData = async (isManual = false) => {
     if (!isAdmin) return;
     setLoading(true);
     setError(null);
@@ -84,8 +99,24 @@ export default function AdminMembersPage() {
           setCoachNotes(refreshed.notes || '');
         }
       }
+      if (isManual) {
+        addToast({
+          type: 'info',
+          title: 'Directory Refreshed',
+          message: `Loaded ${data.length} registered member accounts.`,
+          duration: 4000,
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load member directory');
+      if (isManual) {
+        addToast({
+          type: 'error',
+          title: 'Sync Error',
+          message: 'Failed to load member directory.',
+          duration: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -127,15 +158,18 @@ export default function AdminMembersPage() {
     }
   }, [isAdmin, user?.email]);
 
-  // When a member is selected, sync notes
+  // When a member is selected: open full screen width, collapse search list, and scroll upfront
   const handleSelectMember = (member: AppMember) => {
     setSelectedMember(member);
     setCoachNotes(member.notes || '');
     setActiveTab('profile');
     setNotesSaved(false);
+    setShowDirectory(false); // Collapses the search list upfront as requested!
+    setQuickSwitchOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Change member role
+  // Change member role with instant feedback toast
   const handleRoleChange = async (memberId: string, newRole: UserRole) => {
     setUpdatingRole(true);
     try {
@@ -144,19 +178,36 @@ export default function AdminMembersPage() {
       if (selectedMember?.id === memberId) {
         setSelectedMember(updated);
       }
+      addToast({
+        type: 'success',
+        title: 'Membership Tier Updated',
+        message: `${updated.name}'s tier changed to ${newRole.toUpperCase()}.`,
+        duration: 5000,
+      });
     } catch (err: any) {
-      alert(err.message || 'Failed to update role');
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Failed to update member role. Please try again.',
+        duration: 5000,
+      });
     } finally {
       setUpdatingRole(false);
     }
   };
 
-  // Save coach notes
+  // Save coach notes with 5s self-removing toaster message
   const handleSaveNotes = () => {
     if (!selectedMember) return;
     updateMemberNotes(selectedMember.id, coachNotes);
     setNotesSaved(true);
-    setTimeout(() => setNotesSaved(false), 2500);
+    setTimeout(() => setNotesSaved(false), 2000);
+    addToast({
+      type: 'success',
+      title: 'Notes Saved',
+      message: `Internal clinical notes for ${selectedMember.name} have been saved.`,
+      duration: 5000,
+    });
   };
 
   // ----------------------------------------------------
@@ -274,8 +325,28 @@ export default function AdminMembersPage() {
   const adminCount = members.filter((m) => m.role === 'admin').length;
   const completedOnboardingCount = members.filter((m) => (m.onboardingCompletion || 0) === 100).length;
 
+  // Selected member index within filtered list for seamless Prev / Next navigation
+  const selectedMemberIndex = selectedMember
+    ? filteredMembers.findIndex((m) => m.id === selectedMember.id)
+    : -1;
+
+  const handlePrevMember = () => {
+    if (filteredMembers.length === 0) return;
+    const newIndex = selectedMemberIndex > 0 ? selectedMemberIndex - 1 : filteredMembers.length - 1;
+    handleSelectMember(filteredMembers[newIndex]);
+  };
+
+  const handleNextMember = () => {
+    if (filteredMembers.length === 0) return;
+    const newIndex = selectedMemberIndex < filteredMembers.length - 1 ? selectedMemberIndex + 1 : 0;
+    handleSelectMember(filteredMembers[newIndex]);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* 5-Second Self-Dismissing Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
       {/* Top Breadcrumb & Super Admin Banner */}
       <div className="bg-gradient-to-r from-purple-900 via-indigo-950 to-gray-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -302,7 +373,7 @@ export default function AdminMembersPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={loadData}
+              onClick={() => loadData(true)}
               className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer border border-white/10"
               title="Refresh Member Data"
             >
@@ -380,194 +451,117 @@ export default function AdminMembersPage() {
         </div>
       </div>
 
-      {/* Main Content: Split Member Directory List & Detailed Dossier */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Member Search, Filters & List */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-sm space-y-4">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, email, phone, or plan..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 text-xs transition-all bg-gray-50/50"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                >
-                  Clear
-                </button>
+      {/* Dynamic View: Full-Screen Member Dossier VS Full-Screen Directory */}
+      {selectedMember && !showDirectory ? (
+        <div className="w-full space-y-6 animate-in fade-in duration-200">
+          {/* Top Sticky Member Navigation Bar */}
+          <div className="bg-white/95 backdrop-blur-md rounded-3xl border border-gray-200 shadow-sm p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 sticky top-4 z-20">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDirectory(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                title="Return to Member Directory"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Switch Member / All Members ({members.length})</span>
+              </button>
+
+              {/* Prev / Next member pagination */}
+              {filteredMembers.length > 1 && (
+                <div className="flex items-center space-x-1 border-l border-gray-200 pl-2 sm:pl-3">
+                  <button
+                    type="button"
+                    onClick={handlePrevMember}
+                    className="py-1.5 px-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-all flex items-center space-x-1"
+                    title="Previous member"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
+                  <span className="text-[11px] font-bold text-gray-500 px-1.5 whitespace-nowrap">
+                    {selectedMemberIndex + 1} of {filteredMembers.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextMember}
+                    className="py-1.5 px-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-all flex items-center space-x-1"
+                    title="Next member"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+            {/* Quick Jump Combobox */}
+            <div className="relative w-full sm:w-auto">
               <button
                 type="button"
-                onClick={() => setRoleFilter('all')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  roleFilter === 'all'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                onClick={() => setQuickSwitchOpen(!quickSwitchOpen)}
+                className="w-full sm:w-auto inline-flex items-center justify-between space-x-2 py-2 px-3.5 rounded-xl border border-brand-green/30 bg-brand-light-green/40 text-brand-dark-green text-xs font-bold hover:bg-brand-light-green/70 transition-all cursor-pointer"
               >
-                All ({members.length})
+                <div className="flex items-center space-x-2 truncate">
+                  <Users className="w-3.5 h-3.5 text-brand-green shrink-0" />
+                  <span className="truncate">Jump to Member</span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 shrink-0 ml-1" />
               </button>
-              <button
-                type="button"
-                onClick={() => setRoleFilter('paid')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  roleFilter === 'paid'
-                    ? 'bg-emerald-700 text-white shadow-sm'
-                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                }`}
-              >
-                Paid ({paidCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoleFilter('unpaid')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  roleFilter === 'unpaid'
-                    ? 'bg-blue-700 text-white shadow-sm'
-                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
-                }`}
-              >
-                Unpaid ({unpaidCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoleFilter('admin')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  roleFilter === 'admin'
-                    ? 'bg-purple-700 text-white shadow-sm'
-                    : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
-                }`}
-              >
-                Admin ({adminCount})
-              </button>
+
+              {quickSwitchOpen && (
+                <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-30 space-y-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Filter members..."
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 bg-gray-50 focus:bg-white"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                    {filteredMembers.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleSelectMember(m)}
+                        className={`w-full text-left p-2 rounded-xl text-xs transition-colors flex items-center justify-between ${
+                          m.id === selectedMember.id
+                            ? 'bg-brand-light-green font-bold text-brand-dark-green'
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="truncate pr-2">
+                          <p className="font-bold text-gray-900 truncate">{m.name}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{m.email}</p>
+                        </div>
+                        <span
+                          className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                            m.role === 'admin' || isDefaultAdmin(m.email)
+                              ? 'bg-purple-100 text-purple-800'
+                              : m.role === 'paid'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {m.role === 'admin' || isDefaultAdmin(m.email) ? 'Admin' : m.role}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Member Cards List */}
-          <div className="space-y-3 max-h-[800px] overflow-y-auto pr-1">
-            {filteredMembers.length === 0 ? (
-              <div className="bg-white rounded-3xl p-8 text-center border border-gray-200">
-                <Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm font-bold text-gray-800">No members match your criteria</p>
-                <p className="text-xs text-gray-500 mt-1">Try resetting the search query or role filter.</p>
-              </div>
-            ) : (
-              filteredMembers.map((member) => {
-                const isSelected = selectedMember?.id === member.id;
-                const isMemberAdmin = member.role === 'admin' || isDefaultAdmin(member.email);
-
-                return (
-                  <div
-                    key={member.id}
-                    onClick={() => handleSelectMember(member)}
-                    className={`p-4 rounded-3xl border transition-all cursor-pointer text-left relative ${
-                      isSelected
-                        ? 'bg-white border-brand-green shadow-md ring-2 ring-brand-green/20'
-                        : 'bg-white border-gray-200 hover:border-brand-green/50 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3.5">
-                      {/* Avatar */}
-                      <div className="relative flex-shrink-0">
-                        {member.avatarUrl ? (
-                          <img
-                            src={member.avatarUrl}
-                            alt={member.name}
-                            className="w-12 h-12 rounded-2xl object-cover border border-gray-200"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-2xl bg-brand-light-green text-brand-dark-green font-black flex items-center justify-center text-base border border-brand-green/20">
-                            {member.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        {isMemberAdmin && (
-                          <div
-                            className="absolute -top-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-sm"
-                            title="Super Admin"
-                          >
-                            <Shield className="w-3 h-3" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <h3 className="text-sm font-black text-gray-900 truncate">{member.name}</h3>
-                          {/* Role Badge */}
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              isMemberAdmin
-                                ? 'bg-purple-100 text-purple-800'
-                                : member.role === 'paid'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {isMemberAdmin ? 'Admin' : member.role === 'paid' ? 'Paid User' : 'Unpaid'}
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-gray-500 truncate mt-0.5">{member.email}</p>
-
-                        {member.planName && (
-                          <p className="text-[11px] font-semibold text-emerald-700 mt-1 truncate flex items-center space-x-1">
-                            <Sparkles className="w-3 h-3" />
-                            <span>{member.planName}</span>
-                          </p>
-                        )}
-
-                        {/* Progress Indicators */}
-                        <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-gray-100 text-[11px]">
-                          <div>
-                            <span className="text-gray-400 block text-[10px]">Profile</span>
-                            <span className="font-bold text-gray-700">{member.profileCompletion || 0}% Complete</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 block text-[10px]">Onboarding</span>
-                            <span
-                              className={`font-bold ${
-                                (member.onboardingCompletion || 0) === 100
-                                  ? 'text-emerald-600'
-                                  : (member.onboardingCompletion || 0) > 0
-                                  ? 'text-amber-600'
-                                  : 'text-gray-400'
-                              }`}
-                            >
-                              {(member.onboardingCompletion || 0) === 100
-                                ? 'Completed'
-                                : (member.onboardingCompletion || 0) > 0
-                                ? `${member.onboardingCompletion}% Draft`
-                                : 'Not Started'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Comprehensive Member Dossier Inspector */}
-        <div className="lg:col-span-7">
-          {selectedMember ? (
-            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+          {/* Full Screen Width Dossier Card */}
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
               {/* Member Header & Role Editor */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-100">
                 <div className="flex items-center space-x-4">
@@ -664,11 +658,11 @@ export default function AdminMembersPage() {
               </div>
 
               {/* Dossier Navigation Tabs */}
-              <div className="flex items-center space-x-2 border-b border-gray-100 pb-2">
+              <div className="flex items-center space-x-2 border-b border-gray-100 pb-2 overflow-x-auto no-scrollbar scroll-smooth">
                 <button
                   type="button"
                   onClick={() => setActiveTab('profile')}
-                  className={`flex items-center space-x-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     activeTab === 'profile'
                       ? 'bg-brand-dark-green text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100'
@@ -681,7 +675,7 @@ export default function AdminMembersPage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('assessment')}
-                  className={`flex items-center space-x-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     activeTab === 'assessment'
                       ? 'bg-brand-dark-green text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100'
@@ -698,7 +692,7 @@ export default function AdminMembersPage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('weekly-tracker')}
-                  className={`flex items-center space-x-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     activeTab === 'weekly-tracker'
                       ? 'bg-brand-dark-green text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100'
@@ -713,7 +707,7 @@ export default function AdminMembersPage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('coaching')}
-                  className={`flex items-center space-x-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     activeTab === 'coaching'
                       ? 'bg-brand-dark-green text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100'
@@ -1375,12 +1369,7 @@ export default function AdminMembersPage() {
                       <label className="text-xs font-black uppercase tracking-wider text-gray-700">
                         Coach's Internal Clinical Notes
                       </label>
-                      {notesSaved && (
-                        <span className="text-xs font-bold text-emerald-600 flex items-center space-x-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Notes Saved!</span>
-                        </span>
-                      )}
+                      <span className="text-[11px] text-gray-400">Auto-saved</span>
                     </div>
                     <textarea
                       rows={5}
@@ -1459,18 +1448,239 @@ export default function AdminMembersPage() {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-              <Users className="w-12 h-12 text-gray-300 mb-3" />
-              <h3 className="text-base font-bold text-gray-800">Select a member to inspect dossier</h3>
-              <p className="text-xs text-gray-500 max-w-sm mt-1">
-                Choose any member from the left list to review their personal demographics, 70-question intake assessment,
-                or manage their role.
+          </div>
+      ) : (
+        /* Full Screen Width Member Directory and Search */
+        <div className="w-full space-y-6 animate-in fade-in duration-200">
+          {/* Active member indicator */}
+          {selectedMember && (
+            <div className="bg-brand-light-green/40 border border-brand-green/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-green text-white font-black flex items-center justify-center text-sm shrink-0">
+                  {selectedMember.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-900">
+                    Currently Inspecting: <span className="text-brand-dark-green">{selectedMember.name}</span> ({selectedMember.email})
+                  </p>
+                  <p className="text-[11px] text-gray-600">
+                    Select another member from the directory below or return to this dossier anytime.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDirectory(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center space-x-1.5 py-2 px-4 rounded-xl bg-brand-green hover:bg-brand-green/90 text-white text-xs font-bold shadow-sm transition-all shrink-0 cursor-pointer"
+              >
+                <span>Return to Full Dossier</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Search and Filters Bar */}
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name, email, phone, or plan..."
+                  className="w-full pl-10 pr-12 py-2.5 rounded-2xl border border-gray-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 text-xs transition-all bg-gray-50/50"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs shrink-0 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    roleFilter === 'all'
+                      ? 'bg-gray-900 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All ({members.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('paid')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    roleFilter === 'paid'
+                      ? 'bg-emerald-700 text-white shadow-sm'
+                      : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                  }`}
+                >
+                  Paid ({paidCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('unpaid')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    roleFilter === 'unpaid'
+                      ? 'bg-blue-700 text-white shadow-sm'
+                      : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                  }`}
+                >
+                  Unpaid ({unpaidCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('admin')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    roleFilter === 'admin'
+                      ? 'bg-purple-700 text-white shadow-sm'
+                      : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
+                  }`}
+                >
+                  Admin ({adminCount})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Member Cards Grid */}
+          {filteredMembers.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm">
+              <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-gray-800">No members match your criteria</h3>
+              <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                Try clearing your search query or switching the role filter to view all registered users.
               </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {filteredMembers.map((member) => {
+                const isSelected = selectedMember?.id === member.id;
+                const isMemberAdmin = member.role === 'admin' || isDefaultAdmin(member.email);
+
+                return (
+                  <div
+                    key={member.id}
+                    onClick={() => handleSelectMember(member)}
+                    className={`p-5 rounded-3xl border transition-all cursor-pointer text-left relative flex flex-col justify-between hover:shadow-md ${
+                      isSelected
+                        ? 'bg-white border-brand-green shadow-md ring-2 ring-brand-green/20'
+                        : 'bg-white border-gray-200 hover:border-brand-green/50'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start space-x-3.5">
+                        {/* Avatar */}
+                        <div className="relative flex-shrink-0">
+                          {member.avatarUrl ? (
+                            <img
+                              src={member.avatarUrl}
+                              alt={member.name}
+                              className="w-14 h-14 rounded-2xl object-cover border border-gray-200"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-2xl bg-brand-light-green text-brand-dark-green font-black flex items-center justify-center text-lg border border-brand-green/20">
+                              {member.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          {isMemberAdmin && (
+                            <div
+                              className="absolute -top-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-sm"
+                              title="Super Admin"
+                            >
+                              <Shield className="w-3 h-3" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <h3 className="text-sm font-black text-gray-900 truncate">{member.name}</h3>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                                isMemberAdmin
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : member.role === 'paid'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {isMemberAdmin ? 'Admin' : member.role === 'paid' ? 'Paid' : 'Unpaid'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{member.email}</p>
+
+                          {(member.phone || member.profile?.phone) && (
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                              {member.phone || member.profile?.phone}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Coaching Plan */}
+                      {member.planName && (
+                        <div className="mt-3 py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-[11px] font-bold flex items-center space-x-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate">{member.planName}</span>
+                        </div>
+                      )}
+
+                      {/* Progress Indicators */}
+                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100 text-[11px]">
+                        <div>
+                          <span className="text-gray-400 block text-[10px] uppercase font-bold">Profile</span>
+                          <span className="font-bold text-gray-700">{member.profileCompletion || 0}% Complete</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block text-[10px] uppercase font-bold">Assessment</span>
+                          <span
+                            className={`font-bold ${
+                              (member.onboardingCompletion || 0) === 100
+                                ? 'text-emerald-600'
+                                : (member.onboardingCompletion || 0) > 0
+                                ? 'text-amber-600'
+                                : 'text-gray-400'
+                            }`}
+                          >
+                            {(member.onboardingCompletion || 0) === 100
+                              ? 'Completed'
+                              : (member.onboardingCompletion || 0) > 0
+                              ? `${member.onboardingCompletion}% Done`
+                              : 'Not Started'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action footer */}
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-brand-green">
+                      <span>Inspect Full Dossier</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* Admin Progression Photo Modal */}
       {adminPhotoModalEntryId && selectedMember && (

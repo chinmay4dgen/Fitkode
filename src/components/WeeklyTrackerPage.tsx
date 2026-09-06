@@ -27,15 +27,26 @@ import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
 import WeeklyTrackerModal from './WeeklyTrackerModal';
 import PhotoCompareModal from './PhotoCompareModal';
+import { ToastContainer, ToastMessage } from './Toast';
 
 export default function WeeklyTrackerPage() {
   const { user, role, isAdmin, isPaid, signInWithTestAccount, signIn, isConfigured } = useAuth();
   
   const [entries, setEntries] = useState<WeeklyTrackerEntry[]>([]);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<WeeklyTrackerEntry | null>(null);
   const isLive = isLiveProductionSite();
   const canShowTestProfiles = shouldShowTestProfiles();
+
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration || 5000 }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
   
   // Photo modal state
   const [photoModalEntryId, setPhotoModalEntryId] = useState<string | null>(null);
@@ -59,15 +70,47 @@ export default function WeeklyTrackerPage() {
 
   const handleSaveEntry = async (entry: WeeklyTrackerEntry) => {
     if (!userEmail) return;
-    const updated = await saveWeeklyEntry(entry, userEmail);
-    setEntries(updated);
-    setEditingEntry(null);
+    try {
+      const updated = await saveWeeklyEntry(entry, userEmail);
+      setEntries(updated);
+      setEditingEntry(null);
+      addToast({
+        type: 'success',
+        title: 'Check-in Saved',
+        message: `Week ${entry.weekNumber} metrics have been recorded.`,
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Unable to save your check-in. Please try again.',
+        duration: 5000,
+      });
+    }
   };
 
   const handleDeleteEntry = async (entryId: string) => {
     if (!userEmail) return;
-    const updated = await deleteWeeklyEntry(entryId, userEmail, userEmail);
-    setEntries(updated);
+    try {
+      const updated = await deleteWeeklyEntry(entryId, userEmail, userEmail);
+      setEntries(updated);
+      addToast({
+        type: 'info',
+        title: 'Check-in Removed',
+        message: 'The check-in entry was removed.',
+        duration: 4000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Action Failed',
+        message: 'Unable to remove the check-in entry.',
+        duration: 5000,
+      });
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -161,6 +204,9 @@ export default function WeeklyTrackerPage() {
 
   return (
     <div className="min-h-screen bg-natural-oat py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
       <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
         
         {/* Strict Confidentiality & Super Admin Privacy Guarantee Banner */}
@@ -259,6 +305,7 @@ export default function WeeklyTrackerPage() {
             defaultFirstName={userName.split(' ')[0]}
             defaultLastName={userName.split(' ').slice(1).join(' ')}
             suggestedWeekNumber={entries.length + 1}
+            allEntries={entries}
             onSave={handleSaveEntry}
             onClose={() => {
               setIsModalOpen(false);
