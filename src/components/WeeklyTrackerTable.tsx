@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { WeeklyTrackerEntry } from '../types';
+import { formatISTDate } from '../lib/timestampUtils';
 
 interface WeeklyTrackerTableProps {
   entries: WeeklyTrackerEntry[];
@@ -110,14 +111,10 @@ export default function WeeklyTrackerTable({
                         </span>
                         <div>
                           <p className="font-bold text-gray-900 text-xs">
-                            {new Date(entry.checkInDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
+                            {formatISTDate(entry.checkInDate)}
                           </p>
                           <p className="text-[10px] text-gray-400">
-                            {new Date(entry.checkInDate).toLocaleDateString('en-US', { weekday: 'short' })}
+                            {new Date(entry.checkInDate).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' })}
                           </p>
                         </div>
                       </div>

@@ -100,6 +100,27 @@ function saveAllWorkoutPlans(plans: WorkoutPlan[]) {
 }
 
 // =========================================================================
+// EVENT SYNCHRONIZATION FOR CROSS-SCREEN REALTIME UPDATES
+// =========================================================================
+
+export function notifyPlannerChange() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('fk_planner_updated'));
+  }
+}
+
+export function subscribeToPlannerUpdates(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const handler = () => callback();
+  window.addEventListener('fk_planner_updated', handler);
+  window.addEventListener('storage', handler);
+  return () => {
+    window.removeEventListener('fk_planner_updated', handler);
+    window.removeEventListener('storage', handler);
+  };
+}
+
+// =========================================================================
 // USER MEAL PLAN METHODS
 // =========================================================================
 
@@ -116,10 +137,19 @@ export function loadUserMealPlans(userEmail: string): MealPlan[] {
   if (userPlans.length === 0) {
     const initialStarter = createDefaultVegDietPlan(normalizedEmail, false);
     initialStarter.name = 'My Personal Meal Plan';
+    initialStarter.createdAt = new Date().toISOString();
+    initialStarter.updatedAt = new Date().toISOString();
     all.push(initialStarter);
     saveAllMealPlans(all);
     return [initialStarter];
   }
+
+  // Sort in reverse chronological order (newest updated/created first)
+  userPlans.sort((a, b) => {
+    const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
 
   return userPlans;
 }
@@ -136,9 +166,11 @@ export function getActiveMealPlan(userEmail: string): MealPlan | null {
 
 export async function saveMealPlan(plan: MealPlan): Promise<MealPlan[]> {
   const all = getAllStoredMealPlans();
-  const planEmail = (plan.userEmail || plan.userId || '').toLowerCase().trim();
+  const existing = all.find((p) => p.id === plan.id);
+  const planEmail = (plan.userEmail || plan.userId || existing?.userEmail || existing?.userId || '').toLowerCase().trim();
   const updatedPlan: MealPlan = {
     ...plan,
+    name: plan.name ? plan.name.trim() : (existing?.name || 'Personal Meal Plan'),
     userEmail: planEmail,
     userId: planEmail,
     updatedAt: new Date().toISOString(),
@@ -165,6 +197,7 @@ export async function saveMealPlan(plan: MealPlan): Promise<MealPlan[]> {
   }
 
   saveAllMealPlans(all);
+  notifyPlannerChange();
   return loadUserMealPlans(planEmail);
 }
 
@@ -172,7 +205,64 @@ export async function deleteMealPlan(planId: string, userEmail: string): Promise
   const all = getAllStoredMealPlans();
   const filtered = all.filter((p) => p.id !== planId);
   saveAllMealPlans(filtered);
+  notifyPlannerChange();
   return loadUserMealPlans(userEmail);
+}
+
+/**
+ * Flexible meal plan rename supporting both (planId, newName, userEmail?)
+ * and inverted (userEmail, planId, newName) callers
+ */
+export async function renameMealPlan(
+  arg1: string,
+  arg2: string,
+  arg3?: string
+): Promise<MealPlan[]> {
+  const all = getAllStoredMealPlans();
+
+  let targetPlanId = '';
+  let targetNewName = '';
+  let targetUserEmail = '';
+
+  const matchesArg1 = all.find((p) => p.id === arg1);
+  const matchesArg2 = all.find((p) => p.id === arg2);
+
+  if (matchesArg1) {
+    // (planId, newName, userEmail?)
+    targetPlanId = arg1;
+    targetNewName = arg2 || '';
+    targetUserEmail = arg3 || matchesArg1.userEmail || matchesArg1.userId || '';
+  } else if (matchesArg2) {
+    // (userEmail, planId, newName)
+    targetUserEmail = arg1;
+    targetPlanId = arg2;
+    targetNewName = arg3 || '';
+  } else {
+    if (arg1 && arg1.includes('@')) {
+      targetUserEmail = arg1;
+      targetPlanId = arg2;
+      targetNewName = arg3 || '';
+    } else {
+      targetPlanId = arg1;
+      targetNewName = arg2;
+      targetUserEmail = arg3 || '';
+    }
+  }
+
+  const target = all.find((p) => p.id === targetPlanId);
+  if (target) {
+    target.name = targetNewName.trim() || target.name;
+    target.updatedAt = new Date().toISOString();
+    if (!targetUserEmail) {
+      targetUserEmail = target.userEmail || target.userId || '';
+    }
+    saveAllMealPlans(all);
+    notifyPlannerChange();
+  } else {
+    console.warn(`[renameMealPlan] Could not find meal plan with ID: "${targetPlanId}"`);
+  }
+
+  return loadUserMealPlans(targetUserEmail);
 }
 
 export async function setActiveMealPlan(planId: string, userEmail: string): Promise<MealPlan[]> {
@@ -189,6 +279,7 @@ export async function setActiveMealPlan(planId: string, userEmail: string): Prom
   }
 
   saveAllMealPlans(all);
+  notifyPlannerChange();
   return loadUserMealPlans(userEmail);
 }
 
@@ -241,6 +332,7 @@ export async function assignCoachMealPlan(
   }
 
   saveAllMealPlans(all);
+  notifyPlannerChange();
   return newPlan;
 }
 
@@ -261,10 +353,19 @@ export function loadUserWorkoutPlans(userEmail: string): WorkoutPlan[] {
   if (userPlans.length === 0) {
     const initialStarter = createDefaultWorkoutPlan(normalizedEmail, false);
     initialStarter.name = 'My Personal Workout Plan';
+    initialStarter.createdAt = new Date().toISOString();
+    initialStarter.updatedAt = new Date().toISOString();
     all.push(initialStarter);
     saveAllWorkoutPlans(all);
     return [initialStarter];
   }
+
+  // Sort in reverse chronological order (newest updated/created first)
+  userPlans.sort((a, b) => {
+    const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
 
   return userPlans;
 }
@@ -280,9 +381,11 @@ export function getActiveWorkoutPlan(userEmail: string): WorkoutPlan | null {
 
 export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<WorkoutPlan[]> {
   const all = getAllStoredWorkoutPlans();
-  const planEmail = (plan.userEmail || plan.userId || '').toLowerCase().trim();
+  const existing = all.find((p) => p.id === plan.id);
+  const planEmail = (plan.userEmail || plan.userId || existing?.userEmail || existing?.userId || '').toLowerCase().trim();
   const updatedPlan: WorkoutPlan = {
     ...plan,
+    name: plan.name ? plan.name.trim() : (existing?.name || 'Personal Workout Routine'),
     userEmail: planEmail,
     userId: planEmail,
     updatedAt: new Date().toISOString(),
@@ -308,6 +411,7 @@ export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<WorkoutPlan[]>
   }
 
   saveAllWorkoutPlans(all);
+  notifyPlannerChange();
   return loadUserWorkoutPlans(planEmail);
 }
 
@@ -315,7 +419,64 @@ export async function deleteWorkoutPlan(planId: string, userEmail: string): Prom
   const all = getAllStoredWorkoutPlans();
   const filtered = all.filter((p) => p.id !== planId);
   saveAllWorkoutPlans(filtered);
+  notifyPlannerChange();
   return loadUserWorkoutPlans(userEmail);
+}
+
+/**
+ * Flexible workout plan rename supporting both (planId, newName, userEmail?)
+ * and inverted (userEmail, planId, newName) callers
+ */
+export async function renameWorkoutPlan(
+  arg1: string,
+  arg2: string,
+  arg3?: string
+): Promise<WorkoutPlan[]> {
+  const all = getAllStoredWorkoutPlans();
+
+  let targetPlanId = '';
+  let targetNewName = '';
+  let targetUserEmail = '';
+
+  const matchesArg1 = all.find((p) => p.id === arg1);
+  const matchesArg2 = all.find((p) => p.id === arg2);
+
+  if (matchesArg1) {
+    // (planId, newName, userEmail?)
+    targetPlanId = arg1;
+    targetNewName = arg2 || '';
+    targetUserEmail = arg3 || matchesArg1.userEmail || matchesArg1.userId || '';
+  } else if (matchesArg2) {
+    // (userEmail, planId, newName)
+    targetUserEmail = arg1;
+    targetPlanId = arg2;
+    targetNewName = arg3 || '';
+  } else {
+    if (arg1 && arg1.includes('@')) {
+      targetUserEmail = arg1;
+      targetPlanId = arg2;
+      targetNewName = arg3 || '';
+    } else {
+      targetPlanId = arg1;
+      targetNewName = arg2;
+      targetUserEmail = arg3 || '';
+    }
+  }
+
+  const target = all.find((p) => p.id === targetPlanId);
+  if (target) {
+    target.name = targetNewName.trim() || target.name;
+    target.updatedAt = new Date().toISOString();
+    if (!targetUserEmail) {
+      targetUserEmail = target.userEmail || target.userId || '';
+    }
+    saveAllWorkoutPlans(all);
+    notifyPlannerChange();
+  } else {
+    console.warn(`[renameWorkoutPlan] Could not find workout routine with ID: "${targetPlanId}"`);
+  }
+
+  return loadUserWorkoutPlans(targetUserEmail);
 }
 
 export async function setActiveWorkoutPlan(planId: string, userEmail: string): Promise<WorkoutPlan[]> {
@@ -332,6 +493,7 @@ export async function setActiveWorkoutPlan(planId: string, userEmail: string): P
   }
 
   saveAllWorkoutPlans(all);
+  notifyPlannerChange();
   return loadUserWorkoutPlans(userEmail);
 }
 
@@ -382,5 +544,6 @@ export async function assignCoachWorkoutPlan(
   }
 
   saveAllWorkoutPlans(all);
+  notifyPlannerChange();
   return newPlan;
 }

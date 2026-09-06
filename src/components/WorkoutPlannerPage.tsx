@@ -14,6 +14,8 @@ import {
   saveWorkoutPlan,
   deleteWorkoutPlan,
   setActiveWorkoutPlan,
+  renameWorkoutPlan,
+  subscribeToPlannerUpdates,
 } from '../lib/plannerStore';
 import { createDefaultWorkoutPlan } from '../lib/plannerLibrary';
 import WorkoutPlannerView from './WorkoutPlannerView';
@@ -43,19 +45,42 @@ export default function WorkoutPlannerPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Load plans on mount / user change
+  // Load plans on mount / user change & subscribe to updates
   useEffect(() => {
-    const loaded = loadUserWorkoutPlans(userEmail);
-    setPlans(loaded);
-    const active = getActiveWorkoutPlan(userEmail);
-    if (active) {
-      setActivePlanId(active.id);
-    } else if (loaded.length > 0) {
-      setActivePlanId(loaded[0].id);
-    }
+    const sync = () => {
+      const loaded = loadUserWorkoutPlans(userEmail);
+      setPlans(loaded);
+      setActivePlanId((curr) => {
+        if (curr && loaded.some((p) => p.id === curr)) return curr;
+        const active = getActiveWorkoutPlan(userEmail);
+        return active ? active.id : (loaded[0]?.id || '');
+      });
+    };
+    sync();
+    const unsubscribe = subscribeToPlannerUpdates(sync);
+    return () => unsubscribe();
   }, [userEmail]);
 
   const currentPlan = plans.find((p) => p.id === activePlanId) || plans[0] || null;
+
+  const handleRenamePlan = async (planId: string, newName: string) => {
+    try {
+      const updatedList = await renameWorkoutPlan(planId, newName, userEmail);
+      setPlans(updatedList);
+      addToast({
+        type: 'success',
+        title: 'Workout Routine Renamed',
+        message: `Plan renamed to "${newName}".`,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Rename Failed',
+        message: 'Could not rename workout plan.',
+      });
+    }
+  };
 
   const handleSavePlan = async (updatedPlan: WorkoutPlan) => {
     try {
@@ -123,6 +148,27 @@ export default function WorkoutPlannerPage() {
     });
   };
 
+  const handleDuplicatePlan = async (sourcePlan: WorkoutPlan) => {
+    const cloned: WorkoutPlan = {
+      ...JSON.parse(JSON.stringify(sourcePlan)),
+      id: `workout_copy_${Date.now()}`,
+      name: `${sourcePlan.name} (Copy)`,
+      createdBy: 'user',
+      coachName: undefined,
+      coachNotes: undefined,
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updatedList = await saveWorkoutPlan(cloned);
+    setPlans(updatedList);
+    addToast({
+      type: 'info',
+      title: 'Routine Cloned',
+      message: `Created copy "${cloned.name}".`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-natural-oat py-8 px-4 sm:px-6 lg:px-8">
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
@@ -183,8 +229,11 @@ export default function WorkoutPlannerPage() {
           isCoachMode={false}
           onSavePlan={handleSavePlan}
           onSelectPlan={handleSelectPlan}
+          onSetActivePlan={handleSelectPlan}
           onCreateNewPlan={handleCreateNewPlan}
           onDeletePlan={handleDeletePlan}
+          onDuplicatePlan={handleDuplicatePlan}
+          onRenamePlan={handleRenamePlan}
         />
       </div>
     </div>

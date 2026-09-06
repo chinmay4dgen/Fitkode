@@ -18,6 +18,7 @@ import {
   downloadPrintableHtml,
   generateMealPlanWhatsAppText,
 } from '../lib/printUtils';
+import { formatISTDateTime } from '../lib/timestampUtils';
 
 interface MealPlanPrintModalProps {
   plan: MealPlan;
@@ -50,11 +51,7 @@ export default function MealPlanPrintModal({
     }
   }
 
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const currentDate = formatISTDateTime(plan.updatedAt || plan.createdAt || new Date().toISOString());
 
   const htmlContent = generateMealPlanPrintableHtml(plan, userName, userEmail);
 

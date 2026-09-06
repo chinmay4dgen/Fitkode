@@ -223,6 +223,8 @@ export interface WeeklyTrackerEntry {
 // === Meal Planner & Nutrition Types ===
 export type DietType = 'Vegetarian' | 'Non-Vegetarian' | 'Vegan' | 'Eggetarian' | 'Keto' | 'Low-Carb' | 'High-Protein Balanced';
 
+export type MeasurementSystem = 'si' | 'count';
+
 export interface MealItem {
   id: string;
   name: string;
@@ -233,6 +235,23 @@ export interface MealItem {
   fats: number; // grams
   category: 'protein' | 'carbs' | 'fats' | 'veggies' | 'dairy' | 'beverage' | 'snack';
   notes?: string;
+
+  // Custom food & quantity-scaled nutrition properties:
+  isCustom?: boolean; // true if added by user as custom food, false if from ICMR/FDA/INFS approved master database
+  measurementType?: MeasurementSystem; // 'si' (g, ml, kg) or 'count' (units, pieces, eggs, scoops, etc.)
+  quantity?: number; // current quantity numeric value, e.g. 2 or 100
+  unit?: string; // current unit, e.g. "units", "eggs", "g", "ml", "scoop", "rotis", "pcs"
+  unitWeight?: number; // weight in grams or ml per 1 count unit (e.g. 50g for 1 egg, 30g for 1 roti)
+  countUnitName?: string; // label for count unit, e.g. "units", "eggs", "rotis", "scoops", "pcs"
+  siUnitName?: string; // "g" or "ml"
+  baseQuantity?: number; // reference quantity from approved database (e.g. 100 or 2)
+  baseUnit?: string; // reference unit from approved database (e.g. "g" or "units")
+  baseMeasurementType?: MeasurementSystem;
+  baseCalories?: number; // reference calories at baseQuantity
+  baseProtein?: number; // reference protein at baseQuantity
+  baseCarbs?: number; // reference carbs at baseQuantity
+  baseFats?: number; // reference fats at baseQuantity
+  baseServingSize?: string; // reference serving string e.g. "100g" or "2 eggs (100g)"
 }
 
 export interface MealSlot {

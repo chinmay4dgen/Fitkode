@@ -14,6 +14,8 @@ import {
   Activity,
   Award,
   ChevronDown,
+  Edit2,
+  Layers,
 } from 'lucide-react';
 import {
   WorkoutPlan,
@@ -24,6 +26,9 @@ import {
 } from '../types';
 import { EXERCISE_LIBRARY } from '../lib/plannerLibrary';
 import WorkoutPlanPrintModal from './WorkoutPlanPrintModal';
+import WorkoutPlansListView from './WorkoutPlansListView';
+import { RenamePlanModal } from './PlanNameModals';
+import { formatISTDateTime } from '../lib/timestampUtils';
 
 interface WorkoutPlannerViewProps {
   currentPlan: WorkoutPlan | null;
@@ -32,10 +37,14 @@ interface WorkoutPlannerViewProps {
   userName?: string;
   isCoachMode?: boolean; // true if Coach Chinmay is managing for a customer
   coachName?: string;
+  initialViewMode?: 'editor' | 'list';
   onSavePlan: (plan: WorkoutPlan) => void;
   onSelectPlan?: (planId: string) => void;
   onCreateNewPlan?: () => void;
   onDeletePlan?: (planId: string) => void;
+  onSetActivePlan?: (planId: string) => void;
+  onDuplicatePlan?: (plan: WorkoutPlan) => void;
+  onRenamePlan?: (planId: string, newName: string) => void;
 }
 
 export default function WorkoutPlannerView({
@@ -45,11 +54,18 @@ export default function WorkoutPlannerView({
   userName = 'Member',
   isCoachMode = false,
   coachName = 'Chinmay Jain',
+  initialViewMode = 'editor',
   onSavePlan,
   onSelectPlan,
   onCreateNewPlan,
   onDeletePlan,
+  onSetActivePlan,
+  onDuplicatePlan,
+  onRenamePlan,
 }: WorkoutPlannerViewProps) {
+  const [viewMode, setViewMode] = useState<'editor' | 'list'>(initialViewMode);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+
   // Working local state for the active plan
   const [plan, setPlan] = useState<WorkoutPlan>(() => {
     if (currentPlan) return currentPlan;
@@ -78,7 +94,7 @@ export default function WorkoutPlannerView({
     if (currentPlan) {
       setPlan(currentPlan);
     }
-  }, [currentPlan?.id]);
+  }, [currentPlan?.id, currentPlan?.name, currentPlan?.updatedAt]);
 
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [libraryModalDayId, setLibraryModalDayId] = useState<string | null>(null);
@@ -237,8 +253,124 @@ export default function WorkoutPlannerView({
 
   const isCoachCreated = plan.createdBy === 'coach';
 
+  const formatDateTime = (isoString?: string) => {
+    return formatISTDateTime(isoString);
+  };
+
+  const handleRenamePlan = (newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const updated = {
+      ...plan,
+      name: trimmed,
+      updatedAt: new Date().toISOString(),
+    };
+    setPlan(updated);
+    setIsRenameModalOpen(false);
+    if (onRenamePlan) {
+      onRenamePlan(plan.id, trimmed);
+    } else {
+      onSavePlan(updated);
+    }
+  };
+
+  // If in Listing Directory view, show the full list in reverse chronological order
+  if (viewMode === 'list') {
+    return (
+      <div className="space-y-4">
+        {/* Switch back to editor navigation */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-1 bg-white p-1 rounded-2xl border border-gray-200 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('editor')}
+              className="py-2 px-3.5 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Routine Editor</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className="py-2 px-3.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-xs flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>All Routines ({allPlans.length || 1})</span>
+            </button>
+          </div>
+        </div>
+
+        <WorkoutPlansListView
+          plans={allPlans.length > 0 ? allPlans : [plan]}
+          activePlanId={plan.id}
+          userName={userName}
+          userEmail={userEmail}
+          isCoachMode={isCoachMode}
+          onSelectPlan={(id) => {
+            if (onSelectPlan) onSelectPlan(id);
+            setViewMode('editor');
+          }}
+          onEditPlan={(id) => {
+            if (onSelectPlan) onSelectPlan(id);
+            setViewMode('editor');
+          }}
+          onCreateNewPlan={() => {
+            if (onCreateNewPlan) onCreateNewPlan();
+            setViewMode('editor');
+          }}
+          onDeletePlan={(id) => {
+            if (onDeletePlan) onDeletePlan(id);
+          }}
+          onSetActivePlan={(id) => {
+            if (onSetActivePlan) onSetActivePlan(id);
+            else if (onSelectPlan) onSelectPlan(id);
+          }}
+          onDuplicatePlan={onDuplicatePlan}
+          onRenamePlan={onRenamePlan}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Top View Mode Switcher (Editor vs Listing) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+        <div className="flex items-center space-x-1 bg-white p-1 rounded-2xl border border-gray-200 shadow-2xs w-fit">
+          <button
+            type="button"
+            onClick={() => setViewMode('editor')}
+            className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+              viewMode === 'editor'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>Routine Editor</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>All Routines ({allPlans.length || 1})</span>
+          </button>
+        </div>
+
+        {plan.updatedAt && (
+          <div className="flex items-center space-x-1.5 text-xs text-gray-500">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <span>Last Updated: {formatDateTime(plan.updatedAt)}</span>
+          </div>
+        )}
+      </div>
+
       {/* Save Success Banner */}
       {saveSuccessNotice && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between animate-in fade-in duration-200 shadow-sm">
@@ -271,7 +403,17 @@ export default function WorkoutPlannerView({
               <span className="p-2 rounded-xl bg-purple-100 text-purple-900">
                 <Dumbbell className="w-5 h-5" />
               </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{plan.name}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span>{plan.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setIsRenameModalOpen(true)}
+                  className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                  title="Rename this routine"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </h2>
               {isCoachCreated ? (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-200">
                   <ShieldCheck className="w-3.5 h-3.5 mr-1 text-purple-700" />
@@ -294,18 +436,30 @@ export default function WorkoutPlannerView({
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5">
             {allPlans.length > 1 && onSelectPlan && (
-              <div className="relative">
-                <select
-                  value={plan.id}
-                  onChange={(e) => onSelectPlan(e.target.value)}
-                  className="py-2.5 px-3.5 pr-8 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 hover:border-brand-green cursor-pointer shadow-xs focus:ring-2 focus:ring-brand-green/20"
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <select
+                    value={plan.id}
+                    onChange={(e) => onSelectPlan(e.target.value)}
+                    className="py-2.5 px-3.5 pr-8 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 hover:border-brand-green cursor-pointer shadow-xs focus:ring-2 focus:ring-brand-green/20"
+                  >
+                    {allPlans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.createdBy === 'coach' ? '(Coach)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className="py-2.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs border border-indigo-200"
+                  title="View all routines in reverse chronological order"
                 >
-                  {allPlans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.createdBy === 'coach' ? '(Coach)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">All Routines</span>
+                  <span>({allPlans.length})</span>
+                </button>
               </div>
             )}
 
@@ -827,6 +981,16 @@ export default function WorkoutPlannerView({
           onClose={() => setIsPrintModalOpen(false)}
         />
       )}
+
+      {/* Rename Plan Modal */}
+      <RenamePlanModal
+        isOpen={isRenameModalOpen}
+        title="Rename Workout Routine"
+        currentName={plan.name}
+        planType="workout"
+        onClose={() => setIsRenameModalOpen(false)}
+        onSave={handleRenamePlan}
+      />
     </div>
   );
 }

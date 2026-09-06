@@ -15,6 +15,7 @@ import {
   openPrintableHtmlInNewTab,
   downloadPrintableHtml,
 } from '../lib/printUtils';
+import { formatISTDateTime } from '../lib/timestampUtils';
 
 interface WorkoutPlanPrintModalProps {
   plan: WorkoutPlan;
@@ -31,11 +32,7 @@ export default function WorkoutPlanPrintModal({
 }: WorkoutPlanPrintModalProps) {
   const [printError, setPrintError] = useState<string | null>(null);
 
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const currentDate = formatISTDateTime(plan.updatedAt || plan.createdAt || new Date().toISOString());
 
   const htmlContent = generateWorkoutPlanPrintableHtml(plan, userName, userEmail);
 

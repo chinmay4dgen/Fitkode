@@ -394,7 +394,7 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
                     >
                       <Shield className="w-4 h-4 text-purple-700" />
                       <div className="text-left">
-                        <p className="font-bold text-purple-950 leading-tight">Admin Directory</p>
+                        <p className="font-bold text-purple-950 leading-tight">Admin Portal</p>
                         <p className="text-[10px] text-purple-600/80 font-normal">Manage all members & dossiers</p>
                       </div>
                     </Link>
@@ -475,42 +475,6 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
               </div>
             )}
           </div>
-
-          {/* Visible Direct Super Admin Portal Button */}
-          {isAdmin && (
-            <Link
-              id="header-direct-admin-button"
-              to="/admin"
-              className="hidden md:inline-flex items-center space-x-1.5 py-1.5 px-3 rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition-all cursor-pointer shadow-xs"
-              title="Super Admin Portal"
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-700" />
-              <span>Admin Portal</span>
-            </Link>
-          )}
-
-          {/* Visible Direct My Profile Button */}
-          <Link
-            id="header-direct-profile-button"
-            to="/profile"
-            className="hidden sm:inline-flex items-center space-x-1.5 py-1.5 px-3 rounded-lg border border-brand-green/30 bg-brand-light-green/30 hover:bg-brand-light-green text-brand-dark-green text-xs font-bold transition-all cursor-pointer"
-            title="My Profile"
-          >
-            <User className="w-3.5 h-3.5 text-brand-green" />
-            <span>Profile</span>
-          </Link>
-
-          {/* Visible Direct Log Out Button (Immediate 1-Click Logout) */}
-          <button
-            id="header-direct-logout-button"
-            type="button"
-            onClick={handleSignOut}
-            className="hidden lg:flex items-center space-x-1 py-1.5 px-2.5 rounded-lg border border-gray-200 hover:border-red-200 bg-white hover:bg-red-50 text-gray-600 hover:text-red-600 text-xs font-medium transition-all cursor-pointer"
-            title="Log Out"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Log Out</span>
-          </button>
         </div>
       ) : (
         /* NOT SIGNED IN STATE: Show Google Sign-in Button & Quick Test Button */

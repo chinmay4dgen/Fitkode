@@ -51,11 +51,14 @@ import {
   saveMealPlan,
   deleteMealPlan,
   setActiveMealPlan,
+  renameMealPlan,
   loadUserWorkoutPlans,
   getActiveWorkoutPlan,
   saveWorkoutPlan,
   deleteWorkoutPlan,
   setActiveWorkoutPlan,
+  renameWorkoutPlan,
+  subscribeToPlannerUpdates,
 } from '../lib/plannerStore';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
 import MealPlannerView from './MealPlannerView';
@@ -116,23 +119,27 @@ export default function UserProfilePage() {
     if (user?.email) {
       setWeeklyEntries(loadUserWeeklyEntries(user.email));
 
-      const mPlans = loadUserMealPlans(user.email);
-      setUserMealPlans(mPlans);
-      const activeM = getActiveMealPlan(user.email);
-      if (activeM) {
-        setActiveMealPlanId(activeM.id);
-      } else if (mPlans.length > 0) {
-        setActiveMealPlanId(mPlans[0].id);
-      }
+      const syncPlanners = () => {
+        const mPlans = loadUserMealPlans(user.email);
+        setUserMealPlans(mPlans);
+        setActiveMealPlanId((curr) => {
+          if (curr && mPlans.some((p) => p.id === curr)) return curr;
+          const activeM = getActiveMealPlan(user.email);
+          return activeM ? activeM.id : (mPlans[0]?.id || '');
+        });
 
-      const wPlans = loadUserWorkoutPlans(user.email);
-      setUserWorkoutPlans(wPlans);
-      const activeW = getActiveWorkoutPlan(user.email);
-      if (activeW) {
-        setActiveWorkoutPlanId(activeW.id);
-      } else if (wPlans.length > 0) {
-        setActiveWorkoutPlanId(wPlans[0].id);
-      }
+        const wPlans = loadUserWorkoutPlans(user.email);
+        setUserWorkoutPlans(wPlans);
+        setActiveWorkoutPlanId((curr) => {
+          if (curr && wPlans.some((p) => p.id === curr)) return curr;
+          const activeW = getActiveWorkoutPlan(user.email);
+          return activeW ? activeW.id : (wPlans[0]?.id || '');
+        });
+      };
+
+      syncPlanners();
+      const unsubscribe = subscribeToPlannerUpdates(syncPlanners);
+      return () => unsubscribe();
     }
   }, [user?.email]);
 
@@ -281,6 +288,76 @@ export default function UserProfilePage() {
       title: 'Routine Removed',
       message: 'Workout routine was deleted from your profile.',
       duration: 4000,
+    });
+  };
+
+  const handleDuplicateMealPlan = async (sourcePlan: MealPlan) => {
+    if (!user?.email) return;
+    const cloned: MealPlan = {
+      ...JSON.parse(JSON.stringify(sourcePlan)),
+      id: `diet_copy_${Date.now()}`,
+      name: `${sourcePlan.name} (Copy)`,
+      createdBy: 'user',
+      coachName: undefined,
+      coachNotes: undefined,
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = await saveMealPlan(cloned);
+    setUserMealPlans(updated);
+    addToast({
+      type: 'info',
+      title: 'Meal Plan Cloned',
+      message: `Created copy "${cloned.name}".`,
+      duration: 4000,
+    });
+  };
+
+  const handleDuplicateWorkoutPlan = async (sourcePlan: WorkoutPlan) => {
+    if (!user?.email) return;
+    const cloned: WorkoutPlan = {
+      ...JSON.parse(JSON.stringify(sourcePlan)),
+      id: `workout_copy_${Date.now()}`,
+      name: `${sourcePlan.name} (Copy)`,
+      createdBy: 'user',
+      coachName: undefined,
+      coachNotes: undefined,
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = await saveWorkoutPlan(cloned);
+    setUserWorkoutPlans(updated);
+    addToast({
+      type: 'info',
+      title: 'Routine Cloned',
+      message: `Created copy "${cloned.name}".`,
+      duration: 4000,
+    });
+  };
+
+  const handleRenameMealPlan = async (planId: string, newName: string) => {
+    if (!user?.email) return;
+    const updated = await renameMealPlan(planId, newName, user.email);
+    setUserMealPlans(updated);
+    addToast({
+      type: 'success',
+      title: 'Meal Plan Renamed',
+      message: `Plan renamed to "${newName}".`,
+      duration: 3000,
+    });
+  };
+
+  const handleRenameWorkoutPlan = async (planId: string, newName: string) => {
+    if (!user?.email) return;
+    const updated = await renameWorkoutPlan(planId, newName, user.email);
+    setUserWorkoutPlans(updated);
+    addToast({
+      type: 'success',
+      title: 'Workout Routine Renamed',
+      message: `Routine renamed to "${newName}".`,
+      duration: 3000,
     });
   };
 
@@ -1460,8 +1537,11 @@ export default function UserProfilePage() {
           isCoachMode={false}
           onSavePlan={handleSaveMealPlan}
           onSelectPlan={handleSelectMealPlan}
+          onSetActivePlan={handleSelectMealPlan}
           onCreateNewPlan={handleCreateNewMealPlan}
           onDeletePlan={handleDeleteMealPlan}
+          onDuplicatePlan={handleDuplicateMealPlan}
+          onRenamePlan={handleRenameMealPlan}
         />
       </div>
     )}
@@ -1483,8 +1563,11 @@ export default function UserProfilePage() {
           isCoachMode={false}
           onSavePlan={handleSaveWorkoutPlan}
           onSelectPlan={handleSelectWorkoutPlan}
+          onSetActivePlan={handleSelectWorkoutPlan}
           onCreateNewPlan={handleCreateNewWorkoutPlan}
           onDeletePlan={handleDeleteWorkoutPlan}
+          onDuplicatePlan={handleDuplicateWorkoutPlan}
+          onRenamePlan={handleRenameWorkoutPlan}
         />
       </div>
     )}

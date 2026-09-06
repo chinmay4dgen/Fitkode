@@ -53,7 +53,16 @@ import {
   assignCoachMealPlan,
   loadUserWorkoutPlans,
   assignCoachWorkoutPlan,
+  setActiveMealPlan,
+  setActiveWorkoutPlan,
+  deleteMealPlan,
+  deleteWorkoutPlan,
+  saveMealPlan,
+  saveWorkoutPlan,
+  renameMealPlan,
+  renameWorkoutPlan,
 } from '../lib/plannerStore';
+import { formatISTDate, formatISTDateTime } from '../lib/timestampUtils';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
 import MealPlannerView from './MealPlannerView';
 import WorkoutPlannerView from './WorkoutPlannerView';
@@ -141,6 +150,57 @@ export default function AdminMembersPage() {
     setAdminActiveMealPlanId(newPlan.id);
   };
 
+  const handleAdminSetActiveMealPlan = async (planId: string) => {
+    if (!selectedMember?.email) return;
+    const updated = await setActiveMealPlan(planId, selectedMember.email);
+    setAdminMemberMealPlans(updated);
+    setAdminActiveMealPlanId(planId);
+    addToast({
+      type: 'info',
+      title: 'Active Diet Plan Set',
+      message: 'Updated member active nutrition plan.',
+      duration: 3000,
+    });
+  };
+
+  const handleAdminDeleteMealPlan = async (planId: string) => {
+    if (!selectedMember?.email) return;
+    const updated = await deleteMealPlan(planId, selectedMember.email);
+    setAdminMemberMealPlans(updated);
+    if (adminActiveMealPlanId === planId) {
+      setAdminActiveMealPlanId(updated[0]?.id || '');
+    }
+    addToast({
+      type: 'info',
+      title: 'Plan Removed',
+      message: 'Meal plan was removed from member profile.',
+      duration: 3000,
+    });
+  };
+
+  const handleAdminDuplicateMealPlan = async (sourcePlan: MealPlan) => {
+    if (!selectedMember?.email) return;
+    const cloned: MealPlan = {
+      ...JSON.parse(JSON.stringify(sourcePlan)),
+      id: `diet_coach_${Date.now()}`,
+      name: `${sourcePlan.name} (Copy)`,
+      createdBy: 'coach',
+      coachName: 'Chinmay Jain',
+      coachNotes: `Cloned by Coach Chinmay for ${selectedMember.name}.`,
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = await saveMealPlan(cloned);
+    setAdminMemberMealPlans(updated);
+    addToast({
+      type: 'info',
+      title: 'Meal Plan Cloned',
+      message: `Created "${cloned.name}".`,
+      duration: 3000,
+    });
+  };
+
   const handleAdminSaveWorkoutPlan = async (plan: WorkoutPlan) => {
     if (!selectedMember?.email) return;
     try {
@@ -175,6 +235,81 @@ export default function AdminMembersPage() {
 
     setAdminMemberWorkoutPlans((prev) => [newPlan, ...prev]);
     setAdminActiveWorkoutPlanId(newPlan.id);
+  };
+
+  const handleAdminSetActiveWorkoutPlan = async (planId: string) => {
+    if (!selectedMember?.email) return;
+    const updated = await setActiveWorkoutPlan(planId, selectedMember.email);
+    setAdminMemberWorkoutPlans(updated);
+    setAdminActiveWorkoutPlanId(planId);
+    addToast({
+      type: 'info',
+      title: 'Active Routine Set',
+      message: 'Updated member active workout routine.',
+      duration: 3000,
+    });
+  };
+
+  const handleAdminDeleteWorkoutPlan = async (planId: string) => {
+    if (!selectedMember?.email) return;
+    const updated = await deleteWorkoutPlan(planId, selectedMember.email);
+    setAdminMemberWorkoutPlans(updated);
+    if (adminActiveWorkoutPlanId === planId) {
+      setAdminActiveWorkoutPlanId(updated[0]?.id || '');
+    }
+    addToast({
+      type: 'info',
+      title: 'Routine Removed',
+      message: 'Workout routine was removed from member profile.',
+      duration: 3000,
+    });
+  };
+
+  const handleAdminDuplicateWorkoutPlan = async (sourcePlan: WorkoutPlan) => {
+    if (!selectedMember?.email) return;
+    const cloned: WorkoutPlan = {
+      ...JSON.parse(JSON.stringify(sourcePlan)),
+      id: `workout_coach_${Date.now()}`,
+      name: `${sourcePlan.name} (Copy)`,
+      createdBy: 'coach',
+      coachName: 'Chinmay Jain',
+      coachNotes: `Cloned by Coach Chinmay for ${selectedMember.name}.`,
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = await saveWorkoutPlan(cloned);
+    setAdminMemberWorkoutPlans(updated);
+    addToast({
+      type: 'info',
+      title: 'Routine Cloned',
+      message: `Created "${cloned.name}".`,
+      duration: 3000,
+    });
+  };
+
+  const handleAdminRenameMealPlan = async (planId: string, newName: string) => {
+    if (!selectedMember?.email) return;
+    const updated = await renameMealPlan(planId, newName, selectedMember.email);
+    setAdminMemberMealPlans(updated);
+    addToast({
+      type: 'success',
+      title: 'Meal Plan Renamed',
+      message: `Plan renamed to "${newName}".`,
+      duration: 3000,
+    });
+  };
+
+  const handleAdminRenameWorkoutPlan = async (planId: string, newName: string) => {
+    if (!selectedMember?.email) return;
+    const updated = await renameWorkoutPlan(planId, newName, selectedMember.email);
+    setAdminMemberWorkoutPlans(updated);
+    addToast({
+      type: 'success',
+      title: 'Workout Routine Renamed',
+      message: `Routine renamed to "${newName}".`,
+      duration: 3000,
+    });
   };
 
   // Toast Notification helper (5s auto-dismiss or manual dismiss)
@@ -1470,9 +1605,9 @@ export default function AdminMembersPage() {
                         <span className="text-gray-400 block">Enrolled On</span>
                         <span className="font-medium text-gray-700">
                           {selectedMember.planPurchasedAt
-                            ? new Date(selectedMember.planPurchasedAt).toLocaleDateString()
+                            ? formatISTDate(selectedMember.planPurchasedAt)
                             : selectedMember.joinedAt
-                            ? new Date(selectedMember.joinedAt).toLocaleDateString()
+                            ? formatISTDate(selectedMember.joinedAt)
                             : 'N/A'}
                         </span>
                       </div>
@@ -1613,10 +1748,11 @@ export default function AdminMembersPage() {
                     isCoachMode={true}
                     onSavePlan={handleAdminSaveMealPlan}
                     onSelectPlan={(id) => setAdminActiveMealPlanId(id)}
+                    onSetActivePlan={handleAdminSetActiveMealPlan}
                     onCreateNewPlan={handleAdminCreateNewMealPlan}
-                    onDeletePlan={(id) => {
-                      setAdminMemberMealPlans((prev) => prev.filter((p) => p.id !== id));
-                    }}
+                    onDeletePlan={handleAdminDeleteMealPlan}
+                    onDuplicatePlan={handleAdminDuplicateMealPlan}
+                    onRenamePlan={handleAdminRenameMealPlan}
                   />
                 </div>
               )}
@@ -1656,10 +1792,11 @@ export default function AdminMembersPage() {
                     isCoachMode={true}
                     onSavePlan={handleAdminSaveWorkoutPlan}
                     onSelectPlan={(id) => setAdminActiveWorkoutPlanId(id)}
+                    onSetActivePlan={handleAdminSetActiveWorkoutPlan}
                     onCreateNewPlan={handleAdminCreateNewWorkoutPlan}
-                    onDeletePlan={(id) => {
-                      setAdminMemberWorkoutPlans((prev) => prev.filter((p) => p.id !== id));
-                    }}
+                    onDeletePlan={handleAdminDeleteWorkoutPlan}
+                    onDuplicatePlan={handleAdminDuplicateWorkoutPlan}
+                    onRenamePlan={handleAdminRenameWorkoutPlan}
                   />
                 </div>
               )}

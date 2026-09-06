@@ -19,6 +19,8 @@ import {
   saveMealPlan,
   deleteMealPlan,
   setActiveMealPlan,
+  renameMealPlan,
+  subscribeToPlannerUpdates,
 } from '../lib/plannerStore';
 import { createDefaultVegDietPlan } from '../lib/plannerLibrary';
 import MealPlannerView from './MealPlannerView';
@@ -48,19 +50,42 @@ export default function MealPlannerPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Load plans on mount / user change
+  // Load plans on mount / user change & subscribe to updates
   useEffect(() => {
-    const loaded = loadUserMealPlans(userEmail);
-    setPlans(loaded);
-    const active = getActiveMealPlan(userEmail);
-    if (active) {
-      setActivePlanId(active.id);
-    } else if (loaded.length > 0) {
-      setActivePlanId(loaded[0].id);
-    }
+    const sync = () => {
+      const loaded = loadUserMealPlans(userEmail);
+      setPlans(loaded);
+      setActivePlanId((curr) => {
+        if (curr && loaded.some((p) => p.id === curr)) return curr;
+        const active = getActiveMealPlan(userEmail);
+        return active ? active.id : (loaded[0]?.id || '');
+      });
+    };
+    sync();
+    const unsubscribe = subscribeToPlannerUpdates(sync);
+    return () => unsubscribe();
   }, [userEmail]);
 
   const currentPlan = plans.find((p) => p.id === activePlanId) || plans[0] || null;
+
+  const handleRenamePlan = async (planId: string, newName: string) => {
+    try {
+      const updatedList = await renameMealPlan(planId, newName, userEmail);
+      setPlans(updatedList);
+      addToast({
+        type: 'success',
+        title: 'Meal Plan Renamed',
+        message: `Plan renamed to "${newName}".`,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Rename Failed',
+        message: 'Could not rename meal plan.',
+      });
+    }
+  };
 
   const handleSavePlan = async (updatedPlan: MealPlan) => {
     try {
@@ -128,6 +153,27 @@ export default function MealPlannerPage() {
     });
   };
 
+  const handleDuplicatePlan = async (sourcePlan: MealPlan) => {
+    const cloned: MealPlan = {
+      ...JSON.parse(JSON.stringify(sourcePlan)),
+      id: `diet_copy_${Date.now()}`,
+      name: `${sourcePlan.name} (Copy)`,
+      createdBy: 'user',
+      coachName: undefined,
+      coachNotes: undefined,
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updatedList = await saveMealPlan(cloned);
+    setPlans(updatedList);
+    addToast({
+      type: 'info',
+      title: 'Plan Cloned',
+      message: `Created copy "${cloned.name}".`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-natural-oat py-8 px-4 sm:px-6 lg:px-8">
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
@@ -188,8 +234,11 @@ export default function MealPlannerPage() {
           isCoachMode={false}
           onSavePlan={handleSavePlan}
           onSelectPlan={handleSelectPlan}
+          onSetActivePlan={handleSelectPlan}
           onCreateNewPlan={handleCreateNewPlan}
           onDeletePlan={handleDeletePlan}
+          onDuplicatePlan={handleDuplicatePlan}
+          onRenamePlan={handleRenamePlan}
         />
       </div>
     </div>

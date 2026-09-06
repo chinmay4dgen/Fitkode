@@ -1,4 +1,5 @@
 import { MealPlan, WorkoutPlan } from '../types';
+import { formatISTDateTime } from './timestampUtils';
 
 /**
  * Generate a standalone, self-contained printable HTML document for a Meal Plan
@@ -22,11 +23,7 @@ export function generateMealPlanPrintableHtml(
     }
   }
 
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const currentDate = formatISTDateTime(plan.updatedAt || plan.createdAt || new Date().toISOString());
 
   const mealsHtml = (plan.meals || [])
     .map((slot, index) => {
@@ -323,11 +320,7 @@ export function generateWorkoutPlanPrintableHtml(
   userName = 'Member',
   userEmail = ''
 ): string {
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const currentDate = formatISTDateTime(plan.updatedAt || plan.createdAt || new Date().toISOString());
 
   const daysHtml = (plan.days || [])
     .map((day, dIdx) => {
