@@ -45,6 +45,7 @@ import {
   isDefaultAdmin,
   DEFAULT_ADMIN_EMAILS,
 } from '../lib/memberStore';
+import { getSupabase } from '../lib/supabase';
 import { loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
 import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
@@ -93,6 +94,36 @@ export default function AdminMembersPage() {
   useEffect(() => {
     if (isAdmin) {
       loadData();
+
+      // Listen for instant realtime changes on public.profiles (e.g. new Google signups)
+      const supabase = getSupabase();
+      let channel: any = null;
+      if (supabase) {
+        try {
+          channel = supabase
+            .channel('admin-profiles-realtime')
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'profiles' },
+              () => {
+                loadData();
+              }
+            )
+            .subscribe();
+        } catch {
+          // ignore
+        }
+      }
+
+      return () => {
+        if (supabase && channel) {
+          try {
+            supabase.removeChannel(channel);
+          } catch {
+            // ignore
+          }
+        }
+      };
     }
   }, [isAdmin, user?.email]);
 

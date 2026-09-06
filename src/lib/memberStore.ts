@@ -1,5 +1,6 @@
 import { AppMember, UserRole, UserProfile, ClientOnboarding } from '../types';
 import { defaultUserProfile, defaultClientOnboarding, getProfileCompletionRate, getOnboardingCompletionRate } from './profileStorage';
+import { getSupabase } from './supabase';
 
 export const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com'];
 
@@ -549,7 +550,8 @@ export async function syncMemberToStore(memberData: {
 
 /**
  * Fetches all members. Super Admin only!
- * If requester is NOT an admin, throws an access denied error.
+ * Automatically queries Supabase public.profiles table to instantly load
+ * all users who authenticated via Google OAuth, merging them with any server/local records.
  */
 export async function fetchAllMembersForAdmin(callerEmail?: string | null): Promise<AppMember[]> {
   if (!callerEmail) {
@@ -562,21 +564,109 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
     throw new Error('Access denied. Only Super Admins can view member data.');
   }
 
-  // Try fetching from server first
+  // 1. Fetch server & local members as baseline
+  let baseMembers: AppMember[] = [];
   try {
     const res = await fetch(`/api/members?caller=${encodeURIComponent(callerEmail)}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.members)) {
-        saveStoredMembers(data.members);
-        return data.members;
+        baseMembers = data.members;
       }
     }
   } catch {
     // Fall back to local storage
   }
 
-  return getStoredMembers();
+  if (baseMembers.length === 0) {
+    baseMembers = getStoredMembers();
+  }
+
+  // 2. Query Supabase public.profiles table directly
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data: profileRows, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(profileRows) && profileRows.length > 0) {
+        const mergedList: AppMember[] = [...baseMembers];
+
+        for (const row of profileRows) {
+          const profileData = row.profile_data || {};
+          const onboardingData = row.onboarding_data || {};
+          const firstName = row.first_name || profileData.firstName || '';
+          const lastName = row.last_name || profileData.lastName || '';
+          const fullName =
+            row.full_name ||
+            (firstName ? `${firstName} ${lastName}`.trim() : '') ||
+            row.email?.split('@')[0] ||
+            'Member';
+          const email = (row.email || '').toLowerCase().trim();
+          const isEmailAdmin = isDefaultAdmin(email);
+          const resolvedRole: UserRole = isEmailAdmin ? 'admin' : (row.role || 'unpaid');
+
+          const profileRate = getProfileCompletionRate(profileData);
+          const onboardingRate = getOnboardingCompletionRate(onboardingData);
+
+          const existingIndex = mergedList.findIndex(
+            (m) => (email && m.email.toLowerCase() === email) || m.id === row.id
+          );
+
+          const memberObj: AppMember = {
+            id: row.id,
+            email,
+            name: fullName,
+            role: resolvedRole,
+            avatarUrl: row.avatar_url || profileData.avatarUrl || '',
+            joinedAt: row.created_at || new Date().toISOString(),
+            lastLoginAt: row.updated_at || row.created_at || new Date().toISOString(),
+            phone: row.phone || profileData.phone || '',
+            planId: row.plan_id || profileData.planId,
+            planName: row.plan_name || profileData.planName,
+            planPurchasedAt: row.plan_purchased_at || profileData.planPurchasedAt,
+            profileCompletion: profileRate,
+            onboardingCompletion: onboardingRate,
+            notes: row.notes || (existingIndex >= 0 ? mergedList[existingIndex].notes : ''),
+            profile: {
+              ...defaultUserProfile,
+              ...profileData,
+              firstName: firstName || profileData.firstName || '',
+              lastName: lastName || profileData.lastName || '',
+              phone: row.phone || profileData.phone || '',
+              email: email || profileData.email || '',
+            },
+            onboarding: Object.keys(onboardingData).length > 0 ? {
+              ...defaultClientOnboarding,
+              ...onboardingData,
+            } : (existingIndex >= 0 ? mergedList[existingIndex].onboarding : undefined),
+          };
+
+          if (existingIndex >= 0) {
+            // Merge with existing entry, keeping real Supabase data prioritized
+            mergedList[existingIndex] = {
+              ...mergedList[existingIndex],
+              ...memberObj,
+              notes: row.notes || mergedList[existingIndex].notes || '',
+            };
+          } else {
+            // New user from Supabase - add to beginning
+            mergedList.unshift(memberObj);
+          }
+        }
+
+        saveStoredMembers(mergedList);
+        return mergedList;
+      }
+    } catch (supaErr) {
+      console.warn('Supabase profiles query notice:', supaErr);
+    }
+  }
+
+  saveStoredMembers(baseMembers);
+  return baseMembers;
 }
 
 /**
@@ -601,7 +691,21 @@ export async function updateMemberRole(
   members[index].role = newRole;
   saveStoredMembers(members);
 
-  // Sync to backend
+  // 1. Sync to Supabase profiles table directly
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      supabase
+        .from('profiles')
+        .update({ role: newRole, updated_at: new Date().toISOString() })
+        .or(`id.eq.${memberId},email.eq.${memberId}`)
+        .then(() => {});
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Sync to backend API
   try {
     await fetch(`/api/members/${encodeURIComponent(memberId)}/role`, {
       method: 'PATCH',
@@ -624,5 +728,19 @@ export function updateMemberNotes(memberId: string, notes: string): void {
   if (index >= 0) {
     members[index].notes = notes;
     saveStoredMembers(members);
+
+    // Sync to Supabase profiles table
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        supabase
+          .from('profiles')
+          .update({ notes, updated_at: new Date().toISOString() })
+          .or(`id.eq.${memberId},email.eq.${memberId}`)
+          .then(() => {});
+      } catch {
+        // ignore
+      }
+    }
   }
 }
