@@ -22,6 +22,9 @@ import {
   Plus,
   Scale,
   Camera,
+  Utensils,
+  Dumbbell,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth, TEST_USER_PRESETS } from '../context/AuthContext';
 import { isLiveProductionSite, shouldShowTestProfiles } from '../lib/environment';
@@ -36,12 +39,27 @@ import {
   getProfileCompletionRate,
   getOnboardingCompletionRate,
 } from '../lib/profileStorage';
-import { UserProfile, UserRole, WeeklyTrackerEntry } from '../types';
+import { UserProfile, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
 import {
   loadUserWeeklyEntries,
   saveWeeklyEntry,
   deleteWeeklyEntry,
 } from '../lib/weeklyTrackerStore';
+import {
+  loadUserMealPlans,
+  getActiveMealPlan,
+  saveMealPlan,
+  deleteMealPlan,
+  setActiveMealPlan,
+  loadUserWorkoutPlans,
+  getActiveWorkoutPlan,
+  saveWorkoutPlan,
+  deleteWorkoutPlan,
+  setActiveWorkoutPlan,
+} from '../lib/plannerStore';
+import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
+import MealPlannerView from './MealPlannerView';
+import WorkoutPlannerView from './WorkoutPlannerView';
 import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
 import WeeklyTrackerModal from './WeeklyTrackerModal';
@@ -79,18 +97,192 @@ export default function UserProfilePage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Weekly Tracker State in Profile
-  const [profileActiveTab, setProfileActiveTab] = useState<'profile' | 'weekly-tracker'>('profile');
+  // Tabs in Profile
+  const [profileActiveTab, setProfileActiveTab] = useState<
+    'profile' | 'weekly-tracker' | 'meal-plan' | 'workout-plan'
+  >('profile');
   const [weeklyEntries, setWeeklyEntries] = useState<WeeklyTrackerEntry[]>([]);
   const [isWeeklyModalOpen, setIsWeeklyModalOpen] = useState(false);
   const [editingWeeklyEntry, setEditingWeeklyEntry] = useState<WeeklyTrackerEntry | null>(null);
   const [photoModalEntryId, setPhotoModalEntryId] = useState<string | null>(null);
 
+  // Meal & Workout Planner State in Profile
+  const [userMealPlans, setUserMealPlans] = useState<MealPlan[]>([]);
+  const [activeMealPlanId, setActiveMealPlanId] = useState<string>('');
+  const [userWorkoutPlans, setUserWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [activeWorkoutPlanId, setActiveWorkoutPlanId] = useState<string>('');
+
   useEffect(() => {
     if (user?.email) {
       setWeeklyEntries(loadUserWeeklyEntries(user.email));
+
+      const mPlans = loadUserMealPlans(user.email);
+      setUserMealPlans(mPlans);
+      const activeM = getActiveMealPlan(user.email);
+      if (activeM) {
+        setActiveMealPlanId(activeM.id);
+      } else if (mPlans.length > 0) {
+        setActiveMealPlanId(mPlans[0].id);
+      }
+
+      const wPlans = loadUserWorkoutPlans(user.email);
+      setUserWorkoutPlans(wPlans);
+      const activeW = getActiveWorkoutPlan(user.email);
+      if (activeW) {
+        setActiveWorkoutPlanId(activeW.id);
+      } else if (wPlans.length > 0) {
+        setActiveWorkoutPlanId(wPlans[0].id);
+      }
     }
   }, [user?.email]);
+
+  const handleSaveMealPlan = async (plan: MealPlan) => {
+    if (!user?.email) return;
+    try {
+      const updated = await saveMealPlan(plan);
+      setUserMealPlans(updated);
+      setActiveMealPlanId(plan.id);
+      addToast({
+        type: 'success',
+        title: 'Meal Plan Saved',
+        message: `"${plan.name}" is updated in your profile.`,
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Could not save meal plan.',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleCreateNewMealPlan = () => {
+    if (!user?.email) return;
+    const newPlan = createDefaultVegDietPlan(user.email, false);
+    newPlan.id = `diet_custom_${Date.now()}`;
+    newPlan.name = `Personal Diet Plan #${userMealPlans.length + 1}`;
+    newPlan.createdBy = 'user';
+    newPlan.coachName = undefined;
+    newPlan.coachNotes = undefined;
+
+    setUserMealPlans((prev) => [newPlan, ...prev]);
+    setActiveMealPlanId(newPlan.id);
+    addToast({
+      type: 'info',
+      title: 'New Meal Plan Created',
+      message: 'Configure your target macros and meals.',
+      duration: 5000,
+    });
+  };
+
+  const handleSelectMealPlan = async (planId: string) => {
+    setActiveMealPlanId(planId);
+    if (user?.email) {
+      const updated = await setActiveMealPlan(planId, user.email);
+      setUserMealPlans(updated);
+    }
+  };
+
+  const handleDeleteMealPlan = async (planId: string) => {
+    if (!user?.email) return;
+    if (userMealPlans.length <= 1) {
+      addToast({
+        type: 'error',
+        title: 'Cannot Delete Only Plan',
+        message: 'You need at least one active meal plan.',
+        duration: 4000,
+      });
+      return;
+    }
+    const updated = await deleteMealPlan(planId, user.email);
+    setUserMealPlans(updated);
+    if (activeMealPlanId === planId) {
+      setActiveMealPlanId(updated[0]?.id || '');
+    }
+    addToast({
+      type: 'info',
+      title: 'Plan Removed',
+      message: 'Meal plan was deleted from your profile.',
+      duration: 4000,
+    });
+  };
+
+  const handleSaveWorkoutPlan = async (plan: WorkoutPlan) => {
+    if (!user?.email) return;
+    try {
+      const updated = await saveWorkoutPlan(plan);
+      setUserWorkoutPlans(updated);
+      setActiveWorkoutPlanId(plan.id);
+      addToast({
+        type: 'success',
+        title: 'Workout Routine Saved',
+        message: `"${plan.name}" is updated in your profile.`,
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Could not save workout plan.',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleCreateNewWorkoutPlan = () => {
+    if (!user?.email) return;
+    const newPlan = createDefaultWorkoutPlan(user.email, false);
+    newPlan.id = `workout_custom_${Date.now()}`;
+    newPlan.name = `Personal Training Split #${userWorkoutPlans.length + 1}`;
+    newPlan.createdBy = 'user';
+    newPlan.coachName = undefined;
+    newPlan.coachNotes = undefined;
+
+    setUserWorkoutPlans((prev) => [newPlan, ...prev]);
+    setActiveWorkoutPlanId(newPlan.id);
+    addToast({
+      type: 'info',
+      title: 'New Routine Created',
+      message: 'Configure your workout days and exercises.',
+      duration: 5000,
+    });
+  };
+
+  const handleSelectWorkoutPlan = async (planId: string) => {
+    setActiveWorkoutPlanId(planId);
+    if (user?.email) {
+      const updated = await setActiveWorkoutPlan(planId, user.email);
+      setUserWorkoutPlans(updated);
+    }
+  };
+
+  const handleDeleteWorkoutPlan = async (planId: string) => {
+    if (!user?.email) return;
+    if (userWorkoutPlans.length <= 1) {
+      addToast({
+        type: 'error',
+        title: 'Cannot Delete Only Routine',
+        message: 'You need at least one active workout routine.',
+        duration: 4000,
+      });
+      return;
+    }
+    const updated = await deleteWorkoutPlan(planId, user.email);
+    setUserWorkoutPlans(updated);
+    if (activeWorkoutPlanId === planId) {
+      setActiveWorkoutPlanId(updated[0]?.id || '');
+    }
+    addToast({
+      type: 'info',
+      title: 'Routine Removed',
+      message: 'Workout routine was deleted from your profile.',
+      duration: 4000,
+    });
+  };
 
   const handleSaveWeeklyEntry = async (entry: WeeklyTrackerEntry) => {
     if (!user?.email) return;
@@ -473,32 +665,72 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {/* Profile Navigation Tabs: Profile vs. Weekly Health Tracker */}
-        <div className="flex items-center space-x-2 bg-white p-2 rounded-3xl border border-brand-light-green shadow-xs">
+        {/* Profile Navigation Tabs: Profile vs. Weekly Health Tracker vs. Meal Plan vs. Workout Plan */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white p-2 rounded-3xl border border-brand-light-green shadow-xs">
           <button
             type="button"
             onClick={() => setProfileActiveTab('profile')}
-            className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+            className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
               profileActiveTab === 'profile'
                 ? 'bg-brand-green text-white shadow-sm'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <User className="w-4 h-4" />
-            <span>Personal Profile & Baseline</span>
+            <User className="w-4 h-4 shrink-0" />
+            <span className="truncate">Profile</span>
           </button>
 
           <button
             type="button"
             onClick={() => setProfileActiveTab('weekly-tracker')}
-            className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+            className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
               profileActiveTab === 'weekly-tracker'
                 ? 'bg-brand-green text-white shadow-sm'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <Activity className="w-4 h-4" />
-            <span>Weekly Health Tracker ({weeklyEntries.length})</span>
+            <Activity className="w-4 h-4 shrink-0" />
+            <span className="truncate">Weekly Tracker ({weeklyEntries.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setProfileActiveTab('meal-plan')}
+            className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+              profileActiveTab === 'meal-plan'
+                ? 'bg-brand-green text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Utensils className="w-4 h-4 shrink-0" />
+            <span className="truncate">Meal Plan</span>
+            {userMealPlans.some((p) => p.createdBy === 'coach') && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
+                profileActiveTab === 'meal-plan' ? 'bg-white text-brand-dark-green' : 'bg-purple-100 text-purple-800'
+              }`}>
+                Coach
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setProfileActiveTab('workout-plan')}
+            className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+              profileActiveTab === 'workout-plan'
+                ? 'bg-brand-green text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Dumbbell className="w-4 h-4 shrink-0" />
+            <span className="truncate">Workout Plan</span>
+            {userWorkoutPlans.some((p) => p.createdBy === 'coach') && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
+                profileActiveTab === 'workout-plan' ? 'bg-white text-brand-dark-green' : 'bg-purple-100 text-purple-800'
+              }`}>
+                Coach
+              </span>
+            )}
           </button>
         </div>
 
@@ -562,6 +794,117 @@ export default function UserProfilePage() {
                   <Activity className="w-4 h-4" />
                   <span>View Trends & Table</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Meal & Workout Plan Spotlight in Profile */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Meal Plan Card */}
+              <div className="bg-white rounded-3xl p-5 border border-brand-light-green shadow-xs flex flex-col justify-between space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2 rounded-xl bg-brand-light-green/60 text-brand-dark-green">
+                      <Utensils className="w-4 h-4" />
+                    </span>
+                    {userMealPlans.find((p) => p.id === activeMealPlanId)?.createdBy === 'coach' ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-900 border border-purple-200">
+                        <ShieldCheck className="w-3 h-3 mr-1 text-purple-700" />
+                        Coach Assigned
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Self-Created
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                    {userMealPlans.find((p) => p.id === activeMealPlanId)?.name || 'Custom Meal Plan'}
+                  </h4>
+                  <p className="text-xs text-gray-500 line-clamp-2">
+                    {userMealPlans.find((p) => p.id === activeMealPlanId)?.coachNotes ||
+                      'Interactive daily nutrition schedule with calibrated macros and calories.'}
+                  </p>
+                  <div className="flex items-center space-x-3 text-xs text-gray-700 font-semibold pt-1">
+                    <span className="text-amber-700">
+                      🎯 {userMealPlans.find((p) => p.id === activeMealPlanId)?.targetCalories || 2000} kcal
+                    </span>
+                    <span className="text-emerald-700">
+                      🥩 {userMealPlans.find((p) => p.id === activeMealPlanId)?.targetProtein || 140}g Protein
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setProfileActiveTab('meal-plan')}
+                    className="flex-1 py-2 px-3 rounded-xl bg-brand-light-green/80 hover:bg-brand-light-green text-brand-dark-green text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <span>Open Meal Planner</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <Link
+                    to="/meal-planner"
+                    className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"
+                    title="Open Fullscreen View"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Workout Plan Card */}
+              <div className="bg-white rounded-3xl p-5 border border-brand-light-green shadow-xs flex flex-col justify-between space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2 rounded-xl bg-purple-100 text-purple-900">
+                      <Dumbbell className="w-4 h-4" />
+                    </span>
+                    {userWorkoutPlans.find((p) => p.id === activeWorkoutPlanId)?.createdBy === 'coach' ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-900 border border-purple-200">
+                        <ShieldCheck className="w-3 h-3 mr-1 text-purple-700" />
+                        Coach Assigned
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Self-Created
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                    {userWorkoutPlans.find((p) => p.id === activeWorkoutPlanId)?.name || 'Custom Workout Plan'}
+                  </h4>
+                  <p className="text-xs text-gray-500 line-clamp-2">
+                    {userWorkoutPlans.find((p) => p.id === activeWorkoutPlanId)?.coachNotes ||
+                      'Resistance training routine with targeted sets, reps, and exercise cues.'}
+                  </p>
+                  <div className="flex items-center space-x-3 text-xs text-gray-700 font-semibold pt-1">
+                    <span className="text-purple-800">
+                      🏋️ {userWorkoutPlans.find((p) => p.id === activeWorkoutPlanId)?.days.length || 4} Days Split
+                    </span>
+                    <span className="text-blue-800">
+                      ⚡ {userWorkoutPlans.find((p) => p.id === activeWorkoutPlanId)?.difficulty || 'Intermediate'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setProfileActiveTab('workout-plan')}
+                    className="flex-1 py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <span>Open Workout Planner</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <Link
+                    to="/workout-planner"
+                    className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"
+                    title="Open Fullscreen View"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
             </div>
 
@@ -1096,6 +1439,52 @@ export default function UserProfilePage() {
           }}
           onDelete={handleDeleteWeeklyEntry}
           onViewPhotos={(id) => setPhotoModalEntryId(id)}
+        />
+      </div>
+    )}
+
+    {/* ========================================================================= */}
+    {/* TAB 3: MEAL PLAN & NUTRITION */}
+    {/* ========================================================================= */}
+    {profileActiveTab === 'meal-plan' && (
+      <div className="space-y-6 animate-in fade-in duration-200">
+        <MealPlannerView
+          currentPlan={userMealPlans.find((p) => p.id === activeMealPlanId) || userMealPlans[0] || null}
+          allPlans={userMealPlans}
+          userEmail={user?.email || profile.email || 'member@fitkode.ai'}
+          userName={
+            profile.firstName
+              ? `${profile.firstName} ${profile.lastName || ''}`.trim()
+              : user?.email?.split('@')[0] || 'Member'
+          }
+          isCoachMode={false}
+          onSavePlan={handleSaveMealPlan}
+          onSelectPlan={handleSelectMealPlan}
+          onCreateNewPlan={handleCreateNewMealPlan}
+          onDeletePlan={handleDeleteMealPlan}
+        />
+      </div>
+    )}
+
+    {/* ========================================================================= */}
+    {/* TAB 4: WORKOUT & TRAINING REGIMEN */}
+    {/* ========================================================================= */}
+    {profileActiveTab === 'workout-plan' && (
+      <div className="space-y-6 animate-in fade-in duration-200">
+        <WorkoutPlannerView
+          currentPlan={userWorkoutPlans.find((p) => p.id === activeWorkoutPlanId) || userWorkoutPlans[0] || null}
+          allPlans={userWorkoutPlans}
+          userEmail={user?.email || profile.email || 'member@fitkode.ai'}
+          userName={
+            profile.firstName
+              ? `${profile.firstName} ${profile.lastName || ''}`.trim()
+              : user?.email?.split('@')[0] || 'Member'
+          }
+          isCoachMode={false}
+          onSavePlan={handleSaveWorkoutPlan}
+          onSelectPlan={handleSelectWorkoutPlan}
+          onCreateNewPlan={handleCreateNewWorkoutPlan}
+          onDeletePlan={handleDeleteWorkoutPlan}
         />
       </div>
     )}

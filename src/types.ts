@@ -220,3 +220,84 @@ export interface WeeklyTrackerEntry {
   updatedAt?: string;
 }
 
+// === Meal Planner & Nutrition Types ===
+export type DietType = 'Vegetarian' | 'Non-Vegetarian' | 'Vegan' | 'Eggetarian' | 'Keto' | 'Low-Carb' | 'High-Protein Balanced';
+
+export interface MealItem {
+  id: string;
+  name: string;
+  servingSize: string; // e.g. "100g", "2 whole eggs", "1 cup (240ml)"
+  calories: number; // kcal
+  protein: number; // grams
+  carbs: number; // grams
+  fats: number; // grams
+  category: 'protein' | 'carbs' | 'fats' | 'veggies' | 'dairy' | 'beverage' | 'snack';
+  notes?: string;
+}
+
+export interface MealSlot {
+  id: string;
+  name: string; // e.g. "Meal 1: Breakfast", "Meal 2: Mid-Morning Snack", "Meal 3: Lunch", "Meal 4: Evening Snack", "Meal 5: Dinner"
+  time?: string; // e.g. "08:30 AM"
+  items: MealItem[];
+}
+
+export interface MealPlan {
+  id: string;
+  name: string;
+  userId: string; // Member email or ID
+  userEmail: string;
+  targetCalories: number;
+  targetProtein: number; // grams
+  targetCarbs: number; // grams
+  targetFats: number; // grams
+  dietType: DietType;
+  meals: MealSlot[];
+  createdBy: 'coach' | 'user';
+  coachName?: string; // e.g. "Chinmay Jain"
+  coachNotes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// === Workout Planner & Exercise Types ===
+export type WorkoutGoal = 'Fat Loss & Conditioning' | 'Hypertrophy & Muscle Gain' | 'Strength & Power' | 'General Fitness & Longevity' | 'Athletic Conditioning';
+export type WorkoutDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+
+export interface ExerciseItem {
+  id: string;
+  name: string;
+  targetMuscle: string; // e.g. "Chest", "Back", "Quads", "Hamstrings", "Shoulders", "Biceps", "Triceps", "Core", "Cardio"
+  sets: number;
+  reps: string; // e.g. "8-12", "12-15", "To Failure", "45 sec"
+  restSeconds: number; // e.g. 60, 90
+  notes?: string;
+  videoUrl?: string;
+}
+
+export interface WorkoutDay {
+  id: string;
+  dayName: string; // e.g. "Monday - Push (Chest & Shoulders)"
+  isRestDay: boolean;
+  focus: string; // e.g. "Upper Push Hypertrophy", "Active Recovery"
+  exercises: ExerciseItem[];
+}
+
+export interface WorkoutPlan {
+  id: string;
+  name: string;
+  userId: string; // Member email or ID
+  userEmail: string;
+  difficulty: WorkoutDifficulty;
+  goal: WorkoutGoal;
+  daysPerWeek: number;
+  days: WorkoutDay[];
+  createdBy: 'coach' | 'user';
+  coachName?: string; // e.g. "Chinmay Jain"
+  coachNotes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+

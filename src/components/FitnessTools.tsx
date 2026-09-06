@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ActivityLevel, TDEEInput, MacroSplit } from '../types';
-import { Dumbbell, Scale, Flame, Sparkles, AlertCircle, TrendingDown, TrendingUp, Sparkle, ArrowRight, UserCheck } from 'lucide-react';
+import { Dumbbell, Scale, Flame, Sparkles, AlertCircle, TrendingDown, TrendingUp, Sparkle, ArrowRight, UserCheck, Utensils } from 'lucide-react';
 import Seo from './Seo';
 
 interface FitnessToolsProps {
@@ -196,6 +196,57 @@ export default function FitnessTools({ focusedTool }: FitnessToolsProps) {
         <p className="text-xs text-gray-550 max-w-xl mx-auto leading-relaxed">
           At Fitkode, we reject guesswork. Use our physical intelligence tools to calculate your precise Body Mass Index (BMI), Maintenance Energy (TDEE), and structured macronutrient balances to begin your transformation.
         </p>
+      </div>
+
+      {/* Free Interactive Planner Tools Spotlight */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="bg-gradient-to-br from-white to-amber-50/60 p-6 rounded-3xl border border-amber-200/80 shadow-xs flex flex-col justify-between space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                <Utensils className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] uppercase tracking-wider font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full">
+                Free Planner Tool
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">Custom Meal Planner</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Formulate your daily meals with automated macro calculation (Protein, Carbs, Fats, Fibres), food database items, and personal preferences. Plans sync to your profile.
+            </p>
+          </div>
+          <Link
+            to="/meal-planner"
+            className="inline-flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs"
+          >
+            <span>Launch Free Meal Planner</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="bg-gradient-to-br from-white to-indigo-50/60 p-6 rounded-3xl border border-indigo-200/80 shadow-xs flex flex-col justify-between space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
+                <Dumbbell className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] uppercase tracking-wider font-bold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded-full">
+                Free Planner Tool
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">Custom Workout Routine Planner</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Design multi-day training splits (Push/Pull/Legs, Upper/Lower, Full Body) with targeted sets, reps, cues, and exercise library. Also receives coach prescriptions.
+            </p>
+          </div>
+          <Link
+            to="/workout-planner"
+            className="inline-flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs"
+          >
+            <span>Launch Free Workout Planner</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Main Dual Column Calculator Section */}

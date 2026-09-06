@@ -38,7 +38,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { AppMember, UserRole, WeeklyTrackerEntry } from '../types';
+import { AppMember, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
 import {
   fetchAllMembersForAdmin,
   updateMemberRole,
@@ -48,6 +48,15 @@ import {
 } from '../lib/memberStore';
 import { getSupabase } from '../lib/supabase';
 import { loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
+import {
+  loadUserMealPlans,
+  assignCoachMealPlan,
+  loadUserWorkoutPlans,
+  assignCoachWorkoutPlan,
+} from '../lib/plannerStore';
+import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
+import MealPlannerView from './MealPlannerView';
+import WorkoutPlannerView from './WorkoutPlannerView';
 import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
 import PhotoCompareModal from './PhotoCompareModal';
@@ -65,13 +74,108 @@ export default function AdminMembersPage() {
   const [selectedMember, setSelectedMember] = useState<AppMember | null>(null);
   const [showDirectory, setShowDirectory] = useState(true);
   const [quickSwitchOpen, setQuickSwitchOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'assessment' | 'weekly-tracker' | 'coaching'>('profile');
+  const [activeTab, setActiveTab] = useState<
+    'profile' | 'assessment' | 'weekly-tracker' | 'coaching' | 'meal-plan' | 'workout-plan'
+  >('profile');
   const [updatingRole, setUpdatingRole] = useState(false);
   const [coachNotes, setCoachNotes] = useState('');
   const [notesSaved, setNotesSaved] = useState(false);
   const [adminLoggingIn, setAdminLoggingIn] = useState(false);
   const [adminPhotoModalEntryId, setAdminPhotoModalEntryId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Coach Planner States in Admin Dossier
+  const [adminMemberMealPlans, setAdminMemberMealPlans] = useState<MealPlan[]>([]);
+  const [adminActiveMealPlanId, setAdminActiveMealPlanId] = useState<string>('');
+  const [adminMemberWorkoutPlans, setAdminMemberWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [adminActiveWorkoutPlanId, setAdminActiveWorkoutPlanId] = useState<string>('');
+
+  // Reload plans when selectedMember changes
+  useEffect(() => {
+    if (selectedMember?.email) {
+      const mPlans = loadUserMealPlans(selectedMember.email);
+      setAdminMemberMealPlans(mPlans);
+      const activeM = mPlans.find((p) => p.isActive) || mPlans[0];
+      if (activeM) setAdminActiveMealPlanId(activeM.id);
+
+      const wPlans = loadUserWorkoutPlans(selectedMember.email);
+      setAdminMemberWorkoutPlans(wPlans);
+      const activeW = wPlans.find((p) => p.isActive) || wPlans[0];
+      if (activeW) setAdminActiveWorkoutPlanId(activeW.id);
+    }
+  }, [selectedMember?.email]);
+
+  const handleAdminSaveMealPlan = async (plan: MealPlan) => {
+    if (!selectedMember?.email) return;
+    try {
+      const assigned = await assignCoachMealPlan(selectedMember.email, plan, 'Chinmay Jain');
+      const updatedList = loadUserMealPlans(selectedMember.email);
+      setAdminMemberMealPlans(updatedList);
+      setAdminActiveMealPlanId(assigned.id);
+      addToast({
+        type: 'success',
+        title: 'Coach Meal Plan Assigned',
+        message: `Nutrition plan "${plan.name}" has been assigned to ${selectedMember.name} and is immediately active in their profile.`,
+        duration: 6000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Assignment Failed',
+        message: 'Unable to assign meal plan to member.',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleAdminCreateNewMealPlan = () => {
+    if (!selectedMember?.email) return;
+    const newPlan = createDefaultVegDietPlan(selectedMember.email, true);
+    newPlan.id = `diet_coach_${Date.now()}`;
+    newPlan.name = `Coach Chinmay Diet Plan for ${selectedMember.name}`;
+    newPlan.coachName = 'Chinmay Jain';
+    newPlan.coachNotes = `Personalized daily nutrition prescription formulated for ${selectedMember.name}.`;
+
+    setAdminMemberMealPlans((prev) => [newPlan, ...prev]);
+    setAdminActiveMealPlanId(newPlan.id);
+  };
+
+  const handleAdminSaveWorkoutPlan = async (plan: WorkoutPlan) => {
+    if (!selectedMember?.email) return;
+    try {
+      const assigned = await assignCoachWorkoutPlan(selectedMember.email, plan, 'Chinmay Jain');
+      const updatedList = loadUserWorkoutPlans(selectedMember.email);
+      setAdminMemberWorkoutPlans(updatedList);
+      setAdminActiveWorkoutPlanId(assigned.id);
+      addToast({
+        type: 'success',
+        title: 'Coach Workout Routine Assigned',
+        message: `Workout routine "${plan.name}" has been assigned to ${selectedMember.name} and is immediately active in their profile.`,
+        duration: 6000,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Assignment Failed',
+        message: 'Unable to assign workout routine to member.',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleAdminCreateNewWorkoutPlan = () => {
+    if (!selectedMember?.email) return;
+    const newPlan = createDefaultWorkoutPlan(selectedMember.email, true);
+    newPlan.id = `workout_coach_${Date.now()}`;
+    newPlan.name = `Coach Chinmay Training Split for ${selectedMember.name}`;
+    newPlan.coachName = 'Chinmay Jain';
+    newPlan.coachNotes = `Targeted resistance training program designed for ${selectedMember.name}.`;
+
+    setAdminMemberWorkoutPlans((prev) => [newPlan, ...prev]);
+    setAdminActiveWorkoutPlanId(newPlan.id);
+  };
 
   // Toast Notification helper (5s auto-dismiss or manual dismiss)
   const addToast = (toast: Omit<ToastMessage, 'id'>) => {
@@ -714,7 +818,33 @@ export default function AdminMembersPage() {
                   }`}
                 >
                   <Stethoscope className="w-3.5 h-3.5" />
-                  <span>Coach Notes & Plan</span>
+                  <span>Coach Notes</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('meal-plan')}
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                    activeTab === 'meal-plan'
+                      ? 'bg-brand-dark-green text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Utensils className="w-3.5 h-3.5" />
+                  <span>Meal Plan ({adminMemberMealPlans.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('workout-plan')}
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                    activeTab === 'workout-plan'
+                      ? 'bg-brand-dark-green text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Dumbbell className="w-3.5 h-3.5" />
+                  <span>Workout Plan ({adminMemberWorkoutPlans.length})</span>
                 </button>
               </div>
 
@@ -1444,6 +1574,92 @@ export default function AdminMembersPage() {
                     entries={loadUserWeeklyEntries(selectedMember.email)}
                     onViewPhotos={(id) => setAdminPhotoModalEntryId(id)}
                     isReadOnly={true}
+                  />
+                </div>
+              )}
+
+              {/* TAB 5: COACH MEAL PLAN PRESCRIPTION */}
+              {activeTab === 'meal-plan' && (
+                <div className="space-y-6">
+                  {/* Coach Prescription Context Banner */}
+                  <div className="bg-gradient-to-r from-emerald-900 to-brand-dark-green text-white rounded-2xl p-4 sm:p-5 border border-emerald-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/10 text-emerald-300 flex items-center justify-center shrink-0">
+                        <Utensils className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white flex items-center">
+                          <span>Super Admin Meal Plan Prescription</span>
+                          <span className="ml-2 text-[10px] bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
+                            Coach Mode
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-emerald-100/80">
+                          Create or calibrate daily meals, target calories, and macros for {selectedMember.name} (irrespective of paid or unpaid tier). Once saved, it will become immediately active and visible in their member profile.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <MealPlannerView
+                    currentPlan={
+                      adminMemberMealPlans.find((p) => p.id === adminActiveMealPlanId) ||
+                      adminMemberMealPlans[0] ||
+                      null
+                    }
+                    allPlans={adminMemberMealPlans}
+                    userEmail={selectedMember.email}
+                    userName={selectedMember.name}
+                    isCoachMode={true}
+                    onSavePlan={handleAdminSaveMealPlan}
+                    onSelectPlan={(id) => setAdminActiveMealPlanId(id)}
+                    onCreateNewPlan={handleAdminCreateNewMealPlan}
+                    onDeletePlan={(id) => {
+                      setAdminMemberMealPlans((prev) => prev.filter((p) => p.id !== id));
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* TAB 6: COACH WORKOUT ROUTINE PRESCRIPTION */}
+              {activeTab === 'workout-plan' && (
+                <div className="space-y-6">
+                  {/* Coach Prescription Context Banner */}
+                  <div className="bg-gradient-to-r from-purple-950 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 border border-purple-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/10 text-purple-300 flex items-center justify-center shrink-0">
+                        <Dumbbell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white flex items-center">
+                          <span>Super Admin Workout Regimen Prescription</span>
+                          <span className="ml-2 text-[10px] bg-purple-400/20 text-purple-200 border border-purple-400/30 px-2 py-0.5 rounded-full font-semibold">
+                            Coach Mode
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-purple-100/80">
+                          Prescribe customized split routines, exercises, sets, reps, and cues for {selectedMember.name} (irrespective of paid or unpaid tier). Once saved, it is immediately active and visible in their member profile.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <WorkoutPlannerView
+                    currentPlan={
+                      adminMemberWorkoutPlans.find((p) => p.id === adminActiveWorkoutPlanId) ||
+                      adminMemberWorkoutPlans[0] ||
+                      null
+                    }
+                    allPlans={adminMemberWorkoutPlans}
+                    userEmail={selectedMember.email}
+                    userName={selectedMember.name}
+                    isCoachMode={true}
+                    onSavePlan={handleAdminSaveWorkoutPlan}
+                    onSelectPlan={(id) => setAdminActiveWorkoutPlanId(id)}
+                    onCreateNewPlan={handleAdminCreateNewWorkoutPlan}
+                    onDeletePlan={(id) => {
+                      setAdminMemberWorkoutPlans((prev) => prev.filter((p) => p.id !== id));
+                    }}
                   />
                 </div>
               )}

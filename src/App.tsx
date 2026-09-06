@@ -15,6 +15,8 @@ import UserProfilePage from './components/UserProfilePage';
 import ClientOnboardingPage from './components/ClientOnboardingPage';
 import AdminMembersPage from './components/AdminMembersPage';
 import WeeklyTrackerPage from './components/WeeklyTrackerPage';
+import MealPlannerPage from './components/MealPlannerPage';
+import WorkoutPlannerPage from './components/WorkoutPlannerPage';
 import Footer from './components/Footer';
 
 function ScrollToTop() {
@@ -72,6 +74,8 @@ export default function App() {
           <Route path="/profile" element={<UserProfilePage />} />
           <Route path="/weekly-tracker" element={<WeeklyTrackerPage />} />
           <Route path="/tracker" element={<WeeklyTrackerPage />} />
+          <Route path="/meal-planner" element={<MealPlannerPage />} />
+          <Route path="/workout-planner" element={<WorkoutPlannerPage />} />
           <Route path="/onboarding" element={<ClientOnboardingPage />} />
           <Route path="/admin" element={<AdminMembersPage />} />
           <Route path="/admin/members" element={<AdminMembersPage />} />

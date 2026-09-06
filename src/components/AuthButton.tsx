@@ -14,6 +14,8 @@ import {
   Check,
   CheckCircle2,
   Activity,
+  Utensils,
+  Dumbbell,
 } from 'lucide-react';
 import { useAuth, TEST_USER_PRESETS } from '../context/AuthContext';
 import { UserRole } from '../types';
@@ -187,8 +189,8 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
             </div>
           </div>
 
-          {/* Quick navigation to Profile, Weekly Tracker, Onboarding, and Admin Portal */}
-          <div className={`grid ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} gap-1.5 pt-1 border-t border-gray-100`}>
+          {/* Quick navigation to Profile, Weekly Tracker, Meal Planner, Workout Planner, Onboarding, and Admin Portal */}
+          <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-gray-100">
             <Link
               to="/profile"
               onClick={() => {
@@ -208,6 +210,26 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
             >
               <Activity className="w-3.5 h-3.5 text-teal-600" />
               <span>Tracker</span>
+            </Link>
+            <Link
+              to="/meal-planner"
+              onClick={() => {
+                if (onActionComplete) onActionComplete();
+              }}
+              className="flex items-center justify-center space-x-1 py-2 px-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-bold transition-colors"
+            >
+              <Utensils className="w-3.5 h-3.5 text-amber-600" />
+              <span>Diet</span>
+            </Link>
+            <Link
+              to="/workout-planner"
+              onClick={() => {
+                if (onActionComplete) onActionComplete();
+              }}
+              className="flex items-center justify-center space-x-1 py-2 px-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[11px] font-bold transition-colors"
+            >
+              <Dumbbell className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Workout</span>
             </Link>
             <Link
               to="/onboarding"
@@ -399,6 +421,30 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
                     <div className="text-left">
                       <p className="font-bold text-gray-900 leading-tight">Weekly Health Tracker</p>
                       <p className="text-[10px] text-gray-500 font-normal">Body stats, trends & photos</p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    to="/meal-planner"
+                    onClick={() => setDropdownOpen(false)}
+                    className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 hover:text-brand-green hover:bg-brand-light-green/40 transition-colors"
+                  >
+                    <Utensils className="w-4 h-4 text-amber-600" />
+                    <div className="text-left">
+                      <p className="font-bold text-gray-900 leading-tight">Meal Planner</p>
+                      <p className="text-[10px] text-gray-500 font-normal">Nutrition, calories & recipes</p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    to="/workout-planner"
+                    onClick={() => setDropdownOpen(false)}
+                    className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 hover:text-brand-green hover:bg-brand-light-green/40 transition-colors"
+                  >
+                    <Dumbbell className="w-4 h-4 text-indigo-600" />
+                    <div className="text-left">
+                      <p className="font-bold text-gray-900 leading-tight">Workout Planner</p>
+                      <p className="text-[10px] text-gray-500 font-normal">Training split & exercises</p>
                     </div>
                   </Link>
 
