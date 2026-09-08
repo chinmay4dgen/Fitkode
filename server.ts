@@ -9,6 +9,7 @@ import {
   buildWeeklyTrackerEmail,
   buildDietPlanAssignedEmail,
   buildWorkoutPlanAssignedEmail,
+  buildWelcomeEmail,
   sendEmailNotification,
   getAllCommunicationLogs,
   getMailTransporterConfig,
@@ -1058,6 +1059,58 @@ async function startServer() {
     } catch (err: any) {
       console.error('Error in notify-plan-assigned endpoint:', err);
       return res.status(500).json({ error: err?.message || 'Failed to dispatch plan notification' });
+    }
+  });
+
+  // Track emails sent to avoid duplicate welcome emails on continuous reloads
+  const sentWelcomeEmails = new Set<string>();
+
+  // POST /api/communication/notify-welcome
+  // Dispatches energetic Welcome to Fitkode email when a member logs in with Gmail
+  app.post('/api/communication/notify-welcome', async (req, res) => {
+    try {
+      const { email, name, force = false } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required to dispatch welcome notification.' });
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Check if already dispatched in this session and not forced
+      if (!force && sentWelcomeEmails.has(normalizedEmail)) {
+        return res.json({ success: true, alreadySent: true });
+      }
+
+      const member = serverMembers.find((m) => m.email.toLowerCase().trim() === normalizedEmail);
+      const recipientName = name || member?.name || normalizedEmail.split('@')[0];
+      const appUrl = process.env.APP_URL || (req.headers.origin as string) || `http://${req.headers.host}`;
+
+      const { subject, html, text, previewText } = buildWelcomeEmail({
+        targetEmail: normalizedEmail,
+        clientName: recipientName,
+        appUrl,
+      });
+
+      const result = await sendEmailNotification({
+        type: 'welcome_email',
+        to: normalizedEmail,
+        subject,
+        previewText,
+        html,
+        text,
+        recipientName,
+        metadata: {
+          authProvider: 'google',
+          clientEmail: normalizedEmail,
+          clientName: recipientName,
+        },
+      });
+
+      sentWelcomeEmails.add(normalizedEmail);
+      return res.json({ success: true, log: result.log });
+    } catch (err: any) {
+      console.error('Error in notify-welcome endpoint:', err);
+      return res.status(500).json({ error: err?.message || 'Failed to dispatch welcome notification' });
     }
   });
 

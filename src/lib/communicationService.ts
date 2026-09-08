@@ -2,7 +2,7 @@ import { WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
 
 export interface CommunicationLogItem {
   id: string;
-  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'test';
+  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test';
   to: string;
   from: string;
   subject: string;
@@ -143,6 +143,38 @@ export async function sendTestCommunication(
     const data = await res.json();
     return { success: true, log: data.log };
   } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+/**
+ * Dispatches the energetic "Welcome to Fitkode" onboarding email to a member upon logging in with Gmail.
+ */
+export async function notifyWelcomeUser(params: {
+  email: string;
+  name?: string;
+  force?: boolean;
+}): Promise<{ success: boolean; log?: CommunicationLogItem; alreadySent?: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/communication/notify-welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || 'Failed to dispatch welcome email' };
+    }
+
+    const data = await res.json();
+    return {
+      success: true,
+      log: data.log,
+      alreadySent: data.alreadySent,
+    };
+  } catch (err: any) {
+    console.warn('[CommunicationService] Welcome email dispatch deferred or failed:', err);
     return { success: false, error: err?.message };
   }
 }

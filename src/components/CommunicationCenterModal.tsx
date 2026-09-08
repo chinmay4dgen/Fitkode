@@ -42,7 +42,7 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
   const [loading, setLoading] = useState<boolean>(true);
   const [sendingTest, setSendingTest] = useState<boolean>(false);
   const [selectedLog, setSelectedLog] = useState<CommunicationLogItem | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'test'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [previewTab, setPreviewTab] = useState<'html' | 'text'>('html');
 
@@ -131,6 +131,13 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
           <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-200">
             <Dumbbell className="w-3 h-3" />
             <span>Workout Plan &rarr; Member</span>
+          </span>
+        );
+      case 'welcome_email':
+        return (
+          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-900 border border-teal-200">
+            <Sparkles className="w-3 h-3 text-teal-700" />
+            <span>Welcome Email &rarr; Member</span>
           </span>
         );
       case 'test':
@@ -269,16 +276,30 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
           )}
           
           {/* Functional Flow Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <div className="bg-gradient-to-br from-teal-50 to-emerald-50/40 p-4 rounded-2xl border border-teal-200/80">
+              <div className="flex items-start space-x-3">
+                <div className="p-2.5 rounded-xl bg-teal-600 text-white shadow-sm mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-teal-950">1. Gmail Login Welcome Trigger</h4>
+                  <p className="text-xs text-teal-800/80 mt-1 leading-relaxed">
+                    Whenever a user logs in with Gmail, Fitkode automatically delivers the energetic Welcome email to motivate them, assure them they made the right choice, and launch their 3-step fitness roadmap.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50/40 p-4 rounded-2xl border border-emerald-200/80">
               <div className="flex items-start space-x-3">
                 <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-sm mt-0.5">
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-emerald-950">1. Client Weekly Tracker Trigger</h4>
+                  <h4 className="text-sm font-bold text-emerald-950">2. Client Weekly Check-in Trigger</h4>
                   <p className="text-xs text-emerald-800/80 mt-1 leading-relaxed">
-                    Whenever any logged-in member submits their weekly check-in (measurements, steps, workouts, reflections), an email is automatically dispatched to Coach Chinmay at <strong>myfitkode@gmail.com</strong> with full body stats and direct review link.
+                    Whenever any logged-in member submits their weekly check-in (measurements, steps, workouts, reflections), an email is automatically dispatched to Coach Chinmay at <strong>myfitkode@gmail.com</strong> with full body stats.
                   </p>
                 </div>
               </div>
@@ -290,9 +311,9 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
                   <Utensils className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-indigo-950">2. Member Plan Assignment Trigger</h4>
+                  <h4 className="text-sm font-bold text-indigo-950">3. Member Plan Assignment Trigger</h4>
                   <p className="text-xs text-indigo-800/80 mt-1 leading-relaxed">
-                    Whenever Coach assigns or customizes a Diet Plan or Workout Routine for a member, an email is automatically sent to the member's registered email with full nutritional targets, daily split, coach guidance notes, and direct dashboard access.
+                    Whenever Coach assigns a Diet Plan or Workout Routine to a member, an email is automatically dispatched with complete nutritional targets, split breakdown, and coach guidance notes.
                   </p>
                 </div>
               </div>
@@ -313,6 +334,17 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
                 }`}
               >
                 All Emails ({logs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilter('welcome_email')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeFilter === 'welcome_email'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Welcome Emails
               </button>
               <button
                 type="button"

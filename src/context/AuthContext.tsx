@@ -15,6 +15,7 @@ import {
 } from '../lib/memberStore';
 import { loadUserProfile, loadClientOnboarding } from '../lib/profileStorage';
 import { ensureDefaultConsentsOnLogin } from '../lib/privacyService';
+import { notifyWelcomeUser } from '../lib/communicationService';
 
 export interface DevTestUserPreset {
   id: string;
@@ -285,6 +286,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch((err) => {
         console.warn('Member sync failed:', err);
       });
+
+    // Dispatch energetic "Welcome to Fitkode" onboarding email upon user login (Gmail/Google auth)
+    if (email) {
+      const welcomeStorageKey = `fk_welcome_email_sent_${email.toLowerCase().trim()}`;
+      const alreadyNotified = typeof window !== 'undefined' ? localStorage.getItem(welcomeStorageKey) : null;
+
+      if (!alreadyNotified) {
+        notifyWelcomeUser({
+          email,
+          name,
+        })
+          .then((res) => {
+            if (res.success) {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(welcomeStorageKey, new Date().toISOString());
+              }
+            }
+          })
+          .catch((err) => {
+            console.warn('[AuthContext] Welcome email notification deferred:', err);
+          });
+      }
+    }
   }, [user]);
 
   const userEmail = user?.email || '';

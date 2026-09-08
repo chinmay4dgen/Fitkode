@@ -1858,7 +1858,7 @@ export default function AdminMembersPage() {
                           </span>
                         </p>
                         <p className="text-[11px] text-emerald-100/80">
-                          Automated email notifications dispatched to Coach Chinmay (at <strong>myfitkode@gmail.com</strong>) upon {selectedMember.name}’s weekly tracker check-ins, and to <strong>{selectedMember.email}</strong> upon diet or workout plan assignments.
+                          Automated email notifications dispatched to Coach Chinmay (at <strong>myfitkode@gmail.com</strong>) upon {selectedMember.name}’s weekly check-ins, and to <strong>{selectedMember.email}</strong> upon Gmail login welcome, diet plans, and workout assignments.
                         </p>
                       </div>
                     </div>

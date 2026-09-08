@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 export interface CommunicationLog {
   id: string;
-  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'test';
+  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test';
   to: string;
   from: string;
   subject: string;
@@ -56,6 +56,23 @@ const communicationLogs: CommunicationLog[] = [
       planName: 'Post-Pregnancy Lean Muscle & Core Restoration',
       targetCalories: 1850,
       dietType: 'Vegetarian',
+    },
+  },
+  {
+    id: 'comm_seed_003',
+    type: 'welcome_email',
+    to: 'ananya.verma@example.com',
+    from: FROM_EMAIL,
+    subject: 'Welcome to Fitkode, Ananya! 🔥 You’ve made the right choice — let’s crush your goals together!',
+    previewText: 'Your journey to peak fitness starts right now. Coach Chinmay and Team Fitkode have your back every step of the way.',
+    html: `<p>Welcome to Fitkode email for Ananya Verma</p>`,
+    text: 'Welcome to Fitkode, Ananya! You have made the very right choice.',
+    status: 'sent',
+    sentAt: '2026-09-05T09:45:00Z',
+    recipientName: 'Ananya Verma',
+    metadata: {
+      authProvider: 'google',
+      clientEmail: 'ananya.verma@example.com',
     },
   },
 ];
@@ -701,6 +718,234 @@ Open your Workout Regimen in Fitkode:
 ${planUrl}
 
 Fitkode Coaching • myfitkode@gmail.com
+  `.trim();
+
+  return { subject, html, text, previewText };
+}
+
+/**
+ * Builds the high-energy "Welcome to Fitkode" onboarding email sent when a user logs in with Gmail.
+ */
+export function buildWelcomeEmail(params: {
+  targetEmail: string;
+  clientName?: string;
+  appUrl?: string;
+}): {
+  subject: string;
+  html: string;
+  text: string;
+  previewText: string;
+} {
+  const { targetEmail, clientName, appUrl = 'https://fitkode.com' } = params;
+  const rawName = (clientName || targetEmail.split('@')[0] || 'Champion').trim();
+  const firstName = rawName.split(' ')[0] || rawName;
+  const profileUrl = `${appUrl.replace(/\/$/, '')}/profile`;
+
+  const subject = `Welcome to Fitkode, ${firstName}! 🔥 You’ve made the right choice — let’s crush your goals together!`;
+  const previewText = `Your journey to peak fitness starts right now. Coach Chinmay and Team Fitkode have your back every step of the way.`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Fitkode!</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; background-color: #f3f4f6; margin: 0; padding: 28px 12px;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center">
+        <!-- Main Container -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #ffffff; border-radius: 24px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+          
+          <!-- Energetic Header Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #064e3b 0%, #047857 50%, #0d9488 100%); padding: 36px 32px; text-align: left;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; background-color: rgba(255,255,255,0.18); color: #a7f3d0; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.2);">
+                      ⚡ Official Welcome
+                    </span>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 900; line-height: 1.2; letter-spacing: -0.5px;">
+                      Welcome to Fitkode! 🔥
+                    </h1>
+                    <p style="color: #d1fae5; margin: 8px 0 0 0; font-size: 15px; font-weight: 500;">
+                      You have made the very right choice. Let’s crush your fitness goals together!
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Core Message Body -->
+          <tr>
+            <td style="padding: 32px 32px 24px 32px;">
+              <h2 style="font-size: 20px; font-weight: 800; color: #111827; margin: 0 0 16px 0;">
+                Hey ${firstName}, you’re officially in! 💥
+              </h2>
+
+              <p style="font-size: 15px; line-height: 1.65; color: #374151; margin: 0 0 16px 0;">
+                First of all, congratulations. Deciding to prioritize your health, energy, and strength is a huge commitment, and <strong>you have made the absolute right choice</strong> by joining Fitkode.
+              </p>
+
+              <p style="font-size: 15px; line-height: 1.65; color: #374151; margin: 0 0 24px 0;">
+                From this moment on, you are not navigating this alone. <strong>Together, we will crush your fitness goals.</strong> No gimmicks, no extreme starving — just evidence-based training, smart nutrition, and consistent accountability.
+              </p>
+
+              <!-- Energetic Highlight Callout -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; margin: 0 0 28px 0;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <p style="margin: 0; font-size: 14px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">
+                      💪 The Fitkode Promise
+                    </p>
+                    <p style="margin: 6px 0 0 0; font-size: 14px; color: #14532d; line-height: 1.55;">
+                      Stay consistent, log your progress, and trust the process. You bring the effort, and we bring the roadmap!
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- 3-Step Action Plan -->
+              <h3 style="font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+                🚀 Your 3-Step Kickoff Plan:
+              </h3>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 28px;">
+                <!-- Step 1 -->
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="36" valign="top" style="padding-top: 2px;">
+                          <span style="display: inline-block; width: 28px; height: 28px; background-color: #047857; color: #ffffff; border-radius: 8px; font-size: 13px; font-weight: 800; text-align: center; line-height: 28px;">1</span>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <strong style="color: #111827; font-size: 14px;">Complete Your Onboarding Assessment</strong>
+                          <p style="margin: 2px 0 0 0; color: #6b7280; font-size: 13px; line-height: 1.4;">
+                            Tell us your current stats, goals, and diet preference in under 2 minutes so we can tailor your coaching.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Step 2 -->
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="36" valign="top" style="padding-top: 2px;">
+                          <span style="display: inline-block; width: 28px; height: 28px; background-color: #047857; color: #ffffff; border-radius: 8px; font-size: 13px; font-weight: 800; text-align: center; line-height: 28px;">2</span>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <strong style="color: #111827; font-size: 14px;">Review Your Diet &amp; Workout Blueprint</strong>
+                          <p style="margin: 2px 0 0 0; color: #6b7280; font-size: 13px; line-height: 1.4;">
+                            Access your daily macro targets, customized meal suggestions, and training splits directly in your dashboard.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Step 3 -->
+                <tr>
+                  <td style="padding: 12px 0;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="36" valign="top" style="padding-top: 2px;">
+                          <span style="display: inline-block; width: 28px; height: 28px; background-color: #047857; color: #ffffff; border-radius: 8px; font-size: 13px; font-weight: 800; text-align: center; line-height: 28px;">3</span>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <strong style="color: #111827; font-size: 14px;">Lock in Your Weekly Tracker Check-In</strong>
+                          <p style="margin: 2px 0 0 0; color: #6b7280; font-size: 13px; line-height: 1.4;">
+                            Record your weekly weight, tape measurements, and check-in notes so Coach Chinmay can review your progress.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Main Call-to-Action Button -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${profileUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 15px; padding: 16px 36px; border-radius: 14px; box-shadow: 0 4px 14px rgba(4, 120, 87, 0.35); text-transform: uppercase; letter-spacing: 0.5px;">
+                      ⚡ Open Your Fitkode Dashboard &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Coach Sign-off -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <tr>
+                  <td>
+                    <p style="font-size: 14px; color: #374151; margin: 0 0 4px 0; font-weight: 700;">
+                      Let's make it happen,
+                    </p>
+                    <p style="font-size: 15px; color: #111827; margin: 0; font-weight: 800;">
+                      Coach Chinmay &amp; The Fitkode Team
+                    </p>
+                    <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">
+                      Direct Coaching Support: <a href="mailto:myfitkode@gmail.com" style="color: #047857; text-decoration: underline;">myfitkode@gmail.com</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                Fitkode Performance Coaching • DPDPA Compliant Consent Synchronized
+              </p>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #9ca3af;">
+                You received this email because you logged in to Fitkode with your Google account (${targetEmail}).
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+Welcome to Fitkode, ${firstName}! 🔥
+You’ve made the very right choice — let’s crush your fitness goals together!
+
+Hey ${firstName}, you’re officially in! 💥
+
+First things first: Welcome to Fitkode. You have made the very right choice for your body, your mindset, and your health.
+
+Starting today, you are no longer doing this alone. We are in this together, and together, we will absolutely CRUSH your fitness goals. 🚀
+
+Whether you want to drop stubborn fat, build lean muscle, dial in your nutrition, or build unstoppable daily discipline — you now have the exact system, science-backed planning, and direct coaching in your corner.
+
+YOUR 3-STEP KICKOFF PLAN:
+1. Complete Your Onboarding Assessment (2 mins)
+2. Review Your Diet & Workout Blueprint in your dashboard
+3. Lock in Your Weekly Tracker Check-In so Coach Chinmay can review your progress
+
+Open your Fitkode Dashboard:
+${profileUrl}
+
+Let's make it happen!
+
+Coach Chinmay & The Fitkode Team
+myfitkode@gmail.com
   `.trim();
 
   return { subject, html, text, previewText };
