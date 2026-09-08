@@ -264,6 +264,154 @@ export async function regrantHealthConsent(userIdOrEmail: string): Promise<void>
 }
 
 /**
+ * Updates coaching & plan notifications consent.
+ * If user explicitly disables it, records notificationsConsentWithdrawn = true.
+ */
+export async function setNotificationsConsent(userIdOrEmail: string, enabled: boolean): Promise<void> {
+  const timestamp = new Date().toISOString();
+
+  const profile = loadUserProfile(userIdOrEmail);
+  const updatedProfile: UserProfile = {
+    ...profile,
+    notificationsConsent: enabled,
+    notificationsConsentGivenAt: enabled ? timestamp : profile.notificationsConsentGivenAt,
+    notificationsConsentWithdrawn: !enabled,
+    notificationsConsentWithdrawnAt: !enabled ? timestamp : undefined,
+  };
+  saveUserProfile(updatedProfile, userIdOrEmail);
+
+  const onboarding = loadClientOnboarding(userIdOrEmail);
+  const updatedOnboarding: ClientOnboarding = {
+    ...onboarding,
+    notificationsConsent: enabled,
+    notificationsConsentGivenAt: enabled ? timestamp : onboarding.notificationsConsentGivenAt,
+    notificationsConsentWithdrawn: !enabled,
+    notificationsConsentWithdrawnAt: !enabled ? timestamp : undefined,
+  };
+  saveClientOnboarding(updatedOnboarding, userIdOrEmail);
+
+  const email = (profile.email || userIdOrEmail).toLowerCase().trim();
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          notifications_consent: enabled,
+          updated_at: timestamp,
+        })
+        .or(`id.eq.${userIdOrEmail},email.eq.${email}`);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/**
+ * DPDPA 2023 Default Consent Enforcement on Login:
+ * Whenever any person logs in to the website, all their consents are marked "Yes" (true)
+ * by default in respect to their willingness to share data for fitness & nutrition programming.
+ * Consents are ONLY turned off if the user explicitly chose to turn them off (withdrawn).
+ */
+export function ensureDefaultConsentsOnLogin(userIdOrEmail: string): {
+  profile: UserProfile;
+  onboarding: ClientOnboarding;
+} {
+  const profile = loadUserProfile(userIdOrEmail);
+  const onboarding = loadClientOnboarding(userIdOrEmail);
+  const timestamp = new Date().toISOString();
+
+  let profileChanged = false;
+  let onboardingChanged = false;
+
+  // 1. Health Data Processing Consent (DPDP Act Section 6)
+  // Default to YES (true) unless the user explicitly revoked/withdrew consent
+  if (!profile.isConsentWithdrawn) {
+    if (!profile.healthDataConsent) {
+      profile.healthDataConsent = true;
+      profileChanged = true;
+    }
+    if (!profile.healthDataConsentGivenAt) {
+      profile.healthDataConsentGivenAt = timestamp;
+      profileChanged = true;
+    }
+  }
+
+  if (!onboarding.isConsentWithdrawn) {
+    if (!onboarding.healthDataConsent) {
+      onboarding.healthDataConsent = true;
+      onboardingChanged = true;
+    }
+    if (!onboarding.healthDataConsentGivenAt) {
+      onboarding.healthDataConsentGivenAt = timestamp;
+      onboardingChanged = true;
+    }
+  }
+
+  // 2. Coaching & Plan Notifications Consent
+  // Default to YES (true) unless the user explicitly opted out
+  if (!profile.notificationsConsentWithdrawn) {
+    if (!profile.notificationsConsent) {
+      profile.notificationsConsent = true;
+      profileChanged = true;
+    }
+    if (!profile.notificationsConsentGivenAt) {
+      profile.notificationsConsentGivenAt = timestamp;
+      profileChanged = true;
+    }
+  }
+
+  if (!onboarding.notificationsConsentWithdrawn) {
+    if (!onboarding.notificationsConsent) {
+      onboarding.notificationsConsent = true;
+      onboardingChanged = true;
+    }
+    if (!onboarding.notificationsConsentGivenAt) {
+      onboarding.notificationsConsentGivenAt = timestamp;
+      onboardingChanged = true;
+    }
+  }
+
+  if (profileChanged) {
+    saveUserProfile(profile, userIdOrEmail);
+  }
+  if (onboardingChanged) {
+    saveClientOnboarding(onboarding, userIdOrEmail);
+  }
+
+  // Update member directory record status
+  const email = (profile.email || userIdOrEmail).toLowerCase().trim();
+  const members = getStoredMembers();
+  const index = members.findIndex((m) => m.id === userIdOrEmail || m.email.toLowerCase() === email);
+  if (index >= 0) {
+    if (!profile.isConsentWithdrawn && members[index].consentStatus !== 'active') {
+      members[index].consentStatus = 'active';
+      members[index].consentWithdrawnAt = undefined;
+      saveStoredMembers(members);
+    }
+  }
+
+  // If Supabase is connected, update remotely as well
+  const supabase = getSupabase();
+  if (supabase && (profileChanged || !profile.isConsentWithdrawn)) {
+    try {
+      supabase
+        .from('profiles')
+        .update({
+          health_data_consent: !profile.isConsentWithdrawn,
+          notifications_consent: !profile.notificationsConsentWithdrawn,
+          updated_at: timestamp,
+        })
+        .or(`id.eq.${userIdOrEmail},email.eq.${email}`);
+    } catch {
+      // ignore
+    }
+  }
+
+  return { profile, onboarding };
+}
+
+/**
  * Permanently erases all client data under DPDPA 2023 Right to Erasure.
  * Removes profile, onboarding, weekly logs, custom exercises, custom foods,
  * plans, and member records.

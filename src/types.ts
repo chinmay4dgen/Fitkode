@@ -79,6 +79,8 @@ export interface UserProfile {
   notificationsConsentGivenAt?: string;
   isConsentWithdrawn?: boolean;
   consentWithdrawnAt?: string;
+  notificationsConsentWithdrawn?: boolean;
+  notificationsConsentWithdrawnAt?: string;
   updatedAt?: string;
 }
 
@@ -194,6 +196,8 @@ export interface ClientOnboarding {
   notificationsConsentGivenAt?: string;
   isConsentWithdrawn?: boolean;
   consentWithdrawnAt?: string;
+  notificationsConsentWithdrawn?: boolean;
+  notificationsConsentWithdrawnAt?: string;
   updatedAt?: string;
 }
 

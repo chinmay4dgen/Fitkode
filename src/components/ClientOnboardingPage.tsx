@@ -1365,24 +1365,39 @@ export default function ClientOnboardingPage() {
                     </div>
                   </div>
 
+                  {/* DPDP Act Default Notice */}
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-2.5">
+                    <Shield className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-emerald-900 block mb-0.5">
+                        DPDP Act 2023 Default Consent:
+                      </span>
+                      By default, all your data sharing consents are marked <strong>Yes</strong> to ensure uninterrupted coaching, dietary calculation, and workout programming. They remain active unless you explicitly choose to turn them off below.
+                    </div>
+                  </div>
+
                   {/* Separate unbundled opt-in toggles */}
                   <div className="space-y-3">
-                    {/* Consent 1: Mandatory */}
+                    {/* Consent 1: Health Data */}
                     <label
                       className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer ${
-                        formData.healthDataConsent
+                        formData.healthDataConsent && !formData.isConsentWithdrawn
                           ? 'bg-emerald-50/70 border-brand-green ring-1 ring-brand-green/30'
                           : 'bg-white border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <input
                         type="checkbox"
-                        checked={Boolean(formData.healthDataConsent)}
+                        checked={Boolean(formData.healthDataConsent && !formData.isConsentWithdrawn)}
                         onChange={(e) => {
                           const checked = e.target.checked;
                           handleFieldChange('healthDataConsent', checked);
-                          if (checked && !formData.healthDataConsentGivenAt) {
+                          handleFieldChange('isConsentWithdrawn', !checked);
+                          if (checked) {
                             handleFieldChange('healthDataConsentGivenAt', new Date().toISOString());
+                            handleFieldChange('consentWithdrawnAt', '');
+                          } else {
+                            handleFieldChange('consentWithdrawnAt', new Date().toISOString());
                           }
                         }}
                         className="mt-1 w-5 h-5 rounded text-brand-green focus:ring-brand-green border-gray-300 cursor-pointer"
@@ -1391,36 +1406,45 @@ export default function ClientOnboardingPage() {
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <span className="font-bold text-gray-900 text-sm">Health Data Processing Consent</span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Mandatory to Submit Intake
+                            {formData.healthDataConsent && !formData.isConsentWithdrawn ? 'Yes (Active by Default)' : 'Turned Off'}
                           </span>
                         </div>
                         <p className="text-gray-800 leading-relaxed font-medium text-xs">
                           &quot;I consent to Fitkode processing my physical metrics, health history, and dietary data solely for creating personalized fitness and workout programs.&quot;
                         </p>
-                        {formData.healthDataConsent && formData.healthDataConsentGivenAt && (
+                        {formData.healthDataConsent && !formData.isConsentWithdrawn && formData.healthDataConsentGivenAt && (
                           <p className="text-[10px] text-emerald-700 mt-1">
                             Consent registered: {new Date(formData.healthDataConsentGivenAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                          </p>
+                        )}
+                        {formData.isConsentWithdrawn && (
+                          <p className="text-[10px] text-amber-700 font-semibold mt-1">
+                            Turned off by user on {formData.consentWithdrawnAt ? new Date(formData.consentWithdrawnAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'recently'}
                           </p>
                         )}
                       </div>
                     </label>
 
-                    {/* Consent 2: Optional */}
+                    {/* Consent 2: Coaching Notifications */}
                     <label
                       className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer ${
-                        formData.notificationsConsent
+                        formData.notificationsConsent && !formData.notificationsConsentWithdrawn
                           ? 'bg-emerald-50/70 border-brand-green ring-1 ring-brand-green/30'
                           : 'bg-white border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <input
                         type="checkbox"
-                        checked={Boolean(formData.notificationsConsent)}
+                        checked={Boolean(formData.notificationsConsent && !formData.notificationsConsentWithdrawn)}
                         onChange={(e) => {
                           const checked = e.target.checked;
                           handleFieldChange('notificationsConsent', checked);
-                          if (checked && !formData.notificationsConsentGivenAt) {
+                          handleFieldChange('notificationsConsentWithdrawn', !checked);
+                          if (checked) {
                             handleFieldChange('notificationsConsentGivenAt', new Date().toISOString());
+                            handleFieldChange('notificationsConsentWithdrawnAt', '');
+                          } else {
+                            handleFieldChange('notificationsConsentWithdrawnAt', new Date().toISOString());
                           }
                         }}
                         className="mt-1 w-5 h-5 rounded text-brand-green focus:ring-brand-green border-gray-300 cursor-pointer"
@@ -1428,16 +1452,21 @@ export default function ClientOnboardingPage() {
                       <div className="flex-1 text-xs">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <span className="font-bold text-gray-900 text-sm">Coaching &amp; Plan Notifications</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
-                            Optional
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                            {formData.notificationsConsent && !formData.notificationsConsentWithdrawn ? 'Yes (Active by Default)' : 'Turned Off'}
                           </span>
                         </div>
                         <p className="text-gray-600 leading-relaxed text-xs">
-                          &quot;I agree to receive workout plan updates and coaching notifications via email/WhatsApp.&quot;
+                          &quot;I agree to receive workout plan updates, check-in reminders, and coaching notifications via email/WhatsApp.&quot;
                         </p>
-                        {formData.notificationsConsent && formData.notificationsConsentGivenAt && (
+                        {formData.notificationsConsent && !formData.notificationsConsentWithdrawn && formData.notificationsConsentGivenAt && (
                           <p className="text-[10px] text-brand-green mt-1">
                             Preference registered: {new Date(formData.notificationsConsentGivenAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                          </p>
+                        )}
+                        {formData.notificationsConsentWithdrawn && (
+                          <p className="text-[10px] text-gray-500 mt-1">
+                            Turned off by user.
                           </p>
                         )}
                       </div>

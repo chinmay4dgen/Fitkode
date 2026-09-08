@@ -845,8 +845,8 @@ export default function UserProfilePage() {
                   <Shield className="w-5 h-5 text-brand-green" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-900 text-sm">DPDPA 2023 Health Data Privacy</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-gray-900 text-sm">DPDPA 2023 Privacy &amp; Data Sharing</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                         profile.healthDataConsent && !profile.isConsentWithdrawn
@@ -854,11 +854,20 @@ export default function UserProfilePage() {
                           : 'bg-amber-100 text-amber-800'
                       }`}
                     >
-                      {profile.healthDataConsent && !profile.isConsentWithdrawn ? 'Consent Active' : 'Consent Withdrawn'}
+                      Health Data: {profile.healthDataConsent && !profile.isConsentWithdrawn ? 'Yes (Active)' : 'Turned Off'}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        profile.notificationsConsent && !profile.notificationsConsentWithdrawn
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      Coaching Alerts: {profile.notificationsConsent && !profile.notificationsConsentWithdrawn ? 'Yes (Active)' : 'Turned Off'}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-500 mt-0.5">
-                    Your metrics and progress logs are confidential. You hold full statutory rights to export, withdraw consent, or erase your records.
+                    Marked &quot;Yes&quot; by default under India&apos;s DPDP Act for seamless coaching. Consents are turned off only if you choose to turn them off.
                   </p>
                 </div>
               </div>

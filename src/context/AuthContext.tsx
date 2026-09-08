@@ -14,6 +14,7 @@ import {
   syncMemberToStore,
 } from '../lib/memberStore';
 import { loadUserProfile, loadClientOnboarding } from '../lib/profileStorage';
+import { ensureDefaultConsentsOnLogin } from '../lib/privacyService';
 
 export interface DevTestUserPreset {
   id: string;
@@ -264,10 +265,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const email = user.email || '';
+    const userIdOrEmail = user.id || email;
+    // DPDP Act Default Consent: All consents marked Yes by default on login unless user chose to turn them off
+    const { profile, onboarding } = ensureDefaultConsentsOnLogin(userIdOrEmail);
     const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0] || 'Member';
     const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-    const profile = loadUserProfile(user.id || email);
-    const onboarding = loadClientOnboarding(user.id || email);
 
     syncMemberToStore({
       id: user.id,
@@ -399,10 +401,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoleOverride(role);
     setAuthError(null);
 
-    // Sync to member store
+    // Sync to member store with DPDP Act default Yes consents
     try {
-      const profile = loadUserProfile(testUser.id || testUser.email);
-      const onboarding = loadClientOnboarding(testUser.id || testUser.email);
+      const { profile, onboarding } = ensureDefaultConsentsOnLogin(testUser.id || testUser.email);
       const synced = await syncMemberToStore({
         id: testUser.id,
         email: testUser.email || email,

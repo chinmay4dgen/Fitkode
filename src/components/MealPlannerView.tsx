@@ -935,7 +935,7 @@ export default function MealPlannerView({
 
       {/* Meal Slots Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-gray-900">Daily Meal Schedule</h3>
             <p className="text-xs text-gray-500">
@@ -945,7 +945,7 @@ export default function MealPlannerView({
           <button
             type="button"
             onClick={handleAddMealSlot}
-            className="py-2 px-3.5 rounded-xl bg-brand-light-green/70 hover:bg-brand-light-green text-brand-dark-green text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+            className="py-2.5 px-4 rounded-xl bg-brand-light-green/80 hover:bg-brand-light-green text-brand-dark-green text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs shrink-0 whitespace-nowrap self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Add Meal Slot</span>
@@ -981,44 +981,61 @@ export default function MealPlannerView({
               className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-xs space-y-4"
             >
               {/* Slot Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-                <div className="flex items-center space-x-3">
-                  <span className="w-7 h-7 rounded-xl bg-brand-light-green text-brand-dark-green font-black text-xs flex items-center justify-center">
-                    {sIdx + 1}
-                  </span>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={slot.name}
-                        onChange={(e) => handleUpdateSlotMeta(slot.id, e.target.value, slot.time || '')}
-                        className="font-bold text-sm sm:text-base text-gray-900 bg-transparent hover:bg-gray-50 px-2 py-0.5 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-64"
-                      />
+              <div className="space-y-3 pb-3 border-b border-gray-100">
+                {/* Row 1: Index, Slot Name, and Delete Slot Button */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2.5 flex-1 min-w-0">
+                    <span className="w-7 h-7 rounded-xl bg-brand-light-green text-brand-dark-green font-black text-xs flex items-center justify-center shrink-0">
+                      {sIdx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={slot.name}
+                      onChange={(e) => handleUpdateSlotMeta(slot.id, e.target.value, slot.time || '')}
+                      className="font-bold text-sm sm:text-base text-gray-900 bg-transparent hover:bg-gray-50 px-2 py-1 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none flex-1 min-w-0"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMealSlot(slot.id)}
+                    className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                    title="Delete slot"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Row 2: Time pill, Subtotals & Action buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Time Input with Clock Icon */}
+                    <div className="flex items-center space-x-1.5 bg-gray-50 hover:bg-gray-100/80 px-2.5 py-1 rounded-xl border border-gray-200/80">
+                      <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                       <input
                         type="text"
                         value={slot.time || ''}
                         placeholder="e.g. 08:30 AM"
                         onChange={(e) => handleUpdateSlotMeta(slot.id, slot.name, e.target.value)}
-                        className="text-xs text-gray-500 font-medium bg-transparent hover:bg-gray-50 px-2 py-0.5 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-28"
+                        className="text-xs text-gray-600 font-semibold bg-transparent outline-none w-24"
                       />
                     </div>
-                  </div>
-                </div>
 
-                {/* Slot Subtotals & Actions */}
-                <div className="flex items-center space-x-3">
-                  <div className="text-right text-xs">
-                    <span className="font-extrabold text-amber-800">{Math.round(slotCalories)} kcal</span>
-                    <p className="text-[11px] text-gray-500">
-                      P: {slotProtein.toFixed(1)}g | C: {slotCarbs.toFixed(1)}g | F: {slotFats.toFixed(1)}g
-                    </p>
+                    {/* Subtotal Macro Badge */}
+                    <div className="bg-amber-50/70 border border-amber-200/70 px-2.5 py-1 rounded-xl text-xs flex items-center space-x-2">
+                      <span className="font-extrabold text-amber-900">{Math.round(slotCalories)} kcal</span>
+                      <span className="text-[11px] text-amber-800/80 font-medium">
+                        P: {slotProtein.toFixed(1)}g | C: {slotCarbs.toFixed(1)}g | F: {slotFats.toFixed(1)}g
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center space-x-1.5 border-l border-gray-200 pl-3">
+                  {/* Add Foods Actions */}
+                  <div className="flex items-center space-x-1.5">
                     <button
                       type="button"
                       onClick={() => setLibraryModalSlotId(slot.id)}
-                      className="py-1.5 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                      className="py-1.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs"
                       title="Select approved food or custom food"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1028,19 +1045,10 @@ export default function MealPlannerView({
                     <button
                       type="button"
                       onClick={() => handleAddInlineCustomItem(slot.id)}
-                      className="py-1.5 px-2 rounded-xl hover:bg-gray-100 text-gray-600 text-xs font-bold transition-colors cursor-pointer"
+                      className="py-1.5 px-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-colors cursor-pointer"
                       title="Add quick editable custom item"
                     >
                       + Custom
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMealSlot(slot.id)}
-                      className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                      title="Delete slot"
-                    >
-                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -1072,150 +1080,162 @@ export default function MealPlannerView({
                   {slot.items.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3.5 rounded-2xl bg-gray-50/90 border border-gray-200/90 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs shadow-2xs"
+                      className="p-3.5 rounded-2xl bg-gray-50/90 border border-gray-200/90 space-y-2.5 text-xs shadow-2xs"
                     >
-                      {/* Name, Source Badge & Portion Controls */}
-                      <div className="flex-1 min-w-0 space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => handleUpdateItem(slot.id, item.id, 'name', e.target.value)}
-                            className="font-bold text-gray-900 bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full max-w-xs sm:max-w-sm"
-                          />
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-gray-200 text-gray-700">
-                            {item.category}
-                          </span>
-
-                          {/* Distinctive Custom vs Master Approved Badge */}
-                          {item.isCustom ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1" title="Custom Food: User profile level. Macros are manually editable.">
-                              <Edit2 className="w-2.5 h-2.5 mr-0.5" />
-                              <span>Custom Food (Editable)</span>
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1" title="ICMR / US FDA / INFS Approved Master Database. Macros calculate in correlation with portion.">
-                              <ShieldCheck className="w-2.5 h-2.5 mr-0.5 text-emerald-700" />
-                              <span>ICMR / FDA Approved</span>
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Quantity Stepper, Unit Selector & SI ⇄ Count Mode Switcher */}
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] pt-0.5">
-                          {/* Dedicated Numeric Quantity + Unit Selector */}
-                          <div className="flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-xl border border-gray-200 shadow-2xs">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Qty:</span>
-                            <input
-                              type="number"
-                              min={item.measurementType === 'count' ? 0.25 : 1}
-                              step={item.measurementType === 'count' ? 0.5 : 5}
-                              max={item.measurementType === 'count' ? 200 : 3000}
-                              value={item.quantity ?? (parsePortion(item.servingSize).quantity || 1)}
-                              onChange={(e) =>
-                                handleQuantityChange(
-                                  slot.id,
-                                  item.id,
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              className="w-14 font-extrabold text-xs text-gray-900 text-center bg-gray-50 px-1 py-0.5 rounded-lg border border-gray-200 focus:border-brand-green focus:bg-white outline-none"
-                            />
-
-                            {/* Unit Dropdown */}
-                            <select
-                              value={item.unit || (item.measurementType === 'count' ? 'units' : 'g')}
-                              onChange={(e) => handleUnitChange(slot.id, item.id, e.target.value)}
-                              className="text-[11px] font-bold text-gray-700 bg-gray-50 hover:bg-gray-100 px-1.5 py-0.5 rounded-lg border border-gray-200 hover:border-gray-300 focus:border-brand-green focus:bg-white outline-none cursor-pointer"
-                              title="Select unit of measurement"
-                            >
-                              <optgroup label="Count of Item">
-                                <option value="units">units</option>
-                                <option value="pcs">pcs</option>
-                                {item.countUnitName && item.countUnitName !== 'units' && item.countUnitName !== 'pcs' && (
-                                  <option value={item.countUnitName}>{item.countUnitName}</option>
-                                )}
-                                <option value="eggs">eggs</option>
-                                <option value="rotis">rotis</option>
-                                <option value="scoops">scoops</option>
-                                <option value="slices">slices</option>
-                                <option value="cups">cups</option>
-                                <option value="bowls">bowls</option>
-                              </optgroup>
-                              <optgroup label="SI Unit of Measurement">
-                                <option value="g">gm (g)</option>
-                                <option value="ml">ml (milliliters)</option>
-                              </optgroup>
-                            </select>
-                          </div>
-
-                          {/* Quick SI ⇄ Count Mode Switcher Pill */}
-                          <div className="flex items-center bg-gray-100 p-0.5 rounded-xl border border-gray-200 text-[10px]">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleMeasurementSystem(slot.id, item.id, 'si')}
-                              className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
-                                item.measurementType === 'si'
-                                  ? 'bg-blue-600 text-white shadow-2xs'
-                                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                              }`}
-                              title="Switch to SI Unit of measurement (gm / ml)"
-                            >
-                              SI (g/ml)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleMeasurementSystem(slot.id, item.id, 'count')}
-                              className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
-                                item.measurementType === 'count'
-                                  ? 'bg-emerald-600 text-white shadow-2xs'
-                                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                              }`}
-                              title="Switch to Count of item (e.g. 2 units, 2 eggs, 1 scoop)"
-                            >
-                              Count (Units)
-                            </button>
-                          </div>
-
-                          {/* Dynamic Conversion Equivalent Helper Badge */}
-                          {item.unitWeight ? (
-                            <span
-                              className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-200/80 shadow-2xs"
-                              title={`Unit Weight Reference: 1 count unit ≈ ${item.unitWeight}${item.siUnitName || 'g'}`}
-                            >
-                              {item.measurementType === 'count' ? (
-                                <>≈ {Math.round((item.quantity || 1) * item.unitWeight)}{item.siUnitName || 'g'} <span className="text-gray-400 font-normal">({item.unitWeight}g/unit)</span></>
-                              ) : (
-                                <>≈ {Number(((item.quantity || 1) / item.unitWeight).toFixed(1))} units</>
-                              )}
-                            </span>
-                          ) : null}
-
-                          {/* Text Portion Input */}
-                          <div className="flex items-center space-x-1">
-                            <span className="text-gray-400 text-[10px]">Label:</span>
+                      {/* Top Bar: Name, Badges, and Item Delete Button */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <input
                               type="text"
-                              value={item.servingSize}
-                              placeholder="e.g. 2 units or 100g"
-                              onChange={(e) =>
-                                handleServingTextChange(slot.id, item.id, e.target.value)
-                              }
-                              className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-white px-2 py-0.5 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-32"
+                              value={item.name}
+                              onChange={(e) => handleUpdateItem(slot.id, item.id, 'name', e.target.value)}
+                              className="font-bold text-gray-900 bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full max-w-xs sm:max-w-sm"
                             />
-                          </div>
-
-                          {item.notes && (
-                            <span className="text-gray-500 italic hidden md:inline">
-                              • {item.notes}
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-gray-200 text-gray-700 shrink-0">
+                              {item.category}
                             </span>
-                          )}
+
+                            {/* Distinctive Custom vs Master Approved Badge */}
+                            {item.isCustom ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1 shrink-0" title="Custom Food: User profile level. Macros are manually editable.">
+                                <Edit2 className="w-2.5 h-2.5 mr-0.5" />
+                                <span>Custom Food (Editable)</span>
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1 shrink-0" title="ICMR / US FDA / INFS Approved Master Database. Macros calculate in correlation with portion.">
+                                <ShieldCheck className="w-2.5 h-2.5 mr-0.5 text-emerald-700" />
+                                <span>ICMR / FDA Approved</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Top-Right Delete Item Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteItem(slot.id, item.id)}
+                          className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      {/* Macros Editing (Locked for approved ICMR/FDA foods, Editable for custom foods) */}
-                      <div className="flex items-center space-x-2 shrink-0">
-                        <div className="flex items-center space-x-1.5 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-2xs">
+                      {/* Quantity Stepper, Unit Selector & SI ⇄ Count Mode Switcher */}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        {/* Dedicated Numeric Quantity + Unit Selector */}
+                        <div className="flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-xl border border-gray-200 shadow-2xs">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Qty:</span>
+                          <input
+                            type="number"
+                            min={item.measurementType === 'count' ? 0.25 : 1}
+                            step={item.measurementType === 'count' ? 0.5 : 5}
+                            max={item.measurementType === 'count' ? 200 : 3000}
+                            value={item.quantity ?? (parsePortion(item.servingSize).quantity || 1)}
+                            onChange={(e) =>
+                              handleQuantityChange(
+                                slot.id,
+                                item.id,
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="w-14 font-extrabold text-xs text-gray-900 text-center bg-gray-50 px-1 py-0.5 rounded-lg border border-gray-200 focus:border-brand-green focus:bg-white outline-none"
+                          />
+
+                          {/* Unit Dropdown */}
+                          <select
+                            value={item.unit || (item.measurementType === 'count' ? 'units' : 'g')}
+                            onChange={(e) => handleUnitChange(slot.id, item.id, e.target.value)}
+                            className="text-[11px] font-bold text-gray-700 bg-gray-50 hover:bg-gray-100 px-1.5 py-0.5 rounded-lg border border-gray-200 hover:border-gray-300 focus:border-brand-green focus:bg-white outline-none cursor-pointer"
+                            title="Select unit of measurement"
+                          >
+                            <optgroup label="Count of Item">
+                              <option value="units">units</option>
+                              <option value="pcs">pcs</option>
+                              {item.countUnitName && item.countUnitName !== 'units' && item.countUnitName !== 'pcs' && (
+                                <option value={item.countUnitName}>{item.countUnitName}</option>
+                              )}
+                              <option value="eggs">eggs</option>
+                              <option value="rotis">rotis</option>
+                              <option value="scoops">scoops</option>
+                              <option value="slices">slices</option>
+                              <option value="cups">cups</option>
+                              <option value="bowls">bowls</option>
+                            </optgroup>
+                            <optgroup label="SI Unit of Measurement">
+                              <option value="g">gm (g)</option>
+                              <option value="ml">ml (milliliters)</option>
+                            </optgroup>
+                          </select>
+                        </div>
+
+                        {/* Quick SI ⇄ Count Mode Switcher Pill */}
+                        <div className="flex items-center bg-gray-100 p-0.5 rounded-xl border border-gray-200 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMeasurementSystem(slot.id, item.id, 'si')}
+                            className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                              item.measurementType === 'si'
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                            }`}
+                            title="Switch to SI Unit of measurement (gm / ml)"
+                          >
+                            SI (g/ml)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMeasurementSystem(slot.id, item.id, 'count')}
+                            className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                              item.measurementType === 'count'
+                                ? 'bg-emerald-600 text-white shadow-2xs'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                            }`}
+                            title="Switch to Count of item (e.g. 2 units, 2 eggs, 1 scoop)"
+                          >
+                            Count (Units)
+                          </button>
+                        </div>
+
+                        {/* Dynamic Conversion Equivalent Helper Badge */}
+                        {item.unitWeight ? (
+                          <span
+                            className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-200/80 shadow-2xs"
+                            title={`Unit Weight Reference: 1 count unit ≈ ${item.unitWeight}${item.siUnitName || 'g'}`}
+                          >
+                            {item.measurementType === 'count' ? (
+                              <>≈ {Math.round((item.quantity || 1) * item.unitWeight)}{item.siUnitName || 'g'} <span className="text-gray-400 font-normal">({item.unitWeight}g/unit)</span></>
+                            ) : (
+                              <>≈ {Number(((item.quantity || 1) / item.unitWeight).toFixed(1))} units</>
+                            )}
+                          </span>
+                        ) : null}
+
+                        {/* Text Portion Input */}
+                        <div className="flex items-center space-x-1">
+                          <span className="text-gray-400 text-[10px]">Label:</span>
+                          <input
+                            type="text"
+                            value={item.servingSize}
+                            placeholder="e.g. 2 units or 100g"
+                            onChange={(e) =>
+                              handleServingTextChange(slot.id, item.id, e.target.value)
+                            }
+                            className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-white px-2 py-0.5 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-28 sm:w-32"
+                          />
+                        </div>
+
+                        {item.notes && (
+                          <span className="text-gray-500 italic hidden md:inline">
+                            • {item.notes}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Macros Row (KCAL, PRO, CARB, FAT) */}
+                      <div className="pt-1">
+                        <div className="inline-flex items-center space-x-1.5 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-2xs max-w-full overflow-x-auto">
                           {/* KCAL */}
                           <div className="text-center px-1">
                             <span className="text-[9px] font-bold text-gray-400 block">KCAL</span>
@@ -1331,15 +1351,6 @@ export default function MealPlannerView({
                             )}
                           </div>
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteItem(slot.id, item.id)}
-                          className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                          title="Remove item"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   ))}

@@ -498,6 +498,7 @@ export async function syncMemberToStore(memberData: {
     const existing = members[existingIndex];
     // Don't downgrade admin if already admin
     const finalRole = isDefaultAdmin(normalizedEmail) ? 'admin' : (memberData.role || existing.role || resolvedRole);
+    const isConsentWithdrawn = Boolean(memberData.profile?.isConsentWithdrawn || (existing.consentStatus === 'withdrawn' && memberData.profile?.isConsentWithdrawn !== false));
 
     updatedMember = {
       ...existing,
@@ -506,11 +507,14 @@ export async function syncMemberToStore(memberData: {
       lastLoginAt: new Date().toISOString(),
       profileCompletion: memberData.profile ? profileRate : existing.profileCompletion,
       onboardingCompletion: memberData.onboarding ? onboardingRate : existing.onboardingCompletion,
+      consentStatus: isConsentWithdrawn ? 'withdrawn' : 'active',
+      consentWithdrawnAt: isConsentWithdrawn ? (existing.consentWithdrawnAt || new Date().toISOString()) : undefined,
       profile: memberData.profile || existing.profile,
       onboarding: memberData.onboarding || existing.onboarding,
     };
     members[existingIndex] = updatedMember;
   } else {
+    const isConsentWithdrawn = Boolean(memberData.profile?.isConsentWithdrawn);
     updatedMember = {
       id: memberData.id || `usr_${Date.now()}`,
       email: normalizedEmail,
@@ -524,6 +528,8 @@ export async function syncMemberToStore(memberData: {
       planName: memberData.planName,
       profileCompletion: profileRate,
       onboardingCompletion: onboardingRate,
+      consentStatus: isConsentWithdrawn ? 'withdrawn' : 'active',
+      consentWithdrawnAt: isConsentWithdrawn ? new Date().toISOString() : undefined,
       profile: memberData.profile,
       onboarding: memberData.onboarding,
     };

@@ -674,7 +674,7 @@ export default function WorkoutPlannerView({
 
       {/* Days Schedule Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-gray-900">Workout Split & Exercises</h3>
             <p className="text-xs text-gray-500">
@@ -684,7 +684,7 @@ export default function WorkoutPlannerView({
           <button
             type="button"
             onClick={handleAddDay}
-            className="py-2.5 px-4 rounded-xl bg-brand-light-green hover:bg-brand-light-green/70 text-brand-dark-green font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+            className="py-2.5 px-4 rounded-xl bg-brand-light-green hover:bg-brand-light-green/70 text-brand-dark-green font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs shrink-0 whitespace-nowrap self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Add Training Day</span>
@@ -720,39 +720,51 @@ export default function WorkoutPlannerView({
             }`}
           >
             {/* Day Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                    day.isRestDay
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-brand-light-green/60 text-brand-dark-green'
-                  }`}
-                >
-                  {index + 1}
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    value={day.dayName}
-                    onChange={(e) => handleUpdateDayMeta(day.id, e.target.value, day.focus)}
-                    className="text-sm sm:text-base font-bold text-gray-900 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none w-full max-w-sm"
-                  />
-                  <div className="flex items-center space-x-2 mt-0.5 text-xs text-gray-500">
-                    <span className="text-[11px] font-semibold text-gray-500">Target Focus:</span>
+            <div className="space-y-3 pb-3 border-b border-gray-100">
+              {/* Row 1: Index, Day Name, Focus, and Delete Day Button */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                      day.isRestDay
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-brand-light-green/60 text-brand-dark-green'
+                    }`}
+                  >
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <input
                       type="text"
-                      value={day.focus}
-                      placeholder="e.g. Upper Body Push or Active Recovery"
-                      onChange={(e) => handleUpdateDayMeta(day.id, day.dayName, e.target.value)}
-                      className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none w-52"
+                      value={day.dayName}
+                      onChange={(e) => handleUpdateDayMeta(day.id, e.target.value, day.focus)}
+                      className="text-sm sm:text-base font-bold text-gray-900 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none w-full"
                     />
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                      <span className="text-[11px] font-semibold text-gray-500 shrink-0">Target Focus:</span>
+                      <input
+                        type="text"
+                        value={day.focus}
+                        placeholder="e.g. Upper Body Push or Active Recovery"
+                        onChange={(e) => handleUpdateDayMeta(day.id, day.dayName, e.target.value)}
+                        className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none flex-1 min-w-[140px]"
+                      />
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteDay(day.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                  title="Delete Day"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Day Controls */}
-              <div className="flex items-center space-x-2 self-end sm:self-center">
+              {/* Row 2: Action Controls */}
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 <button
                   type="button"
                   onClick={() => handleToggleRestDay(day.id)}
@@ -770,32 +782,23 @@ export default function WorkoutPlannerView({
                     <button
                       type="button"
                       onClick={() => setLibraryModalDayId(day.id)}
-                      className="py-1.5 px-2.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                      className="py-1.5 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold flex items-center space-x-1.5 cursor-pointer transition-colors shadow-2xs"
                       title="Select from Exercise Library"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-purple-700" />
-                      <span className="hidden md:inline">Exercise Library</span>
+                      <span>Exercise Library</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAddCustomExercise(day.id)}
-                      className="py-1.5 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                      className="py-1.5 px-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
                       title="Add Custom Exercise"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">Custom</span>
+                      <span>Custom</span>
                     </button>
                   </>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => handleDeleteDay(day.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                  title="Delete Day"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
               </div>
             </div>
 
@@ -832,11 +835,11 @@ export default function WorkoutPlannerView({
                 {day.exercises.map((ex, exIdx) => (
                   <div
                     key={ex.id}
-                    className="p-3.5 rounded-2xl bg-gray-50/90 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                    className="p-3.5 sm:p-4 rounded-2xl bg-gray-50/90 border border-gray-200 space-y-2.5 text-xs shadow-2xs"
                   >
-                    {/* Exercise info */}
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex items-center space-x-2">
+                    {/* Top Row: Index, Exercise Name, Muscle Badges & Top-Right Delete Button */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
                         <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-bold text-[10px] shrink-0">
                           {exIdx + 1}
                         </span>
@@ -844,7 +847,7 @@ export default function WorkoutPlannerView({
                           type="text"
                           value={ex.name}
                           onChange={(e) => handleUpdateExercise(day.id, ex.id, 'name', e.target.value)}
-                          className="font-bold text-gray-900 bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full max-w-sm"
+                          className="font-bold text-sm text-gray-900 bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none flex-1 min-w-0"
                         />
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-800 shrink-0">
                           {ex.targetMuscle}
@@ -856,56 +859,40 @@ export default function WorkoutPlannerView({
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2.5 pl-7">
-                        <div className="flex items-center space-x-1.5 flex-1 min-w-[180px]">
-                          <span className="text-[11px] text-gray-400 shrink-0">Notes:</span>
-                          <input
-                            type="text"
-                            value={ex.notes || ''}
-                            placeholder="Form cue (e.g. 2s pause at bottom, keep core braced)"
-                            onChange={(e) => handleUpdateExercise(day.id, ex.id, 'notes', e.target.value)}
-                            className="text-[11px] text-gray-600 italic bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full"
-                          />
-                        </div>
+                      {/* Top-Right Delete Exercise Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExercise(day.id, ex.id)}
+                        className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                        title="Remove exercise"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                        {/* YouTube Video Reference Link & Live Thumbnail */}
-                        <div className="flex items-center space-x-1.5 shrink-0">
-                          {ex.videoUrl ? (
-                            (() => {
-                              const videoId = extractYouTubeVideoId(ex.videoUrl);
-                              const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
-                              return (
-                                <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-xl border border-gray-200 shadow-2xs">
-                                  {thumb ? (
-                                    <div
-                                      onClick={() =>
-                                        setVideoPreviewModal({
-                                          url: ex.videoUrl!,
-                                          name: ex.name,
-                                          targetMuscle: ex.targetMuscle,
-                                          notes: ex.notes,
-                                        })
-                                      }
-                                      className="relative w-12 h-7 rounded-md overflow-hidden bg-black shrink-0 cursor-pointer group/vthumb"
-                                      title="Watch reference video demonstration"
-                                    >
-                                      <img
-                                        src={thumb}
-                                        alt={ex.name}
-                                        className="w-full h-full object-cover"
-                                        crossOrigin="anonymous"
-                                      />
-                                      <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/vthumb:bg-black/10">
-                                        <div className="w-3.5 h-3.5 rounded-full bg-red-600 text-white flex items-center justify-center text-[6px] font-bold">
-                                          ▶
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <Youtube className="w-4 h-4 text-red-600 shrink-0" />
-                                  )}
-                                  <button
-                                    type="button"
+                    {/* Middle Row: Notes & Video Reference Demo */}
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      <div className="flex items-center space-x-1.5 flex-1 min-w-[200px]">
+                        <span className="text-[11px] font-semibold text-gray-400 shrink-0">Notes:</span>
+                        <input
+                          type="text"
+                          value={ex.notes || ''}
+                          placeholder="Form cue (e.g. 2s pause at bottom, keep core braced)"
+                          onChange={(e) => handleUpdateExercise(day.id, ex.id, 'notes', e.target.value)}
+                          className="text-[11px] text-gray-600 italic bg-transparent hover:bg-white px-2 py-1 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full"
+                        />
+                      </div>
+
+                      {/* YouTube Video Reference Link & Live Thumbnail */}
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        {ex.videoUrl ? (
+                          (() => {
+                            const videoId = extractYouTubeVideoId(ex.videoUrl);
+                            const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
+                            return (
+                              <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-xl border border-gray-200 shadow-2xs">
+                                {thumb ? (
+                                  <div
                                     onClick={() =>
                                       setVideoPreviewModal({
                                         url: ex.videoUrl!,
@@ -914,52 +901,79 @@ export default function WorkoutPlannerView({
                                         notes: ex.notes,
                                       })
                                     }
-                                    className="text-[10px] font-bold text-gray-800 hover:text-red-600 cursor-pointer px-1 py-0.5"
+                                    className="relative w-12 h-7 rounded-md overflow-hidden bg-black shrink-0 cursor-pointer group/vthumb"
+                                    title="Watch reference video demonstration"
                                   >
-                                    Watch
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setVideoLinkModalState({
-                                        dayId: day.id,
-                                        exercise: ex,
-                                        dayName: day.dayName,
-                                      })
-                                    }
-                                    className="text-gray-400 hover:text-indigo-600 p-1 rounded hover:bg-gray-50 cursor-pointer"
-                                    title="Edit YouTube Video Link"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              );
-                            })()
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setVideoLinkModalState({
-                                  dayId: day.id,
-                                  exercise: ex,
-                                  dayName: day.dayName,
-                                })
-                              }
-                              className="text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-xl border border-red-200/80 flex items-center space-x-1 cursor-pointer transition-colors"
-                              title="Attach YouTube video demonstration"
-                            >
-                              <Youtube className="w-3 h-3" />
-                              <span>+ Video</span>
-                            </button>
-                          )}
-                        </div>
+                                    <img
+                                      src={thumb}
+                                      alt={ex.name}
+                                      className="w-full h-full object-cover"
+                                      crossOrigin="anonymous"
+                                    />
+                                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/vthumb:bg-black/10">
+                                      <div className="w-3.5 h-3.5 rounded-full bg-red-600 text-white flex items-center justify-center text-[6px] font-bold">
+                                        ▶
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Youtube className="w-4 h-4 text-red-600 shrink-0" />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setVideoPreviewModal({
+                                      url: ex.videoUrl!,
+                                      name: ex.name,
+                                      targetMuscle: ex.targetMuscle,
+                                      notes: ex.notes,
+                                    })
+                                  }
+                                  className="text-[10px] font-bold text-gray-800 hover:text-red-600 cursor-pointer px-1 py-0.5"
+                                >
+                                  Watch
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setVideoLinkModalState({
+                                      dayId: day.id,
+                                      exercise: ex,
+                                      dayName: day.dayName,
+                                    })
+                                  }
+                                  className="text-gray-400 hover:text-indigo-600 p-1 rounded hover:bg-gray-50 cursor-pointer"
+                                  title="Edit YouTube Video Link"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVideoLinkModalState({
+                                dayId: day.id,
+                                exercise: ex,
+                                dayName: day.dayName,
+                              })
+                            }
+                            className="text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-xl border border-red-200/80 flex items-center space-x-1 cursor-pointer transition-colors"
+                            title="Attach YouTube video demonstration"
+                          >
+                            <Youtube className="w-3 h-3" />
+                            <span>+ Video</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Sets, Reps & Rest */}
-                    <div className="flex items-center space-x-2 shrink-0 pl-7 md:pl-0">
-                      <div className="flex items-center space-x-2 bg-white p-1.5 rounded-xl border border-gray-200">
-                        <div className="text-center">
+                    {/* Bottom Row: Sets, Reps & Rest Time Controls */}
+                    <div className="pt-0.5">
+                      <div className="inline-flex items-center space-x-2 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-2xs">
+                        <div className="text-center px-1">
                           <span className="text-[9px] font-bold text-gray-400 block">SETS</span>
                           <input
                             type="number"
@@ -972,7 +986,7 @@ export default function WorkoutPlannerView({
                             className="w-10 text-center text-xs font-bold text-gray-900 bg-gray-50 rounded py-0.5 outline-none"
                           />
                         </div>
-                        <div className="text-center">
+                        <div className="text-center px-1 border-l border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 block">REPS</span>
                           <input
                             type="text"
@@ -982,7 +996,7 @@ export default function WorkoutPlannerView({
                             className="w-16 text-center text-xs font-bold text-brand-dark-green bg-brand-light-green/30 rounded py-0.5 outline-none"
                           />
                         </div>
-                        <div className="text-center">
+                        <div className="text-center px-1 border-l border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 block">REST (s)</span>
                           <input
                             type="number"
@@ -991,19 +1005,10 @@ export default function WorkoutPlannerView({
                             onChange={(e) =>
                               handleUpdateExercise(day.id, ex.id, 'restSeconds', Number(e.target.value) || 0)
                             }
-                            className="w-12 text-center text-xs font-bold text-blue-700 bg-blue-50 rounded py-0.5 outline-none"
+                            className="w-14 text-center text-xs font-bold text-blue-700 bg-blue-50 rounded py-0.5 outline-none"
                           />
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExercise(day.id, ex.id)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                        title="Remove exercise"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
                 ))}

@@ -22,12 +22,14 @@ export const defaultUserProfile: UserProfile = {
   livingWith: '',
   primaryCareProvider: '',
   lastCheckupDate: '',
-  healthDataConsent: false,
-  healthDataConsentGivenAt: '',
-  notificationsConsent: false,
-  notificationsConsentGivenAt: '',
+  healthDataConsent: true,
+  healthDataConsentGivenAt: new Date().toISOString(),
+  notificationsConsent: true,
+  notificationsConsentGivenAt: new Date().toISOString(),
   isConsentWithdrawn: false,
   consentWithdrawnAt: '',
+  notificationsConsentWithdrawn: false,
+  notificationsConsentWithdrawnAt: '',
 };
 
 export const defaultClientOnboarding: ClientOnboarding = {
@@ -135,12 +137,14 @@ export const defaultClientOnboarding: ClientOnboarding = {
 
   completedSections: [],
   isSubmitted: false,
-  healthDataConsent: false,
-  healthDataConsentGivenAt: '',
-  notificationsConsent: false,
-  notificationsConsentGivenAt: '',
+  healthDataConsent: true,
+  healthDataConsentGivenAt: new Date().toISOString(),
+  notificationsConsent: true,
+  notificationsConsentGivenAt: new Date().toISOString(),
   isConsentWithdrawn: false,
   consentWithdrawnAt: '',
+  notificationsConsentWithdrawn: false,
+  notificationsConsentWithdrawnAt: '',
 };
 
 function getStorageKey(type: 'profile' | 'onboarding', userIdOrEmail?: string): string {
@@ -155,7 +159,23 @@ export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserP
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...defaultUserProfile, ...defaults, ...parsed };
+      const profile: UserProfile = { ...defaultUserProfile, ...defaults, ...parsed };
+      // As per DPDP Act: By default whenever a person logs in or accesses the site,
+      // all their consents must be marked Yes (true) in respect to their willingness to share data,
+      // and turned off ONLY if they explicitly chose to turn it off.
+      if (!profile.isConsentWithdrawn) {
+        profile.healthDataConsent = true;
+        if (!profile.healthDataConsentGivenAt) {
+          profile.healthDataConsentGivenAt = new Date().toISOString();
+        }
+      }
+      if (!profile.notificationsConsentWithdrawn) {
+        profile.notificationsConsent = true;
+        if (!profile.notificationsConsentGivenAt) {
+          profile.notificationsConsentGivenAt = new Date().toISOString();
+        }
+      }
+      return profile;
     }
   } catch (err) {
     console.warn('Error reading user profile from localStorage:', err);
@@ -190,7 +210,20 @@ export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...defaultClientOnboarding, ...parsed };
+      const onboarding: ClientOnboarding = { ...defaultClientOnboarding, ...parsed };
+      if (!onboarding.isConsentWithdrawn) {
+        onboarding.healthDataConsent = true;
+        if (!onboarding.healthDataConsentGivenAt) {
+          onboarding.healthDataConsentGivenAt = new Date().toISOString();
+        }
+      }
+      if (!onboarding.notificationsConsentWithdrawn) {
+        onboarding.notificationsConsent = true;
+        if (!onboarding.notificationsConsentGivenAt) {
+          onboarding.notificationsConsentGivenAt = new Date().toISOString();
+        }
+      }
+      return onboarding;
     }
   } catch (err) {
     console.warn('Error reading onboarding from localStorage:', err);
