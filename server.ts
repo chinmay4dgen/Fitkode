@@ -5,6 +5,14 @@ import { createServer as createViteServer } from 'vite';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import {
+  buildWeeklyTrackerEmail,
+  buildDietPlanAssignedEmail,
+  buildWorkoutPlanAssignedEmail,
+  sendEmailNotification,
+  getAllCommunicationLogs,
+  getMailTransporterConfig,
+} from './server/communicationService.ts';
 
 dotenv.config();
 
@@ -889,6 +897,40 @@ async function startServer() {
       serverWeeklyEntries.unshift(sanitizedEntry);
     }
 
+    // Automatically notify Coach Chinmay at myfitkode@gmail.com upon weekly tracker submission
+    try {
+      const member = serverMembers.find((m) => m.email.toLowerCase().trim() === entryEmail);
+      const clientName = member?.name || `${sanitizedEntry.firstName || ''} ${sanitizedEntry.lastName || ''}`.trim() || entryEmail;
+      const appUrl = process.env.APP_URL || (req.headers.origin as string) || `http://${req.headers.host}`;
+      const emailContent = buildWeeklyTrackerEmail({
+        entry: sanitizedEntry,
+        clientName,
+        appUrl,
+      });
+
+      const coachNotificationEmail = process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com';
+
+      sendEmailNotification({
+        type: 'weekly_tracker_submission',
+        to: coachNotificationEmail,
+        subject: emailContent.subject,
+        previewText: emailContent.previewText,
+        html: emailContent.html,
+        text: emailContent.text,
+        recipientName: 'Coach Chinmay',
+        metadata: {
+          clientEmail: entryEmail,
+          clientName,
+          weekNumber: sanitizedEntry.weekNumber,
+          weightKg: sanitizedEntry.weightKg,
+        },
+      }).catch((err) => {
+        console.error('Error dispatching weekly tracker email notification:', err);
+      });
+    } catch (notifyErr) {
+      console.error('Failed to prepare weekly tracker notification:', notifyErr);
+    }
+
     return res.json({ success: true, entry: sanitizedEntry });
   });
 
@@ -911,6 +953,184 @@ async function startServer() {
     }
 
     return res.json({ success: true, message: 'Check-in deleted.' });
+  });
+
+  // =========================================================================
+  // COMMUNICATION & EMAIL NOTIFICATION ENDPOINTS
+  // =========================================================================
+
+  // POST /api/communication/notify-weekly-tracker
+  // Dispatches notification to Coach Chinmay (myfitkode@gmail.com)
+  app.post('/api/communication/notify-weekly-tracker', async (req, res) => {
+    try {
+      const { entry, clientName } = req.body;
+      if (!entry || !entry.userEmail) {
+        return res.status(400).json({ error: 'Weekly entry with userEmail is required.' });
+      }
+
+      const userEmail = entry.userEmail.toLowerCase().trim();
+      const member = serverMembers.find((m) => m.email.toLowerCase().trim() === userEmail);
+      const name = clientName || member?.name || `${entry.firstName || ''} ${entry.lastName || ''}`.trim() || userEmail;
+      const appUrl = process.env.APP_URL || (req.headers.origin as string) || `http://${req.headers.host}`;
+
+      const { subject, html, text, previewText } = buildWeeklyTrackerEmail({
+        entry,
+        clientName: name,
+        appUrl,
+      });
+
+      const coachNotificationEmail = process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com';
+
+      const result = await sendEmailNotification({
+        type: 'weekly_tracker_submission',
+        to: coachNotificationEmail,
+        subject,
+        previewText,
+        html,
+        text,
+        recipientName: 'Coach Chinmay',
+        metadata: {
+          clientEmail: userEmail,
+          clientName: name,
+          weekNumber: entry.weekNumber,
+          weightKg: entry.weightKg,
+        },
+      });
+
+      return res.json({ success: true, log: result.log });
+    } catch (err: any) {
+      console.error('Error in notify-weekly-tracker endpoint:', err);
+      return res.status(500).json({ error: err?.message || 'Failed to dispatch notification' });
+    }
+  });
+
+  // POST /api/communication/notify-plan-assigned
+  // Dispatches notification to Client when a Diet Plan or Workout Plan is assigned by Coach
+  app.post('/api/communication/notify-plan-assigned', async (req, res) => {
+    try {
+      const { type, targetEmail, clientName, plan, coachName = 'Chinmay Jain' } = req.body;
+
+      if (!targetEmail || !plan) {
+        return res.status(400).json({ error: 'targetEmail and plan are required.' });
+      }
+
+      const normTarget = targetEmail.toLowerCase().trim();
+      const member = serverMembers.find((m) => m.email.toLowerCase().trim() === normTarget);
+      const name = clientName || member?.name || normTarget.split('@')[0];
+      const appUrl = process.env.APP_URL || (req.headers.origin as string) || `http://${req.headers.host}`;
+
+      let emailData;
+      if (type === 'workout') {
+        emailData = buildWorkoutPlanAssignedEmail({
+          targetEmail: normTarget,
+          clientName: name,
+          plan,
+          coachName,
+          appUrl,
+        });
+      } else {
+        emailData = buildDietPlanAssignedEmail({
+          targetEmail: normTarget,
+          clientName: name,
+          plan,
+          coachName,
+          appUrl,
+        });
+      }
+
+      const result = await sendEmailNotification({
+        type: type === 'workout' ? 'workout_plan_assigned' : 'diet_plan_assigned',
+        to: normTarget,
+        subject: emailData.subject,
+        previewText: emailData.previewText,
+        html: emailData.html,
+        text: emailData.text,
+        recipientName: name,
+        metadata: {
+          planId: plan.id,
+          planName: plan.name,
+          planType: type,
+          coachName,
+        },
+      });
+
+      return res.json({ success: true, log: result.log });
+    } catch (err: any) {
+      console.error('Error in notify-plan-assigned endpoint:', err);
+      return res.status(500).json({ error: err?.message || 'Failed to dispatch plan notification' });
+    }
+  });
+
+  // GET /api/communication/logs
+  // Returns communication logs (Super Admin Chinmay only)
+  app.get('/api/communication/logs', (req, res) => {
+    const caller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    if (!isUserAdmin(caller)) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required to inspect communication logs.' });
+    }
+
+    const logs = getAllCommunicationLogs();
+    return res.json({ success: true, logs });
+  });
+
+  // GET /api/communication/config
+  // Returns communication transporter configuration status
+  app.get('/api/communication/config', (req, res) => {
+    const caller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    if (!isUserAdmin(caller)) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+    }
+
+    const config = getMailTransporterConfig();
+    return res.json({ success: true, config });
+  });
+
+  // POST /api/communication/send-test
+  // Dispatches a test verification email
+  app.post('/api/communication/send-test', async (req, res) => {
+    try {
+      const { targetEmail, callerEmail } = req.body;
+      const caller = (callerEmail || '').toLowerCase().trim();
+      if (!isUserAdmin(caller)) {
+        return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+      }
+
+      const to = (targetEmail || process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com').toLowerCase().trim();
+      const appUrl = process.env.APP_URL || (req.headers.origin as string) || `http://${req.headers.host}`;
+
+      const subject = `[Fitkode Test Email] Communication System Verification`;
+      const previewText = `Test email sent from Fitkode coaching platform. Communication pipeline is operational.`;
+      const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 28px; max-width: 500px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px;">
+          <div style="background: #047857; color: #ffffff; padding: 12px 18px; border-radius: 10px; font-weight: bold; font-size: 16px; margin-bottom: 16px;">
+            Fitkode Communication Module
+          </div>
+          <h2 style="color: #064e3b; margin: 0 0 10px 0; font-size: 18px;">Email System Verification</h2>
+          <p style="color: #374151; font-size: 14px; line-height: 1.5;">This confirms that your Fitkode notification pipeline is active and dispatching emails.</p>
+          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 12px; color: #065f46; margin: 16px 0;">
+            <strong>Coach Email:</strong> ${process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com'}<br>
+            <strong>Triggered at:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+          </div>
+          <p style="font-size: 12px; color: #6b7280;">Fitkode Coaching Platform • <a href="${appUrl}" style="color: #047857;">Open Platform</a></p>
+        </div>
+      `;
+      const text = `Fitkode Communication System Verification\nTest notification sent to ${to} at ${new Date().toISOString()}`;
+
+      const result = await sendEmailNotification({
+        type: 'test',
+        to,
+        subject,
+        previewText,
+        html,
+        text,
+        recipientName: 'Coach Chinmay',
+        metadata: { isTest: true },
+      });
+
+      return res.json({ success: true, log: result.log });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Failed to send test email' });
+    }
   });
 
   // Create Razorpay Order endpoint

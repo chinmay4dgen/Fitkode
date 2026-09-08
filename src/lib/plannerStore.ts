@@ -1,5 +1,6 @@
 import { MealPlan, WorkoutPlan } from '../types';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from './plannerLibrary';
+import { notifyPlanAssigned } from './communicationService';
 
 const MEAL_PLANS_KEY = 'fk_meal_plans_v1';
 const WORKOUT_PLANS_KEY = 'fk_workout_plans_v1';
@@ -333,6 +334,17 @@ export async function assignCoachMealPlan(
 
   saveAllMealPlans(all);
   notifyPlannerChange();
+
+  // Asynchronously dispatch email notification to the member
+  notifyPlanAssigned({
+    type: 'diet',
+    targetEmail: normalizedEmail,
+    plan: newPlan,
+    coachName,
+  }).catch((err) => {
+    console.warn('[assignCoachMealPlan] Failed to dispatch email notification:', err);
+  });
+
   return newPlan;
 }
 
@@ -545,5 +557,16 @@ export async function assignCoachWorkoutPlan(
 
   saveAllWorkoutPlans(all);
   notifyPlannerChange();
+
+  // Asynchronously dispatch email notification to the member
+  notifyPlanAssigned({
+    type: 'workout',
+    targetEmail: normalizedEmail,
+    plan: newPlan,
+    coachName,
+  }).catch((err) => {
+    console.warn('[assignCoachWorkoutPlan] Failed to dispatch email notification:', err);
+  });
+
   return newPlan;
 }

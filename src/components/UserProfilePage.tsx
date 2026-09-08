@@ -372,9 +372,9 @@ export default function UserProfilePage() {
       setEditingWeeklyEntry(null);
       addToast({
         type: 'success',
-        title: 'Check-in Saved',
-        message: `Week ${entry.weekNumber} metrics have been recorded.`,
-        duration: 5000,
+        title: 'Check-in Recorded & Coach Notified',
+        message: `Week ${entry.weekNumber} metrics saved! Coach Chinmay has been automatically notified on email at myfitkode@gmail.com.`,
+        duration: 6000,
       });
     } catch (err) {
       console.error(err);

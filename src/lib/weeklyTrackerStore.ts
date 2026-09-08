@@ -1,5 +1,6 @@
 import { WeeklyTrackerEntry } from '../types';
 import { isDefaultAdmin } from './memberStore';
+import { notifyWeeklyTrackerSubmitted } from './communicationService';
 
 // Realistic sample progression check-ins for demo members
 export const SEED_WEEKLY_ENTRIES: WeeklyTrackerEntry[] = [
@@ -287,18 +288,10 @@ export async function saveWeeklyEntry(
     console.error('Error saving weekly entry to localStorage:', err);
   }
 
-  // Sync to server API asynchronously
-  try {
-    fetch('/api/weekly-tracker', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry: updatedEntry, callerEmail }),
-    }).catch(() => {
-      // server sync fallback
-    });
-  } catch {
-    // ignore
-  }
+  // Asynchronously dispatch notification to Coach Chinmay (myfitkode@gmail.com)
+  notifyWeeklyTrackerSubmitted(updatedEntry, callerEmail).catch((err) => {
+    console.warn('[saveWeeklyEntry] Failed to dispatch coach weekly tracker notification:', err);
+  });
 
   return updatedList;
 }

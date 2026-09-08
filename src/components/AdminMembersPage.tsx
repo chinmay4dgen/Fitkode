@@ -36,6 +36,7 @@ import {
   Moon,
   Scale,
   Camera,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AppMember, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
@@ -70,6 +71,8 @@ import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
 import PhotoCompareModal from './PhotoCompareModal';
 import { ToastContainer, ToastMessage } from './Toast';
+import { CommunicationCenterModal } from './CommunicationCenterModal';
+import { fetchCommunicationLogs, CommunicationLogItem } from '../lib/communicationService';
 
 export default function AdminMembersPage() {
   const { user, role, isAdmin, setTestingRole, signInWithTestAccount } = useAuth();
@@ -84,8 +87,10 @@ export default function AdminMembersPage() {
   const [showDirectory, setShowDirectory] = useState(true);
   const [quickSwitchOpen, setQuickSwitchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'profile' | 'assessment' | 'weekly-tracker' | 'coaching' | 'meal-plan' | 'workout-plan'
+    'profile' | 'assessment' | 'weekly-tracker' | 'coaching' | 'meal-plan' | 'workout-plan' | 'communication'
   >('profile');
+  const [showCommunicationCenter, setShowCommunicationCenter] = useState(false);
+  const [memberCommLogs, setMemberCommLogs] = useState<CommunicationLogItem[]>([]);
   const [updatingRole, setUpdatingRole] = useState(false);
   const [coachNotes, setCoachNotes] = useState('');
   const [notesSaved, setNotesSaved] = useState(false);
@@ -123,8 +128,8 @@ export default function AdminMembersPage() {
       setAdminActiveMealPlanId(assigned.id);
       addToast({
         type: 'success',
-        title: 'Coach Meal Plan Assigned',
-        message: `Nutrition plan "${plan.name}" has been assigned to ${selectedMember.name} and is immediately active in their profile.`,
+        title: 'Coach Meal Plan Assigned & Dispatched',
+        message: `Nutrition plan "${plan.name}" assigned to ${selectedMember.name}! An email notification has been dispatched to ${selectedMember.email}.`,
         duration: 6000,
       });
     } catch (err) {
@@ -210,8 +215,8 @@ export default function AdminMembersPage() {
       setAdminActiveWorkoutPlanId(assigned.id);
       addToast({
         type: 'success',
-        title: 'Coach Workout Routine Assigned',
-        message: `Workout routine "${plan.name}" has been assigned to ${selectedMember.name} and is immediately active in their profile.`,
+        title: 'Coach Workout Routine Assigned & Dispatched',
+        message: `Workout routine "${plan.name}" assigned to ${selectedMember.name}! An email notification has been dispatched to ${selectedMember.email}.`,
         duration: 6000,
       });
     } catch (err) {
@@ -612,6 +617,17 @@ export default function AdminMembersPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
+              id="admin-comm-center-header-btn"
+              type="button"
+              onClick={() => setShowCommunicationCenter(true)}
+              className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 text-xs font-bold transition-all cursor-pointer border border-emerald-400/30 shadow-xs"
+              title="Coach Email Notification & Communication Center"
+            >
+              <Mail className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Communication Center</span>
+            </button>
+
+            <button
               onClick={() => loadData(true)}
               className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer border border-white/10"
               title="Refresh Member Data"
@@ -980,6 +996,31 @@ export default function AdminMembersPage() {
                 >
                   <Dumbbell className="w-3.5 h-3.5" />
                   <span>Workout Plan ({adminMemberWorkoutPlans.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="tab-member-communications"
+                  onClick={async () => {
+                    setActiveTab('communication');
+                    if (selectedMember?.email) {
+                      const allLogs = await fetchCommunicationLogs(user?.email || 'myfitkode@gmail.com');
+                      const memLogs = allLogs.filter(
+                        (l) =>
+                          l.to.toLowerCase() === selectedMember.email.toLowerCase() ||
+                          (l.metadata && l.metadata.clientEmail && l.metadata.clientEmail.toLowerCase() === selectedMember.email.toLowerCase())
+                      );
+                      setMemberCommLogs(memLogs);
+                    }
+                  }}
+                  className={`flex items-center space-x-2 py-2 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                    activeTab === 'communication'
+                      ? 'bg-brand-dark-green text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Communications</span>
                 </button>
               </div>
 
@@ -1800,6 +1841,117 @@ export default function AdminMembersPage() {
                   />
                 </div>
               )}
+
+              {/* TAB 7: MEMBER EMAIL & NOTIFICATION COMMUNICATIONS */}
+              {activeTab === 'communication' && (
+                <div className="space-y-6 animate-in fade-in duration-150">
+                  <div className="bg-gradient-to-r from-emerald-950 to-teal-950 text-white rounded-2xl p-4 sm:p-5 border border-emerald-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/10 text-emerald-300 flex items-center justify-center shrink-0">
+                        <Mail className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white flex items-center">
+                          <span>Communication &amp; Notification History</span>
+                          <span className="ml-2 text-[10px] bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
+                            Automated Pipeline
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-emerald-100/80">
+                          Automated email notifications dispatched to Coach Chinmay (at <strong>myfitkode@gmail.com</strong>) upon {selectedMember.name}’s weekly tracker check-ins, and to <strong>{selectedMember.email}</strong> upon diet or workout plan assignments.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCommunicationCenter(true)}
+                      className="inline-flex items-center space-x-1.5 py-1.5 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
+                    >
+                      <span>Open Full Comm Center</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-xs">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Weekly Check-in Alerts</p>
+                      <p className="text-xl font-black text-emerald-900 mt-1">
+                        {loadUserWeeklyEntries(selectedMember.email).length} Check-ins
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Notified to myfitkode@gmail.com</p>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-xs">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nutrition Notifications</p>
+                      <p className="text-xl font-black text-amber-900 mt-1">
+                        {adminMemberMealPlans.length} Meal Plans
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Dispatched to {selectedMember.email}</p>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-xs">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Workout Notifications</p>
+                      <p className="text-xl font-black text-indigo-900 mt-1">
+                        {adminMemberWorkoutPlans.length} Routines
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Dispatched to {selectedMember.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Dispatched History Stream */}
+                  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <h4 className="text-sm font-bold text-gray-900 flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-emerald-600" />
+                        <span>Recent Dispatches &amp; Activity for {selectedMember.name}</span>
+                      </h4>
+                      <span className="text-xs text-gray-400">
+                        {memberCommLogs.length} logged communications
+                      </span>
+                    </div>
+
+                    {memberCommLogs.length === 0 ? (
+                      <div className="py-10 text-center text-gray-500 space-y-2">
+                        <Mail className="w-8 h-8 mx-auto text-gray-300" />
+                        <p className="text-xs font-semibold">No direct logged emails for {selectedMember.name} yet.</p>
+                        <p className="text-[11px] text-gray-400 max-w-sm mx-auto">
+                          Assign a diet or workout plan in the tabs above, or submit a weekly check-in to trigger an automated notification.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {memberCommLogs.map((log) => (
+                          <div
+                            key={log.id}
+                            className="border border-gray-100 hover:border-emerald-200 rounded-xl p-3.5 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                  {log.type.replace(/_/g, ' ')}
+                                </span>
+                                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                                  {log.status}
+                                </span>
+                                <span className="text-[11px] text-gray-400">
+                                  {formatISTDateTime(log.sentAt)}
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold text-gray-900">{log.subject}</p>
+                              <p className="text-[11px] text-gray-500">{log.previewText}</p>
+                            </div>
+                            <div className="text-right shrink-0 text-xs">
+                              <span className="text-gray-400">Recipient: </span>
+                              <strong className="text-gray-800">{log.to}</strong>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
       ) : (
@@ -2043,6 +2195,13 @@ export default function AdminMembersPage() {
           onClose={() => setAdminPhotoModalEntryId(null)}
         />
       )}
+
+      {/* Coach Communication & Notification Center Modal */}
+      <CommunicationCenterModal
+        isOpen={showCommunicationCenter}
+        onClose={() => setShowCommunicationCenter(false)}
+        adminEmail={user?.email || 'myfitkode@gmail.com'}
+      />
     </div>
   );
 }
