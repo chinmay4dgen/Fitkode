@@ -22,6 +22,12 @@ export const defaultUserProfile: UserProfile = {
   livingWith: '',
   primaryCareProvider: '',
   lastCheckupDate: '',
+  healthDataConsent: false,
+  healthDataConsentGivenAt: '',
+  notificationsConsent: false,
+  notificationsConsentGivenAt: '',
+  isConsentWithdrawn: false,
+  consentWithdrawnAt: '',
 };
 
 export const defaultClientOnboarding: ClientOnboarding = {
@@ -129,6 +135,12 @@ export const defaultClientOnboarding: ClientOnboarding = {
 
   completedSections: [],
   isSubmitted: false,
+  healthDataConsent: false,
+  healthDataConsentGivenAt: '',
+  notificationsConsent: false,
+  notificationsConsentGivenAt: '',
+  isConsentWithdrawn: false,
+  consentWithdrawnAt: '',
 };
 
 function getStorageKey(type: 'profile' | 'onboarding', userIdOrEmail?: string): string {
@@ -220,7 +232,6 @@ export function getProfileCompletionRate(profile: UserProfile): number {
     'preferredContact',
     'bloodGroup',
     'livingWith',
-    'lastCheckupDate',
   ];
 
   const filled = fieldsToCheck.filter((f) => Boolean(profile[f] && String(profile[f]).trim().length > 0));

@@ -53,7 +53,7 @@ const SEED_WORKOUT_PLANS: WorkoutPlan[] = [
 // HELPER STORAGE FUNCTIONS
 // =========================================================================
 
-function getAllStoredMealPlans(): MealPlan[] {
+export function getAllStoredMealPlans(): MealPlan[] {
   try {
     const raw = localStorage.getItem(MEAL_PLANS_KEY);
     if (!raw) {
@@ -68,7 +68,7 @@ function getAllStoredMealPlans(): MealPlan[] {
   }
 }
 
-function saveAllMealPlans(plans: MealPlan[]) {
+export function saveAllMealPlans(plans: MealPlan[]) {
   try {
     localStorage.setItem(MEAL_PLANS_KEY, JSON.stringify(plans));
   } catch (err) {
@@ -76,7 +76,7 @@ function saveAllMealPlans(plans: MealPlan[]) {
   }
 }
 
-function getAllStoredWorkoutPlans(): WorkoutPlan[] {
+export function getAllStoredWorkoutPlans(): WorkoutPlan[] {
   try {
     const raw = localStorage.getItem(WORKOUT_PLANS_KEY);
     if (!raw) {
@@ -91,7 +91,7 @@ function getAllStoredWorkoutPlans(): WorkoutPlan[] {
   }
 }
 
-function saveAllWorkoutPlans(plans: WorkoutPlan[]) {
+export function saveAllWorkoutPlans(plans: WorkoutPlan[]) {
   try {
     localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(plans));
   } catch (err) {

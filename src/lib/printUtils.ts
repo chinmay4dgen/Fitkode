@@ -1,5 +1,9 @@
 import { MealPlan, WorkoutPlan } from '../types';
 import { formatISTDateTime } from './timestampUtils';
+import { extractYouTubeVideoId } from './youtubeUtils';
+
+export const NON_MEDICAL_DISCLAIMER =
+  'Fitkode provides evidence-based fitness and lifestyle coaching. Coach Chinmay Jain is an INFS Certified Nutrition & Fitness Specialist and not a licensed medical practitioner. Recommendations do not constitute medical diagnosis, treatment, or clinical prescription. Consult a physician before beginning any new diet or training regimen.';
 
 /**
  * Generate a standalone, self-contained printable HTML document for a Meal Plan
@@ -303,8 +307,13 @@ export function generateMealPlanPrintableHtml(
     </ul>
   </div>
 
+  <div style="margin-top: 18px; padding: 10px 14px; background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 10px; line-height: 1.45; color: #78350f; page-break-inside: avoid;">
+    <strong style="display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 9px; color: #92400e;">Non-Medical &amp; Coaching Disclaimer (DPDPA 2023 Compliance)</strong>
+    ${NON_MEDICAL_DISCLAIMER}
+  </div>
+
   <div class="footer">
-    <div>Fitkode Coaching &bull; fitkode.com &bull; Designed by Coach Chinmay Jain</div>
+    <div>Fitkode Coaching &bull; fitkode.com &bull; Coach Chinmay Jain (INFS Certified)</div>
     <div>Strict Confidentiality Guaranteed &bull; Document ID: ${plan.id}</div>
   </div>
 
@@ -326,6 +335,26 @@ export function generateWorkoutPlanPrintableHtml(
     .map((day, dIdx) => {
       const exRows = (day.exercises || [])
         .map((ex, exIdx) => {
+          const videoId = extractYouTubeVideoId(ex.videoUrl);
+          const videoWatchUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : null;
+          const videoThumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
+
+          const videoCell = videoWatchUrl && videoThumbUrl
+            ? `<td style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
+                <a href="${videoWatchUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-flex; flex-direction: column; align-items: center; gap: 3px;">
+                  <div style="position: relative; width: 76px; height: 42px; border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; background: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <img src="${videoThumbUrl}" alt="${ex.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" crossorigin="anonymous" />
+                    <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25);">
+                      <div style="width: 18px; height: 18px; border-radius: 50%; background: #dc2626; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; line-height: 1;">&#9658;</div>
+                    </div>
+                  </div>
+                  <span style="font-size: 9px; font-weight: 700; color: #dc2626; text-decoration: underline; white-space: nowrap;">
+                    Watch Video &rarr;
+                  </span>
+                </a>
+              </td>`
+            : `<td style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #9ca3af; font-size: 11px;">-</td>`;
+
           return `
           <tr>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 700; color: #111827;">${exIdx + 1}. ${ex.name}</td>
@@ -334,6 +363,7 @@ export function generateWorkoutPlanPrintableHtml(
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-weight: 600; color: #111827;">${ex.reps || '8-12'}</td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280;">${ex.restSeconds ? `${ex.restSeconds}s` : '90s'}</td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4b5563; font-size: 11px;">${ex.notes || '-'}</td>
+            ${videoCell}
           </tr>
         `;
         })
@@ -360,10 +390,11 @@ export function generateWorkoutPlanPrintableHtml(
               <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">Reps / Cadence</th>
               <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">Rest</th>
               <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">Form Cues / Notes</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; width: 95px;">Video Guide</th>
             </tr>
           </thead>
           <tbody>
-            ${exRows || '<tr><td colspan="6" style="padding: 12px; text-align: center; color: #9ca3af;">No exercises scheduled for this training session.</td></tr>'}
+            ${exRows || '<tr><td colspan="7" style="padding: 12px; text-align: center; color: #9ca3af;">No exercises scheduled for this training session.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -575,8 +606,13 @@ export function generateWorkoutPlanPrintableHtml(
     </ul>
   </div>
 
+  <div style="margin-top: 18px; padding: 10px 14px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 10px; line-height: 1.45; color: #166534; page-break-inside: avoid;">
+    <strong style="display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 9px; color: #15803d;">Non-Medical &amp; Coaching Disclaimer (DPDPA 2023 Compliance)</strong>
+    ${NON_MEDICAL_DISCLAIMER}
+  </div>
+
   <div class="footer">
-    <div>Fitkode Coaching &bull; fitkode.com &bull; Designed by Coach Chinmay Jain</div>
+    <div>Fitkode Coaching &bull; fitkode.com &bull; Coach Chinmay Jain (INFS Certified)</div>
     <div>Strict Confidentiality Guaranteed &bull; Document ID: ${plan.id}</div>
   </div>
 

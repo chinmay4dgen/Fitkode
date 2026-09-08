@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { Shield, ShieldAlert } from 'lucide-react';
 import fitkodeLogo from '../assets/images/regenerated_image_1786680575798.webp';
+import MedicalDisclaimer from './MedicalDisclaimer';
 
 export default function Footer() {
   const [showComplianceModal, setShowComplianceModal] = useState(false);
@@ -60,7 +61,7 @@ export default function Footer() {
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">Legal &amp; Privacy</h4>
             <ul className="space-y-1.5 text-xs text-white/85">
-              <li><Link to="/privacy-policy" className="hover:text-white hover:underline transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/privacy-policy" className="hover:text-white hover:underline transition-colors">Privacy Policy &amp; DPDPA</Link></li>
               <li><Link to="/terms" className="hover:text-white hover:underline transition-colors">Terms &amp; Conditions</Link></li>
               <li><Link to="/refund-policy" className="hover:text-white hover:underline transition-colors">Refund Policy (30-Day Guarantee)</Link></li>
               <li>
@@ -76,10 +77,16 @@ export default function Footer() {
 
         </div>
 
+        {/* Standardized Non-Clinical & Coaching Disclaimer */}
+        <MedicalDisclaimer variant="footer" />
+
         {/* Bottom Copyright Strip */}
         <div className="pt-6 border-t border-white/15 flex flex-col md:flex-row justify-between items-center text-xs text-white/80 gap-2">
-          <p>Copyright © 2026 @ Fitkode</p>
-          <p className="text-[10px] opacity-75">All Rights Reserved. Engineered with Absolute Privacy.</p>
+          <div>
+            <p>Copyright © 2026 @ Fitkode Studio &bull; Grievance Officer: Chinmay Jain (myfitkode@gmail.com)</p>
+            <p className="text-[10px] opacity-75 mt-0.5">Compliant with India's Digital Personal Data Protection Act (DPDPA 2023)</p>
+          </div>
+          <p className="text-[10px] opacity-75 text-center md:text-right">All Rights Reserved. Engineered with Absolute Privacy &amp; Data Dignity.</p>
         </div>
 
       </div>

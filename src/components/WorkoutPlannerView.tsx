@@ -16,6 +16,9 @@ import {
   ChevronDown,
   Edit2,
   Layers,
+  Youtube,
+  Play,
+  ExternalLink,
 } from 'lucide-react';
 import {
   WorkoutPlan,
@@ -28,7 +31,13 @@ import { EXERCISE_LIBRARY } from '../lib/plannerLibrary';
 import WorkoutPlanPrintModal from './WorkoutPlanPrintModal';
 import WorkoutPlansListView from './WorkoutPlansListView';
 import { RenamePlanModal } from './PlanNameModals';
+import ExerciseLibraryModal from './ExerciseLibraryModal';
+import ExerciseVideoLinkModal from './ExerciseVideoLinkModal';
+import YouTubeVideoModal from './YouTubeVideoModal';
 import { formatISTDateTime } from '../lib/timestampUtils';
+import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '../lib/youtubeUtils';
+import { useAuth } from '../context/AuthContext';
+import { updateMasterExerciseVideoUrl } from '../lib/exerciseStore';
 
 interface WorkoutPlannerViewProps {
   currentPlan: WorkoutPlan | null;
@@ -96,12 +105,28 @@ export default function WorkoutPlannerView({
     }
   }, [currentPlan?.id, currentPlan?.name, currentPlan?.updatedAt]);
 
+  const auth = useAuth ? useAuth() : null;
+  const effectiveCoachMode = Boolean(isCoachMode || auth?.isAdmin);
+
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [libraryModalDayId, setLibraryModalDayId] = useState<string | null>(null);
-  const [librarySearch, setLibrarySearch] = useState('');
-  const [libraryMuscleFilter, setLibraryMuscleFilter] = useState<string>('all');
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Video playback preview modal state
+  const [videoPreviewModal, setVideoPreviewModal] = useState<{
+    url: string;
+    name: string;
+    targetMuscle?: string;
+    notes?: string;
+  } | null>(null);
+
+  // Quick YouTube link editor modal state
+  const [videoLinkModalState, setVideoLinkModalState] = useState<{
+    dayId: string;
+    exercise: ExerciseItem;
+    dayName?: string;
+  } | null>(null);
 
   // Total exercises count
   const totalExercisesCount = useMemo(() => {
@@ -166,7 +191,7 @@ export default function WorkoutPlannerView({
   };
 
   // Add exercise from library
-  const handleAddExerciseFromLibrary = (dayId: string, libEx: typeof EXERCISE_LIBRARY[0]) => {
+  const handleAddExerciseFromLibrary = (dayId: string, libEx: ExerciseItem) => {
     const newEx: ExerciseItem = {
       id: `ex_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       name: libEx.name,
@@ -175,6 +200,9 @@ export default function WorkoutPlannerView({
       reps: libEx.reps,
       restSeconds: libEx.restSeconds,
       notes: libEx.notes,
+      videoUrl: libEx.videoUrl,
+      isCustom: libEx.isCustom,
+      createdBy: libEx.createdBy,
     };
 
     setPlan({
@@ -184,6 +212,37 @@ export default function WorkoutPlannerView({
       ),
     });
     setLibraryModalDayId(null);
+  };
+
+  // Save updated video link on an exercise
+  const handleSaveVideoLink = (
+    exerciseId: string,
+    videoUrl: string | undefined,
+    updateMasterDatabase?: boolean
+  ) => {
+    if (!videoLinkModalState) return;
+    const { dayId, exercise } = videoLinkModalState;
+
+    // 1. Update in this client's routine state
+    setPlan((prev) => ({
+      ...prev,
+      days: prev.days.map((d) =>
+        d.id === dayId
+          ? {
+              ...d,
+              exercises: d.exercises.map((ex) =>
+                ex.id === exerciseId ? { ...ex, videoUrl } : ex
+              ),
+            }
+          : d
+      ),
+    }));
+
+    // 2. If Super Admin opted to update at the Master Database level:
+    // Clients playing around with URLs can NEVER trigger this because effectiveCoachMode is false for regular clients!
+    if (effectiveCoachMode && updateMasterDatabase) {
+      updateMasterExerciseVideoUrl(exercise.name, videoUrl);
+    }
   };
 
   // Add custom exercise
@@ -237,19 +296,6 @@ export default function WorkoutPlannerView({
       ),
     });
   };
-
-  // Filter exercise library
-  const filteredExerciseLibrary = useMemo(() => {
-    return EXERCISE_LIBRARY.filter((ex) => {
-      const matchSearch =
-        ex.name.toLowerCase().includes(librarySearch.toLowerCase()) ||
-        ex.targetMuscle.toLowerCase().includes(librarySearch.toLowerCase()) ||
-        (ex.notes && ex.notes.toLowerCase().includes(librarySearch.toLowerCase()));
-      const matchMuscle =
-        libraryMuscleFilter === 'all' || ex.targetMuscle.toLowerCase() === libraryMuscleFilter.toLowerCase();
-      return matchSearch && matchMuscle;
-    });
-  }, [librarySearch, libraryMuscleFilter]);
 
   const isCoachCreated = plan.createdBy === 'coach';
 
@@ -473,6 +519,16 @@ export default function WorkoutPlannerView({
                 <span>New Routine</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setLibraryModalDayId('standalone')}
+              className="py-2.5 px-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+              title="Browse and manage movement library"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="hidden sm:inline">Exercise Library</span>
+            </button>
 
             <button
               type="button"
@@ -779,7 +835,7 @@ export default function WorkoutPlannerView({
                     className="p-3.5 rounded-2xl bg-gray-50/90 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
                   >
                     {/* Exercise info */}
-                    <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center space-x-2">
                         <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-bold text-[10px] shrink-0">
                           {exIdx + 1}
@@ -793,16 +849,110 @@ export default function WorkoutPlannerView({
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-800 shrink-0">
                           {ex.targetMuscle}
                         </span>
+                        {ex.isCustom && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 shrink-0">
+                            Custom
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center space-x-2 pl-7">
-                        <span className="text-[11px] text-gray-400">Notes:</span>
-                        <input
-                          type="text"
-                          value={ex.notes || ''}
-                          placeholder="Form cue (e.g. 2s pause at bottom, keep core braced)"
-                          onChange={(e) => handleUpdateExercise(day.id, ex.id, 'notes', e.target.value)}
-                          className="text-[11px] text-gray-600 italic bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full max-w-md"
-                        />
+
+                      <div className="flex flex-wrap items-center gap-2.5 pl-7">
+                        <div className="flex items-center space-x-1.5 flex-1 min-w-[180px]">
+                          <span className="text-[11px] text-gray-400 shrink-0">Notes:</span>
+                          <input
+                            type="text"
+                            value={ex.notes || ''}
+                            placeholder="Form cue (e.g. 2s pause at bottom, keep core braced)"
+                            onChange={(e) => handleUpdateExercise(day.id, ex.id, 'notes', e.target.value)}
+                            className="text-[11px] text-gray-600 italic bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full"
+                          />
+                        </div>
+
+                        {/* YouTube Video Reference Link & Live Thumbnail */}
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          {ex.videoUrl ? (
+                            (() => {
+                              const videoId = extractYouTubeVideoId(ex.videoUrl);
+                              const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
+                              return (
+                                <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-xl border border-gray-200 shadow-2xs">
+                                  {thumb ? (
+                                    <div
+                                      onClick={() =>
+                                        setVideoPreviewModal({
+                                          url: ex.videoUrl!,
+                                          name: ex.name,
+                                          targetMuscle: ex.targetMuscle,
+                                          notes: ex.notes,
+                                        })
+                                      }
+                                      className="relative w-12 h-7 rounded-md overflow-hidden bg-black shrink-0 cursor-pointer group/vthumb"
+                                      title="Watch reference video demonstration"
+                                    >
+                                      <img
+                                        src={thumb}
+                                        alt={ex.name}
+                                        className="w-full h-full object-cover"
+                                        crossOrigin="anonymous"
+                                      />
+                                      <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/vthumb:bg-black/10">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-red-600 text-white flex items-center justify-center text-[6px] font-bold">
+                                          ▶
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Youtube className="w-4 h-4 text-red-600 shrink-0" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setVideoPreviewModal({
+                                        url: ex.videoUrl!,
+                                        name: ex.name,
+                                        targetMuscle: ex.targetMuscle,
+                                        notes: ex.notes,
+                                      })
+                                    }
+                                    className="text-[10px] font-bold text-gray-800 hover:text-red-600 cursor-pointer px-1 py-0.5"
+                                  >
+                                    Watch
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setVideoLinkModalState({
+                                        dayId: day.id,
+                                        exercise: ex,
+                                        dayName: day.dayName,
+                                      })
+                                    }
+                                    className="text-gray-400 hover:text-indigo-600 p-1 rounded hover:bg-gray-50 cursor-pointer"
+                                    title="Edit YouTube Video Link"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setVideoLinkModalState({
+                                  dayId: day.id,
+                                  exercise: ex,
+                                  dayName: day.dayName,
+                                })
+                              }
+                              className="text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-xl border border-red-200/80 flex items-center space-x-1 cursor-pointer transition-colors"
+                              title="Attach YouTube video demonstration"
+                            >
+                              <Youtube className="w-3 h-3" />
+                              <span>+ Video</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -863,113 +1013,61 @@ export default function WorkoutPlannerView({
         ))}
       </div>
 
-      {/* Exercise Library Selection Modal */}
-      {libraryModalDayId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-xl bg-purple-100 text-purple-900">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Fitkode Exercise & Movement Library</h3>
-                  <p className="text-xs text-gray-500">
-                    Select a biomechanically sound movement to add to this workout session.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLibraryModalDayId(null)}
-                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Exercise & Movement Library Modal */}
+      <ExerciseLibraryModal
+        isOpen={Boolean(libraryModalDayId)}
+        dayId={libraryModalDayId === 'standalone' ? null : libraryModalDayId}
+        dayName={
+          libraryModalDayId && libraryModalDayId !== 'standalone'
+            ? plan.days.find((d) => d.id === libraryModalDayId)?.dayName
+            : undefined
+        }
+        userEmail={userEmail}
+        isCoachMode={effectiveCoachMode}
+        onClose={() => setLibraryModalDayId(null)}
+        onSelectExercise={(exercise) => {
+          if (libraryModalDayId && libraryModalDayId !== 'standalone') {
+            handleAddExerciseFromLibrary(libraryModalDayId, exercise);
+          }
+        }}
+        onOpenVideoPreview={(videoUrl, exerciseName, targetMuscle, notes) => {
+          setVideoPreviewModal({
+            url: videoUrl,
+            name: exerciseName,
+            targetMuscle,
+            notes,
+          });
+        }}
+      />
 
-            {/* Filter & Search Bar */}
-            <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search bench press, squat, pull-up, curls, lateral raises..."
-                  value={librarySearch}
-                  onChange={(e) => setLibrarySearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-gray-200 text-xs text-gray-800 focus:ring-2 focus:ring-brand-green outline-none"
-                />
-              </div>
+      {/* Exercise YouTube Reference Video Link Editor Modal */}
+      <ExerciseVideoLinkModal
+        isOpen={Boolean(videoLinkModalState)}
+        exercise={videoLinkModalState?.exercise || null}
+        dayName={videoLinkModalState?.dayName}
+        isSuperAdmin={effectiveCoachMode}
+        clientName={userName}
+        onClose={() => setVideoLinkModalState(null)}
+        onSaveLink={handleSaveVideoLink}
+        onOpenPreview={(url, name) => {
+          setVideoPreviewModal({
+            url,
+            name,
+            targetMuscle: videoLinkModalState?.exercise?.targetMuscle,
+            notes: videoLinkModalState?.exercise?.notes,
+          });
+        }}
+      />
 
-              <select
-                value={libraryMuscleFilter}
-                onChange={(e) => setLibraryMuscleFilter(e.target.value)}
-                className="py-2 px-3 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-700 outline-none cursor-pointer"
-              >
-                <option value="all">All Muscle Groups</option>
-                <option value="Chest">Chest</option>
-                <option value="Back">Back</option>
-                <option value="Shoulders">Shoulders</option>
-                <option value="Quads">Quads</option>
-                <option value="Hamstrings">Hamstrings</option>
-                <option value="Glutes">Glutes</option>
-                <option value="Biceps">Biceps</option>
-                <option value="Triceps">Triceps</option>
-                <option value="Core">Core</option>
-                <option value="Cardio">Cardio & Conditioning</option>
-              </select>
-            </div>
-
-            {/* Exercises List */}
-            <div className="p-6 overflow-y-auto space-y-2 flex-1">
-              {filteredExerciseLibrary.length === 0 ? (
-                <div className="text-center py-10 text-gray-500 text-xs">
-                  No exercise matching "{librarySearch}". You can add custom movements directly.
-                </div>
-              ) : (
-                filteredExerciseLibrary.map((ex, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleAddExerciseFromLibrary(libraryModalDayId, ex)}
-                    className="p-3.5 rounded-2xl bg-white border border-gray-200 hover:border-purple-500 hover:bg-purple-50/30 transition-all flex items-center justify-between cursor-pointer group shadow-xs"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-sm text-gray-900 group-hover:text-purple-950">
-                          {ex.name}
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-800">
-                          {ex.targetMuscle}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Default: <span className="font-medium text-gray-700">{ex.sets} sets × {ex.reps} reps ({ex.restSeconds}s rest)</span>
-                        {ex.notes && ` • ${ex.notes}`}
-                      </p>
-                    </div>
-
-                    <span className="p-2 rounded-xl bg-gray-100 group-hover:bg-purple-600 group-hover:text-white text-gray-600 transition-colors">
-                      <Plus className="w-4 h-4" />
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500">
-              <span>Fitkode Movement Library</span>
-              <button
-                type="button"
-                onClick={() => setLibraryModalDayId(null)}
-                className="py-1.5 px-4 rounded-xl border border-gray-300 bg-white text-gray-700 font-bold hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Fullscreen Video Player Modal */}
+      {videoPreviewModal && (
+        <YouTubeVideoModal
+          videoUrl={videoPreviewModal.url}
+          exerciseName={videoPreviewModal.name}
+          targetMuscle={videoPreviewModal.targetMuscle}
+          notes={videoPreviewModal.notes}
+          onClose={() => setVideoPreviewModal(null)}
+        />
       )}
 
       {/* Print & PDF Export Modal */}

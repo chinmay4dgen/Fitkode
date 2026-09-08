@@ -28,6 +28,8 @@ export interface AppMember {
   profile?: UserProfile;
   onboarding?: ClientOnboarding;
   notes?: string;
+  consentStatus?: 'active' | 'withdrawn';
+  consentWithdrawnAt?: string;
 }
 
 export type ActivePage = 'home' | 'plans-pricing' | 'fitness-tools' | 'contact-us';
@@ -68,8 +70,15 @@ export interface UserProfile {
   bloodGroup: 'A+' | 'A-' | 'B+' | 'B-' | 'O+' | 'O-' | 'AB+' | 'AB-' | "Don't know" | '';
   livingWith: string;
   primaryCareProvider: string;
-  lastCheckupDate: string;
+  lastCheckupDate?: string;
   healthGoal?: 'Weight Loss' | 'Weight Gain' | 'Bodybuilding with Aesthetics' | 'Powerlifting' | 'Sports Specific Performance Enhancement' | 'Others' | '';
+  // DPDPA 2023 Consent & Privacy
+  healthDataConsent?: boolean;
+  healthDataConsentGivenAt?: string;
+  notificationsConsent?: boolean;
+  notificationsConsentGivenAt?: string;
+  isConsentWithdrawn?: boolean;
+  consentWithdrawnAt?: string;
   updatedAt?: string;
 }
 
@@ -178,6 +187,13 @@ export interface ClientOnboarding {
 
   completedSections: number[];
   isSubmitted: boolean;
+  // DPDPA 2023 Consent & Privacy
+  healthDataConsent?: boolean;
+  healthDataConsentGivenAt?: string;
+  notificationsConsent?: boolean;
+  notificationsConsentGivenAt?: string;
+  isConsentWithdrawn?: boolean;
+  consentWithdrawnAt?: string;
   updatedAt?: string;
 }
 
@@ -293,6 +309,8 @@ export interface ExerciseItem {
   restSeconds: number; // e.g. 60, 90
   notes?: string;
   videoUrl?: string;
+  isCustom?: boolean; // true if added as user custom exercise
+  createdBy?: 'coach' | 'user';
 }
 
 export interface WorkoutDay {

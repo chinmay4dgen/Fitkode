@@ -327,6 +327,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '8-10',
     restSeconds: 90,
     notes: 'Retract scapula, maintain light arch in lower back, drive through feet.',
+    videoUrl: 'https://www.youtube.com/watch?v=vcBig73ojpE',
   },
   {
     name: 'Incline Dumbbell Press',
@@ -335,6 +336,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 75,
     notes: '30-degree incline, control the 2-second negative stretch at bottom.',
+    videoUrl: 'https://www.youtube.com/watch?v=8iPEnn-ltC8',
   },
   {
     name: 'Standing Cable Chest Flyes',
@@ -343,6 +345,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12-15',
     restSeconds: 60,
     notes: 'Slight bend in elbows, focus on squeezing sternum at contraction.',
+    videoUrl: 'https://www.youtube.com/watch?v=Iwe6AmxVf7o',
   },
   {
     name: 'Bodyweight Push-Ups',
@@ -351,6 +354,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '15-20',
     restSeconds: 60,
     notes: 'Full depth, chest touches floor, core tightly braced throughout.',
+    videoUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
   },
 
   // --- Back ---
@@ -361,6 +365,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 75,
     notes: 'Pull to upper clavicle, drive elbows down into back pockets.',
+    videoUrl: 'https://www.youtube.com/watch?v=CAwf7n6Luuc',
   },
   {
     name: 'Seated Cable Row (Neutral Grip)',
@@ -369,6 +374,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 75,
     notes: 'Avoid swinging torso, squeeze shoulder blades together for 1 sec.',
+    videoUrl: 'https://www.youtube.com/watch?v=GZbfZ033f74',
   },
   {
     name: 'One-Arm Dumbbell Row',
@@ -377,6 +383,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12 per side',
     restSeconds: 60,
     notes: 'Pull toward hip crease, keep flat neutral spine alignment.',
+    videoUrl: 'https://www.youtube.com/watch?v=pYcpY20QaE8',
   },
   {
     name: 'Barbell Conventional Deadlift',
@@ -385,6 +392,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '5-6',
     restSeconds: 120,
     notes: 'Engage lats to lock bar against shins, push the floor away.',
+    videoUrl: 'https://www.youtube.com/watch?v=op9kVnSso6Q',
   },
   {
     name: 'Assisted or Full Pull-Ups',
@@ -393,6 +401,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '6-10',
     restSeconds: 90,
     notes: 'Dead hang stretch at bottom, chin clears over bar at top.',
+    videoUrl: 'https://www.youtube.com/watch?v=eGo4IYlbE5g',
   },
 
   // --- Shoulders ---
@@ -403,6 +412,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '8-10',
     restSeconds: 75,
     notes: 'Keep elbows slightly in front of scapular plane (not flared 90°).',
+    videoUrl: 'https://www.youtube.com/watch?v=qEwKCR5JCog',
   },
   {
     name: 'Dumbbell Lateral Raises',
@@ -411,6 +421,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12-15',
     restSeconds: 60,
     notes: 'Lead with elbows, slight forward lean, control the eccentric lower.',
+    videoUrl: 'https://www.youtube.com/watch?v=3VcKaXpzqRo',
   },
   {
     name: 'Rear Delt Cable Face Pulls',
@@ -419,6 +430,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '15',
     restSeconds: 60,
     notes: 'Pull rope toward eyes with thumbs facing back for rotator cuff health.',
+    videoUrl: 'https://www.youtube.com/watch?v=rep-qVOkqgk',
   },
 
   // --- Legs (Quads, Hamstrings, Glutes, Calves) ---
@@ -429,6 +441,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '6-8',
     restSeconds: 120,
     notes: 'Break simultaneously at knees and hips, hit parallel depth.',
+    videoUrl: 'https://www.youtube.com/watch?v=bEv6CCg2BC8',
   },
   {
     name: 'Dumbbell Walking Lunges',
@@ -437,6 +450,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12 steps per leg',
     restSeconds: 75,
     notes: 'Take long strides, back knee lightly kisses the ground.',
+    videoUrl: 'https://www.youtube.com/watch?v=D7KaRcUTQeE',
   },
   {
     name: 'Leg Press (45-degree sled)',
@@ -445,6 +459,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 90,
     notes: 'Keep tailbone flat against pad, do not lock out knees aggressively.',
+    videoUrl: 'https://www.youtube.com/watch?v=IZxyjW7MPJQ',
   },
   {
     name: 'Romanian Deadlift (Dumbbell or Barbell)',
@@ -453,6 +468,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 90,
     notes: 'Push hips backward until deep hamstring stretch is felt, soft knees.',
+    videoUrl: 'https://www.youtube.com/watch?v=JCXUYuzwNrM',
   },
   {
     name: 'Lying or Seated Leg Curls',
@@ -461,6 +477,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12-15',
     restSeconds: 60,
     notes: 'Control movement without lifting hips off the bench.',
+    videoUrl: 'https://www.youtube.com/watch?v=1Tq3QdYUuHs',
   },
   {
     name: 'Barbell / Dumbbell Hip Thrusts',
@@ -469,6 +486,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 75,
     notes: 'Chin tucked, full hip extension with 1-second squeeze at apex.',
+    videoUrl: 'https://www.youtube.com/watch?v=SEdqd1n0cvg',
   },
   {
     name: 'Standing Calf Raises',
@@ -477,6 +495,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '15-20',
     restSeconds: 45,
     notes: 'Full ankle dorsiflexion stretch, pause 1 second on balls of feet.',
+    videoUrl: 'https://www.youtube.com/watch?v=-M4-G8p8fmc',
   },
 
   // --- Arms (Biceps & Triceps) ---
@@ -487,6 +506,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 60,
     notes: 'Pin elbows to ribs, prevent shoulder swinging.',
+    videoUrl: 'https://www.youtube.com/watch?v=kwG2ipFRgfo',
   },
   {
     name: 'Incline Dumbbell Hammer Curls',
@@ -495,6 +515,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12',
     restSeconds: 60,
     notes: 'Targets brachialis and forearms, palms face inwards.',
+    videoUrl: 'https://www.youtube.com/watch?v=zC3wV283OcI',
   },
   {
     name: 'Cable Triceps Rope Pushdowns',
@@ -503,6 +524,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12-15',
     restSeconds: 60,
     notes: 'Spread rope apart at bottom lockout for peak triceps contraction.',
+    videoUrl: 'https://www.youtube.com/watch?v=vB5OHsJ3EME',
   },
   {
     name: 'Overhead Dumbbell Triceps Extension',
@@ -511,6 +533,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '10-12',
     restSeconds: 60,
     notes: 'Deep stretch on long head of triceps, keep elbows tucked in.',
+    videoUrl: 'https://www.youtube.com/watch?v=_gsUck-7M74',
   },
 
   // --- Core & Conditioning ---
@@ -521,6 +544,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '12-15',
     restSeconds: 45,
     notes: 'Curl pelvis up toward chest, do not use momentum swing.',
+    videoUrl: 'https://www.youtube.com/watch?v=Pr1ieGZ5atk',
   },
   {
     name: 'Isometric Forearm Plank Hold',
@@ -529,6 +553,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '45-60 sec',
     restSeconds: 45,
     notes: 'Posterior pelvic tilt, glutes clenched, core braced like taking a punch.',
+    videoUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c',
   },
   {
     name: 'Incline Treadmill Power Walk (12/3/30)',
@@ -537,6 +562,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '25-30 min',
     restSeconds: 0,
     notes: 'Incline 10-12%, speed 4.5-5.0 km/h, steady zone-2 aerobic fat burning.',
+    videoUrl: 'https://www.youtube.com/watch?v=7uV87q_qGjM',
   },
   {
     name: 'HIIT Battle Ropes / Assault Bike Intervals',
@@ -545,6 +571,7 @@ export const EXERCISE_LIBRARY: Omit<ExerciseItem, 'id'>[] = [
     reps: '20s max / 40s rest',
     restSeconds: 40,
     notes: 'All-out anaerobic power output followed by active recovery.',
+    videoUrl: 'https://www.youtube.com/watch?v=Kz6E11a14n8',
   },
 ];
 
@@ -785,6 +812,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '8-10',
             restSeconds: 90,
             notes: 'Pause 1s on chest, drive bar explosively.',
+            videoUrl: 'https://www.youtube.com/watch?v=vcBig73ojpE',
           },
           {
             id: 'ex_1_2',
@@ -794,6 +822,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '10-12',
             restSeconds: 75,
             notes: '30-degree angle, focus on upper chest stretch.',
+            videoUrl: 'https://www.youtube.com/watch?v=8iPEnn-ltC8',
           },
           {
             id: 'ex_1_3',
@@ -803,6 +832,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '8-10',
             restSeconds: 75,
             notes: 'Elbows slightly tucked in front.',
+            videoUrl: 'https://www.youtube.com/watch?v=qEwKCR5JCog',
           },
           {
             id: 'ex_1_4',
@@ -812,6 +842,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '12-15',
             restSeconds: 60,
             notes: 'Control the descent for 2 seconds.',
+            videoUrl: 'https://www.youtube.com/watch?v=3VcKaXpzqRo',
           },
           {
             id: 'ex_1_5',
@@ -821,6 +852,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '12-15',
             restSeconds: 60,
             notes: 'Spread rope apart at bottom.',
+            videoUrl: 'https://www.youtube.com/watch?v=vB5OHsJ3EME',
           },
         ],
       },
@@ -838,6 +870,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '10-12',
             restSeconds: 75,
             notes: 'Pull to upper clavicle, squeeze lats.',
+            videoUrl: 'https://www.youtube.com/watch?v=CAwf7n6Luuc',
           },
           {
             id: 'ex_2_2',
@@ -847,6 +880,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '10-12',
             restSeconds: 75,
             notes: 'Torso remains upright, squeeze rhomboids.',
+            videoUrl: 'https://www.youtube.com/watch?v=GZbfZ033f74',
           },
           {
             id: 'ex_2_3',
@@ -856,6 +890,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '15',
             restSeconds: 60,
             notes: 'Pull to eye level, external shoulder rotation.',
+            videoUrl: 'https://www.youtube.com/watch?v=rep-qVOkqgk',
           },
           {
             id: 'ex_2_4',
@@ -865,6 +900,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '10-12',
             restSeconds: 60,
             notes: 'Keep elbows glued to sides.',
+            videoUrl: 'https://www.youtube.com/watch?v=kwG2ipFRgfo',
           },
           {
             id: 'ex_2_5',
@@ -874,6 +910,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '12',
             restSeconds: 60,
             notes: 'Full bicep stretch on incline bench.',
+            videoUrl: 'https://www.youtube.com/watch?v=zC3wV283OcI',
           },
         ],
       },
@@ -891,6 +928,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '30 min',
             restSeconds: 0,
             notes: 'Zone 2 steady recovery walk, listen to a podcast.',
+            videoUrl: 'https://www.youtube.com/watch?v=7uV87q_qGjM',
           },
         ],
       },
@@ -908,6 +946,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '6-8',
             restSeconds: 120,
             notes: 'Deep breath and brace core before each rep.',
+            videoUrl: 'https://www.youtube.com/watch?v=bEv6CCg2BC8',
           },
           {
             id: 'ex_4_2',
@@ -917,6 +956,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '10-12',
             restSeconds: 90,
             notes: 'Feel deep stretch in hamstrings, flat back.',
+            videoUrl: 'https://www.youtube.com/watch?v=JCXUYuzwNrM',
           },
           {
             id: 'ex_4_3',
@@ -926,6 +966,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '12 steps per leg',
             restSeconds: 75,
             notes: 'Upright torso, knee 1 inch off floor.',
+            videoUrl: 'https://www.youtube.com/watch?v=D7KaRcUTQeE',
           },
           {
             id: 'ex_4_4',
@@ -935,6 +976,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '12-15',
             restSeconds: 45,
             notes: 'Raise knees to sternum, controlled lower.',
+            videoUrl: 'https://www.youtube.com/watch?v=Pr1ieGZ5atk',
           },
           {
             id: 'ex_4_5',
@@ -944,6 +986,7 @@ export function createDefaultWorkoutPlan(userEmail: string, isCoach = false): Wo
             reps: '60 sec',
             restSeconds: 45,
             notes: 'Squeeze glutes and press through forearms.',
+            videoUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c',
           },
         ],
       },

@@ -29,11 +29,13 @@ import {
   loadClientOnboarding,
   saveClientOnboarding,
   loadUserProfile,
+  saveUserProfile,
 } from '../lib/profileStorage';
 import { ClientOnboarding, UserRole } from '../types';
 import { GoalsReadinessSection } from './onboarding/GoalsReadinessSection';
 import { LifestyleHabitsSection } from './onboarding/LifestyleHabitsSection';
 import { ToastContainer, ToastMessage } from './Toast';
+import MedicalDisclaimer from './MedicalDisclaimer';
 
 export default function ClientOnboardingPage() {
   const {
@@ -150,18 +152,59 @@ export default function ClientOnboardingPage() {
         duration: 3500,
       });
     } else {
-      // Final Submit
-      const submitted = { ...updated, isSubmitted: true };
+      // Final Submit: Validate mandatory DPDPA health data processing consent
+      if (!formData.healthDataConsent) {
+        addToast({
+          type: 'error',
+          title: 'Mandatory Consent Required',
+          message: 'Under India\'s DPDPA 2023, explicit consent to process health and dietary metrics is mandatory before submitting.',
+          duration: 6000,
+        });
+        return;
+      }
+
+      const consentTime = new Date().toISOString();
+      const submitted = {
+        ...updated,
+        isSubmitted: true,
+        healthDataConsent: true,
+        healthDataConsentGivenAt: formData.healthDataConsentGivenAt || consentTime,
+        notificationsConsent: Boolean(formData.notificationsConsent),
+        notificationsConsentGivenAt: formData.notificationsConsent
+          ? (formData.notificationsConsentGivenAt || consentTime)
+          : undefined,
+        isConsentWithdrawn: false,
+      };
+
       setFormData(submitted);
       saveClientOnboarding(submitted, user.id || user.email);
       saveOnboardingToSupabase(submitted, user.id || user.email);
+
+      // Sync consent to User Profile
+      try {
+        const currProfile = loadUserProfile(user.id || user.email);
+        saveUserProfile(
+          {
+            ...currProfile,
+            healthDataConsent: true,
+            healthDataConsentGivenAt: submitted.healthDataConsentGivenAt,
+            notificationsConsent: submitted.notificationsConsent,
+            notificationsConsentGivenAt: submitted.notificationsConsentGivenAt,
+            isConsentWithdrawn: false,
+          },
+          user.id || user.email
+        );
+      } catch {
+        // ignore
+      }
+
       syncCurrentMember({ onboarding: submitted });
       setSubmittedMessage(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       addToast({
         type: 'success',
         title: 'Assessment Submitted',
-        message: 'Your complete health intake has been submitted.',
+        message: 'Your health intake and DPDPA consent have been successfully registered.',
         duration: 5000,
       });
     }
@@ -361,9 +404,32 @@ export default function ClientOnboardingPage() {
               Save Draft
             </button>
             <span className="text-xs font-semibold px-3 py-2 rounded-xl bg-brand-light-green text-brand-dark-green border border-brand-green/30">
-              Section {activeTab} of 5
+              Section {activeTab} of 7
             </span>
           </div>
+        </div>
+
+        {/* DPDPA 2023 Statutory Privacy & Health Data Notice Banner */}
+        <div className="bg-white rounded-2xl p-4 border border-brand-light-green shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <span className="p-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+              <Shield className="w-4 h-4 text-emerald-700" />
+            </span>
+            <div>
+              <span className="font-bold text-gray-900 block">
+                Digital Personal Data Protection (DPDPA 2023) Notice
+              </span>
+              <p className="text-[11px] text-gray-600">
+                Fitkode collects physical metrics and dietary baselines solely for tailored fitness coaching. You retain full rights to download, withdraw consent, or erase your data anytime.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/privacy-policy"
+            className="text-xs font-bold text-brand-green hover:underline whitespace-nowrap self-start sm:self-auto"
+          >
+            Privacy Policy &rarr;
+          </Link>
         </div>
 
         {/* Submission Success Banner */}
@@ -1276,6 +1342,108 @@ export default function ClientOnboardingPage() {
                     placeholder="e.g. Penicillin, Sulfa drugs, or Not applicable"
                   />
                 </div>
+
+                {/* DPDPA 2023 Granular Health Data Notice & Consent Block */}
+                <div className="mt-8 pt-6 border-t-2 border-brand-light-green space-y-5">
+                  <div className="p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-950 font-bold text-sm">
+                      <Shield className="w-5 h-5 text-emerald-700 shrink-0" />
+                      <span>Digital Personal Data Protection (DPDPA 2023) Notice</span>
+                    </div>
+                    <p className="text-xs text-emerald-900 leading-relaxed">
+                      In accordance with India&apos;s Digital Personal Data Protection Act (DPDPA 2023), Fitkode Studio collects your physical metrics, dietary records, and personal health disclosures strictly to formulate evidence-based, customized nutrition and workout programs.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-[11px] text-emerald-950">
+                      <div className="p-2.5 rounded-xl bg-white/80 border border-emerald-200/60">
+                        <strong className="block text-emerald-900">Purpose &amp; Storage Scope:</strong>
+                        Used solely for your coaching program. Fitkode never sells, rents, or shares your health disclosures with data brokers, advertisers, or insurance carriers.
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-white/80 border border-emerald-200/60">
+                        <strong className="block text-emerald-900">Right to Withdraw &amp; Erase:</strong>
+                        You retain the right to withdraw consent or permanently erase your data at any time via your Profile Settings or by contacting myfitkode@gmail.com.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Separate unbundled opt-in toggles */}
+                  <div className="space-y-3">
+                    {/* Consent 1: Mandatory */}
+                    <label
+                      className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer ${
+                        formData.healthDataConsent
+                          ? 'bg-emerald-50/70 border-brand-green ring-1 ring-brand-green/30'
+                          : 'bg-white border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formData.healthDataConsent)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          handleFieldChange('healthDataConsent', checked);
+                          if (checked && !formData.healthDataConsentGivenAt) {
+                            handleFieldChange('healthDataConsentGivenAt', new Date().toISOString());
+                          }
+                        }}
+                        className="mt-1 w-5 h-5 rounded text-brand-green focus:ring-brand-green border-gray-300 cursor-pointer"
+                      />
+                      <div className="flex-1 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900 text-sm">Health Data Processing Consent</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Mandatory to Submit Intake
+                          </span>
+                        </div>
+                        <p className="text-gray-800 leading-relaxed font-medium text-xs">
+                          &quot;I consent to Fitkode processing my physical metrics, health history, and dietary data solely for creating personalized fitness and workout programs.&quot;
+                        </p>
+                        {formData.healthDataConsent && formData.healthDataConsentGivenAt && (
+                          <p className="text-[10px] text-emerald-700 mt-1">
+                            Consent registered: {new Date(formData.healthDataConsentGivenAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                          </p>
+                        )}
+                      </div>
+                    </label>
+
+                    {/* Consent 2: Optional */}
+                    <label
+                      className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer ${
+                        formData.notificationsConsent
+                          ? 'bg-emerald-50/70 border-brand-green ring-1 ring-brand-green/30'
+                          : 'bg-white border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formData.notificationsConsent)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          handleFieldChange('notificationsConsent', checked);
+                          if (checked && !formData.notificationsConsentGivenAt) {
+                            handleFieldChange('notificationsConsentGivenAt', new Date().toISOString());
+                          }
+                        }}
+                        className="mt-1 w-5 h-5 rounded text-brand-green focus:ring-brand-green border-gray-300 cursor-pointer"
+                      />
+                      <div className="flex-1 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900 text-sm">Coaching &amp; Plan Notifications</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                            Optional
+                          </span>
+                        </div>
+                        <p className="text-gray-600 leading-relaxed text-xs">
+                          &quot;I agree to receive workout plan updates and coaching notifications via email/WhatsApp.&quot;
+                        </p>
+                        {formData.notificationsConsent && formData.notificationsConsentGivenAt && (
+                          <p className="text-[10px] text-brand-green mt-1">
+                            Preference registered: {new Date(formData.notificationsConsentGivenAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1305,6 +1473,9 @@ export default function ClientOnboardingPage() {
           </div>
 
         </div>
+
+        {/* Standardized Non-Medical & Coaching Disclaimer */}
+        <MedicalDisclaimer variant="card" />
 
       </div>
     </div>

@@ -19,6 +19,7 @@ import {
   generateMealPlanWhatsAppText,
 } from '../lib/printUtils';
 import { formatISTDateTime } from '../lib/timestampUtils';
+import MedicalDisclaimer from './MedicalDisclaimer';
 
 interface MealPlanPrintModalProps {
   plan: MealPlan;
@@ -348,6 +349,9 @@ export default function MealPlanPrintModal({
                 <li>You can adjust or substitute ingredients in your Fitkode dashboard anytime.</li>
               </ul>
             </div>
+
+            {/* Non-Clinical & Coaching Disclaimer */}
+            <MedicalDisclaimer variant="compact" />
 
             {/* Document Footer */}
             <div className="pt-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between text-[10px] text-gray-400 gap-2">

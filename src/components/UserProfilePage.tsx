@@ -68,6 +68,8 @@ import WeeklyTrackerTable from './WeeklyTrackerTable';
 import WeeklyTrackerModal from './WeeklyTrackerModal';
 import PhotoCompareModal from './PhotoCompareModal';
 import { ToastContainer, ToastMessage } from './Toast';
+import PrivacyDataCenter from './PrivacyDataCenter';
+import MedicalDisclaimer from './MedicalDisclaimer';
 
 export default function UserProfilePage() {
   const {
@@ -79,6 +81,7 @@ export default function UserProfilePage() {
     syncCurrentMember,
     signInWithTestAccount,
     signIn,
+    signOut,
     isConfigured,
   } = useAuth();
   const navigate = useNavigate();
@@ -102,7 +105,7 @@ export default function UserProfilePage() {
 
   // Tabs in Profile
   const [profileActiveTab, setProfileActiveTab] = useState<
-    'profile' | 'weekly-tracker' | 'meal-plan' | 'workout-plan'
+    'profile' | 'weekly-tracker' | 'meal-plan' | 'workout-plan' | 'privacy'
   >('profile');
   const [weeklyEntries, setWeeklyEntries] = useState<WeeklyTrackerEntry[]>([]);
   const [isWeeklyModalOpen, setIsWeeklyModalOpen] = useState(false);
@@ -742,8 +745,8 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {/* Profile Navigation Tabs: Profile vs. Weekly Health Tracker vs. Meal Plan vs. Workout Plan */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white p-2 rounded-3xl border border-brand-light-green shadow-xs">
+        {/* Profile Navigation Tabs: Profile vs. Weekly Health Tracker vs. Meal Plan vs. Workout Plan vs. Privacy & Data */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-white p-2 rounded-3xl border border-brand-light-green shadow-xs">
           <button
             type="button"
             onClick={() => setProfileActiveTab('profile')}
@@ -809,6 +812,24 @@ export default function UserProfilePage() {
               </span>
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setProfileActiveTab('privacy')}
+            className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+              profileActiveTab === 'privacy'
+                ? 'bg-brand-green text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Shield className="w-4 h-4 shrink-0" />
+            <span className="truncate">Privacy &amp; Data</span>
+            {profile.isConsentWithdrawn && (
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full uppercase bg-amber-100 text-amber-800">
+                Paused
+              </span>
+            )}
+          </button>
         </div>
 
         {/* ========================================================================= */}
@@ -817,6 +838,40 @@ export default function UserProfilePage() {
         {profileActiveTab === 'profile' && (
           <div className="space-y-8">
             
+            {/* DPDPA 2023 Consent & Privacy Quick Bar */}
+            <div className="bg-white rounded-3xl p-5 border border-brand-light-green shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-brand-light-green text-brand-dark-green shrink-0">
+                  <Shield className="w-5 h-5 text-brand-green" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900 text-sm">DPDPA 2023 Health Data Privacy</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        profile.healthDataConsent && !profile.isConsentWithdrawn
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {profile.healthDataConsent && !profile.isConsentWithdrawn ? 'Consent Active' : 'Consent Withdrawn'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Your metrics and progress logs are confidential. You hold full statutory rights to export, withdraw consent, or erase your records.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setProfileActiveTab('privacy')}
+                className="inline-flex items-center px-4 py-2 rounded-xl bg-gray-100 hover:bg-brand-light-green hover:text-brand-dark-green text-gray-700 font-bold text-xs transition-colors shrink-0 cursor-pointer"
+              >
+                <span>Privacy &amp; Data Center &rarr;</span>
+              </button>
+            </div>
+
             {/* Weekly Health Tracker Spotlight Widget in Profile */}
             <div className="bg-white rounded-3xl p-6 border border-brand-light-green shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-1.5 max-w-xl">
@@ -1417,13 +1472,12 @@ export default function UserProfilePage() {
               {/* Date of Last Full Body Checkup */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Date of Last Full Body Checkup <span className="text-red-500">*</span>
+                  Date of Last Full Body Checkup <span className="text-xs font-normal text-gray-400">(Optional)</span>
                 </label>
                 <div className="relative">
                   <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
                   <input
                     type="date"
-                    required
                     value={profile.lastCheckupDate}
                     onChange={(e) => handleChange('lastCheckupDate', e.target.value)}
                     className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all"
@@ -1463,6 +1517,9 @@ export default function UserProfilePage() {
           </div>
 
         </form>
+
+        {/* Standardized Non-Medical & Coaching Disclaimer */}
+        <MedicalDisclaimer variant="card" className="mt-8" />
       </div>
     )}
 
@@ -1570,6 +1627,25 @@ export default function UserProfilePage() {
           onRenamePlan={handleRenameWorkoutPlan}
         />
       </div>
+    )}
+
+    {/* ========================================================================= */}
+    {/* TAB 5: DPDPA 2023 PRIVACY & DATA CONTROL CENTER */}
+    {/* ========================================================================= */}
+    {profileActiveTab === 'privacy' && (
+      <PrivacyDataCenter
+        userIdOrEmail={user?.id || user?.email || profile.email || 'member'}
+        userEmail={user?.email || profile.email || ''}
+        profile={profile}
+        onProfileUpdated={(updated) => {
+          setProfile(updated);
+          saveUserProfile(updated, user?.id || user?.email);
+          saveProfileToSupabase(updated, user?.id || user?.email);
+          syncCurrentMember({ profile: updated });
+        }}
+        addToast={addToast}
+        signOut={signOut}
+      />
     )}
 
     {/* Weekly Intake Modal */}

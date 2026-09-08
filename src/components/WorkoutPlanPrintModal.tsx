@@ -16,6 +16,8 @@ import {
   downloadPrintableHtml,
 } from '../lib/printUtils';
 import { formatISTDateTime } from '../lib/timestampUtils';
+import { extractYouTubeVideoId, getYouTubeWatchUrl, getYouTubeThumbnailUrl } from '../lib/youtubeUtils';
+import MedicalDisclaimer from './MedicalDisclaimer';
 
 interface WorkoutPlanPrintModalProps {
   plan: WorkoutPlan;
@@ -235,22 +237,59 @@ export default function WorkoutPlanPrintModal({
                         <th className="py-2 px-4 text-center">Reps</th>
                         <th className="py-2 px-4 text-center">Rest</th>
                         <th className="py-2 px-4">Form Cues / Notes</th>
+                        <th className="py-2 px-4 text-center">Video Demo</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {(day.exercises || []).map((ex, exIdx) => (
-                        <tr key={ex.id || exIdx} className="hover:bg-gray-50/50">
-                          <td className="py-2.5 px-4 font-bold text-gray-900">{exIdx + 1}. {ex.name}</td>
-                          <td className="py-2.5 px-4 text-gray-600">{ex.targetMuscle || '-'}</td>
-                          <td className="py-2.5 px-4 text-center font-bold text-indigo-700">{ex.sets || 3}</td>
-                          <td className="py-2.5 px-4 text-center font-semibold text-gray-900">{ex.reps || '8-12'}</td>
-                          <td className="py-2.5 px-4 text-center text-gray-500">{ex.restSeconds ? `${ex.restSeconds}s` : '90s'}</td>
-                          <td className="py-2.5 px-4 text-gray-600 text-[11px]">{ex.notes || '-'}</td>
-                        </tr>
-                      ))}
+                      {(day.exercises || []).map((ex, exIdx) => {
+                        const videoId = extractYouTubeVideoId(ex.videoUrl);
+                        const watchUrl = videoId ? getYouTubeWatchUrl(ex.videoUrl) : null;
+                        const thumbUrl = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
+
+                        return (
+                          <tr key={ex.id || exIdx} className="hover:bg-gray-50/50">
+                            <td className="py-2.5 px-4 font-bold text-gray-900">{exIdx + 1}. {ex.name}</td>
+                            <td className="py-2.5 px-4 text-gray-600">{ex.targetMuscle || '-'}</td>
+                            <td className="py-2.5 px-4 text-center font-bold text-indigo-700">{ex.sets || 3}</td>
+                            <td className="py-2.5 px-4 text-center font-semibold text-gray-900">{ex.reps || '8-12'}</td>
+                            <td className="py-2.5 px-4 text-center text-gray-500">{ex.restSeconds ? `${ex.restSeconds}s` : '90s'}</td>
+                            <td className="py-2.5 px-4 text-gray-600 text-[11px]">{ex.notes || '-'}</td>
+                            <td className="py-2 px-4 text-center">
+                              {watchUrl && thumbUrl ? (
+                                <a
+                                  href={watchUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex flex-col items-center gap-1 group/thumb hover:opacity-90 transition-opacity"
+                                  title={`Watch ${ex.name} reference demo on YouTube`}
+                                >
+                                  <div className="relative w-16 h-9 rounded-md overflow-hidden bg-black border border-gray-200 shadow-2xs">
+                                    <img
+                                      src={thumbUrl}
+                                      alt={ex.name}
+                                      className="w-full h-full object-cover"
+                                      crossOrigin="anonymous"
+                                    />
+                                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/thumb:bg-black/10 transition-colors">
+                                      <div className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[7px] font-bold">
+                                        ▶
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] font-bold text-red-600 group-hover/thumb:underline">
+                                    Watch Link →
+                                  </span>
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {(!day.exercises || day.exercises.length === 0) && (
                         <tr>
-                          <td colSpan={6} className="py-4 text-center text-gray-400 italic">
+                          <td colSpan={7} className="py-4 text-center text-gray-400 italic">
                             No exercises scheduled for this day.
                           </td>
                         </tr>
@@ -271,6 +310,9 @@ export default function WorkoutPlanPrintModal({
                 <li>Log weights lifted progressively each week to stimulate progressive overload.</li>
               </ul>
             </div>
+
+            {/* Non-Clinical & Coaching Disclaimer */}
+            <MedicalDisclaimer variant="compact" />
 
             {/* Document Footer */}
             <div className="pt-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between text-[10px] text-gray-400 gap-2">
