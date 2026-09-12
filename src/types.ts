@@ -30,6 +30,7 @@ export interface AppMember {
   notes?: string;
   consentStatus?: 'active' | 'withdrawn';
   consentWithdrawnAt?: string;
+  weeklyEntries?: WeeklyTrackerEntry[];
 }
 
 export type ActivePage = 'home' | 'plans-pricing' | 'fitness-tools' | 'contact-us';

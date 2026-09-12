@@ -22,6 +22,7 @@ export default function ContactForm({
     code: 'IN +91',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,27 +41,37 @@ export default function ContactForm({
       return;
     }
 
-    console.log("Sanitized submission data:", {
-      firstName: sanitizedFirstName,
-      lastName: sanitizedLastName,
-      email: sanitizedEmail,
-      phone: sanitizedPhone,
-      goal: sanitizedGoal,
-      code: formData.code,
-    });
-
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        goal: '',
-        code: 'IN +91',
+    setIsSubmitting(true);
+    fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: sanitizedFirstName,
+        lastName: sanitizedLastName,
+        email: sanitizedEmail,
+        phone: sanitizedPhone,
+        goal: sanitizedGoal,
+        code: formData.code,
+      }),
+    })
+      .catch((err) => {
+        console.warn('Consultation submission notice:', err);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+        setSubmitted(true);
+        setTimeout(() => {
+          setSubmitted(false);
+          setFormData({
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            goal: '',
+            code: 'IN +91',
+          });
+        }, 5000);
       });
-    }, 5000);
   };
 
   return (

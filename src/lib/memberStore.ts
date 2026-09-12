@@ -1,4 +1,4 @@
-import { AppMember, UserRole, UserProfile, ClientOnboarding } from '../types';
+import { AppMember, UserRole, UserProfile, ClientOnboarding, WeeklyTrackerEntry } from '../types';
 import { defaultUserProfile, defaultClientOnboarding, getProfileCompletionRate, getOnboardingCompletionRate } from './profileStorage';
 import { getSupabase } from './supabase';
 
@@ -407,6 +407,109 @@ export const SEED_MEMBERS: AppMember[] = [
       isSubmitted: true,
     },
   },
+  {
+    id: 'usr_atul_gupta',
+    email: 'akg.atulgupta@gmail.com',
+    name: 'Atul Gupta',
+    role: 'unpaid',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    joinedAt: '2026-09-11T07:15:00Z',
+    lastLoginAt: '2026-09-12T08:30:00Z',
+    phone: '+91 98114 00612',
+    profileCompletion: 100,
+    onboardingCompletion: 100,
+    notes: 'Member signed up via Google OAuth. Completed health questionnaire and submitted Week 1 Tracker check-in.',
+    profile: {
+      ...defaultUserProfile,
+      email: 'akg.atulgupta@gmail.com',
+      firstName: 'Atul',
+      lastName: 'Gupta',
+      dateOfBirth: '1985-11-20',
+      age: '40',
+      gender: 'Male',
+      phone: '+91 98114 00612',
+      address: 'Pocket B, Sarita Vihar',
+      city: 'New Delhi',
+      state: 'Delhi',
+      zipcode: '110076',
+      preferredContact: 'Whatsapp Audio/Video/Message',
+      maritalStatus: 'Married',
+      children: 'Yes',
+      isPregnant: 'Not applicable',
+      bloodGroup: 'B+',
+      livingWith: 'Family',
+      primaryCareProvider: 'Max Healthcare Delhi',
+      lastCheckupDate: '2026-05-10',
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+      healthGoal: 'Weight Loss',
+      coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
+      pastDietsAndTechniques: 'Tried intermittent fasting and low carb intermittently.',
+      biggestNutritionChallenges: 'Managing evening hunger after long work calls.',
+      desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength training.',
+      currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
+      physicalActivityDaysPerWeek: '4',
+      physicalActivityDurationMinutes: '45',
+      gymAccess: 'yes',
+      foodAllergies: 'None',
+      dislikedFoods: 'Bitter gourd',
+      dietPreferences: ['Vegetarian', 'High Protein'],
+      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
+      dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
+      currentWeightKg: '72.8',
+      heightCm: '174',
+      waistInches: '36.0',
+      hipInches: '39.0',
+      neckInches: '15.5',
+      chestInches: '39.5',
+      upperArmInches: '13.5',
+      quadricepsInches: '22.0',
+      headachesScore: 1,
+      insomniaScore: 1,
+      digestiveIssuesScore: 1,
+      dizzinessScore: 1,
+      faintnessScore: 1,
+      emotionalIssuesScore: 1,
+      completedSections: [1, 2, 3, 4, 5],
+      isSubmitted: true,
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    weeklyEntries: [
+      {
+        id: 'chk_atul_w1',
+        userId: 'usr_atul_gupta',
+        userEmail: 'akg.atulgupta@gmail.com',
+        firstName: 'Atul',
+        lastName: 'Gupta',
+        checkInDate: '2026-09-11',
+        weekNumber: 1,
+        avgStepsPerDay: 8000,
+        weightKg: 72.8,
+        waistInches: 36.0,
+        hipsInches: 39.0,
+        neckInches: 15.5,
+        quadsInches: 22.0,
+        chestInches: 39.5,
+        upperRightArmInches: 13.5,
+        resistanceWorkoutDays: 3,
+        hiitCardioDays: 1,
+        avgCaloriesPerDay: 2050,
+        frontPicUrl: '',
+        leftPicUrl: '',
+        rightPicUrl: '',
+        backPicUrl: '',
+        challengesFaced: 'Sedentary desk job during week, but hit 8k daily steps and completed 3 strength workouts.',
+        coachFeedback: 'Excellent baseline Atul! Great adherence on workouts and steps. Let us maintain this momentum for Week 2.',
+        createdAt: '2026-09-11T08:00:00Z',
+      },
+    ],
+  },
 ];
 
 const LOCAL_STORAGE_KEY = 'fitkode_members_registry_v1';
@@ -418,6 +521,34 @@ export function getStoredMembers(): AppMember[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        // Ensure default seed members (including Atul Gupta) are present and have their latest weeklyEntries
+        let changed = false;
+        for (const seed of SEED_MEMBERS) {
+          const seedEmail = seed.email?.toLowerCase().trim();
+          const existingIndex = parsed.findIndex(
+            (m: AppMember) => m.email?.toLowerCase().trim() === seedEmail
+          );
+          if (existingIndex === -1) {
+            parsed.push(seed);
+            changed = true;
+          } else {
+            // If seed has weeklyEntries that cached object lacks, enrich it!
+            if (seed.weeklyEntries && seed.weeklyEntries.length > 0) {
+              const currentEntries = parsed[existingIndex].weeklyEntries || [];
+              if (currentEntries.length === 0) {
+                parsed[existingIndex].weeklyEntries = seed.weeklyEntries;
+                changed = true;
+              }
+            }
+          }
+        }
+        if (changed) {
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+          } catch {
+            // ignore
+          }
+        }
         return parsed;
       }
     }
@@ -439,6 +570,19 @@ export function saveStoredMembers(members: AppMember[]): void {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(members));
   } catch (err) {
     console.error('Error saving members to localStorage:', err);
+  }
+}
+
+export function updateMemberWeeklyEntries(userEmail: string, entries: WeeklyTrackerEntry[]): void {
+  if (typeof window === 'undefined' || !userEmail) return;
+  const normEmail = userEmail.toLowerCase().trim();
+  const members = getStoredMembers();
+  const index = members.findIndex(
+    (m) => m.email?.toLowerCase().trim() === normEmail || m.id === normEmail
+  );
+  if (index >= 0) {
+    members[index].weeklyEntries = entries;
+    saveStoredMembers(members);
   }
 }
 

@@ -37,6 +37,7 @@ import {
   Scale,
   Camera,
   Send,
+  Plus,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AppMember, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
@@ -48,7 +49,13 @@ import {
   DEFAULT_ADMIN_EMAILS,
 } from '../lib/memberStore';
 import { getSupabase } from '../lib/supabase';
-import { loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
+import {
+  loadUserWeeklyEntries,
+  fetchUserWeeklyEntries,
+  loadAllWeeklyEntriesForAdmin,
+  saveWeeklyEntry,
+  deleteWeeklyEntry,
+} from '../lib/weeklyTrackerStore';
 import {
   loadUserMealPlans,
   assignCoachMealPlan,
@@ -62,6 +69,8 @@ import {
   saveWorkoutPlan,
   renameMealPlan,
   renameWorkoutPlan,
+  fetchMealPlansFromServer,
+  fetchWorkoutPlansFromServer,
 } from '../lib/plannerStore';
 import { formatISTDate, formatISTDateTime } from '../lib/timestampUtils';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
@@ -69,6 +78,7 @@ import MealPlannerView from './MealPlannerView';
 import WorkoutPlannerView from './WorkoutPlannerView';
 import WeeklyTrackerCharts from './WeeklyTrackerCharts';
 import WeeklyTrackerTable from './WeeklyTrackerTable';
+import WeeklyTrackerModal from './WeeklyTrackerModal';
 import PhotoCompareModal from './PhotoCompareModal';
 import { ToastContainer, ToastMessage } from './Toast';
 import { CommunicationCenterModal } from './CommunicationCenterModal';
@@ -104,20 +114,123 @@ export default function AdminMembersPage() {
   const [adminMemberWorkoutPlans, setAdminMemberWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [adminActiveWorkoutPlanId, setAdminActiveWorkoutPlanId] = useState<string>('');
 
-  // Reload plans when selectedMember changes
+  // Weekly Tracker State in Admin Dossier
+  const [adminWeeklyEntries, setAdminWeeklyEntries] = useState<WeeklyTrackerEntry[]>([]);
+  const [loadingWeeklyEntries, setLoadingWeeklyEntries] = useState<boolean>(false);
+  const [adminEditingCheckin, setAdminEditingCheckin] = useState<WeeklyTrackerEntry | null>(null);
+  const [showAdminAddCheckinModal, setShowAdminAddCheckinModal] = useState<boolean>(false);
+
+  const refreshMemberWeeklyTracker = async (memberEmail: string, fallbackMember?: AppMember) => {
+    if (!memberEmail) return;
+    setLoadingWeeklyEntries(true);
+    try {
+      // Immediate local read to prevent blank flashes
+      const local = loadUserWeeklyEntries(memberEmail, fallbackMember || selectedMember || undefined);
+      setAdminWeeklyEntries(local);
+
+      // Async live fetch from backend server and Supabase
+      const caller = user?.email || 'chinmay4jain@gmail.com';
+      const fresh = await fetchUserWeeklyEntries(memberEmail, caller);
+      if (fresh && fresh.length > 0) {
+        setAdminWeeklyEntries(fresh);
+      }
+    } catch (err) {
+      console.error('Error refreshing member weekly tracker:', err);
+    } finally {
+      setLoadingWeeklyEntries(false);
+    }
+  };
+
+  const handleSaveAdminCheckin = async (entry: WeeklyTrackerEntry) => {
+    if (!selectedMember?.email) return;
+    const caller = user?.email || 'chinmay4jain@gmail.com';
+    try {
+      const updated = await saveWeeklyEntry(entry, caller);
+      setAdminWeeklyEntries(updated);
+      setShowAdminAddCheckinModal(false);
+      setAdminEditingCheckin(null);
+      addToast({
+        type: 'success',
+        title: 'Weekly Check-in Recorded',
+        message: `Week ${entry.weekNumber} check-in for ${selectedMember.name} has been saved and synced successfully.`,
+      });
+    } catch (err: any) {
+      console.error('Failed to save weekly check-in:', err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Could not save weekly check-in.',
+      });
+    }
+  };
+
+  const handleDeleteAdminCheckin = async (entryId: string) => {
+    if (!selectedMember?.email) return;
+    const caller = user?.email || 'chinmay4jain@gmail.com';
+    try {
+      const updated = await deleteWeeklyEntry(entryId, selectedMember.email, caller);
+      setAdminWeeklyEntries(updated);
+      addToast({
+        type: 'info',
+        title: 'Check-in Removed',
+        message: 'Weekly check-in has been deleted from records.',
+      });
+    } catch (err: any) {
+      console.error('Failed to delete weekly check-in:', err);
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: err?.message || 'Could not delete check-in.',
+      });
+    }
+  };
+
+  // Reload plans and weekly tracker entries when selectedMember changes
   useEffect(() => {
     if (selectedMember?.email) {
-      const mPlans = loadUserMealPlans(selectedMember.email);
+      const email = selectedMember.email;
+      // Immediate synchronous read with fallback so tab count is never (0)
+      const initialWeekly = loadUserWeeklyEntries(email, selectedMember);
+      setAdminWeeklyEntries(initialWeekly);
+
+      const mPlans = loadUserMealPlans(email);
       setAdminMemberMealPlans(mPlans);
       const activeM = mPlans.find((p) => p.isActive) || mPlans[0];
       if (activeM) setAdminActiveMealPlanId(activeM.id);
 
-      const wPlans = loadUserWorkoutPlans(selectedMember.email);
+      const wPlans = loadUserWorkoutPlans(email);
       setAdminMemberWorkoutPlans(wPlans);
       const activeW = wPlans.find((p) => p.isActive) || wPlans[0];
       if (activeW) setAdminActiveWorkoutPlanId(activeW.id);
+
+      refreshMemberWeeklyTracker(email, selectedMember);
+
+      // Also async fetch fresh server meal and workout plans
+      fetchMealPlansFromServer(email).then((allPlans) => {
+        const norm = email.toLowerCase().trim();
+        const userPlans = allPlans.filter(
+          (p) => (p.userEmail && p.userEmail.toLowerCase().trim() === norm) ||
+                 (p.userId && p.userId.toLowerCase().trim() === norm)
+        );
+        if (userPlans.length > 0) {
+          setAdminMemberMealPlans(userPlans);
+        }
+      }).catch(() => {});
+
+      fetchWorkoutPlansFromServer(email).then((allPlans) => {
+        const norm = email.toLowerCase().trim();
+        const userPlans = allPlans.filter(
+          (p) => (p.userEmail && p.userEmail.toLowerCase().trim() === norm) ||
+                 (p.userId && p.userId.toLowerCase().trim() === norm)
+        );
+        if (userPlans.length > 0) {
+          setAdminMemberWorkoutPlans(userPlans);
+        }
+      }).catch(() => {});
+    } else {
+      setAdminWeeklyEntries([]);
     }
-  }, [selectedMember?.email]);
+  }, [selectedMember?.email, selectedMember?.id]);
 
   const handleAdminSaveMealPlan = async (plan: MealPlan) => {
     if (!selectedMember?.email) return;
@@ -955,7 +1068,7 @@ export default function AdminMembersPage() {
                 >
                   <Scale className="w-3.5 h-3.5" />
                   <span>
-                    Weekly Tracker ({loadUserWeeklyEntries(selectedMember.email).length})
+                    Weekly Tracker ({adminWeeklyEntries.length})
                   </span>
                 </button>
 
@@ -1737,20 +1850,105 @@ export default function AdminMembersPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs font-bold bg-white/10 px-3 py-1 rounded-xl text-emerald-200 shrink-0 self-start sm:self-auto">
-                      {loadUserWeeklyEntries(selectedMember.email).length} Total Check-ins
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminEditingCheckin(null);
+                          setShowAdminAddCheckinModal(true);
+                        }}
+                        className="inline-flex items-center space-x-1.5 text-xs font-bold bg-white hover:bg-emerald-50 text-emerald-950 px-3.5 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ Add Check-in</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => refreshMemberWeeklyTracker(selectedMember.email, selectedMember)}
+                        disabled={loadingWeeklyEntries}
+                        className="inline-flex items-center space-x-1.5 text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/30 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                        title="Sync latest tracker entries from server"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingWeeklyEntries ? 'animate-spin' : ''}`} />
+                        <span>{loadingWeeklyEntries ? 'Syncing...' : 'Sync Data'}</span>
+                      </button>
+
+                      <span className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-xl text-emerald-200">
+                        {adminWeeklyEntries.length} Total Check-ins
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Graphical Analysis */}
-                  <WeeklyTrackerCharts entries={loadUserWeeklyEntries(selectedMember.email)} />
+                  {adminWeeklyEntries.length === 0 ? (
+                    <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm space-y-3">
+                      <Scale className="w-10 h-10 text-gray-300 mx-auto" />
+                      <h4 className="text-sm font-bold text-gray-800">No Weekly Check-ins Found Yet</h4>
+                      <p className="text-xs text-gray-500 max-w-md mx-auto">
+                        There are currently 0 recorded weekly check-in entries for {selectedMember.name}. You can record a check-in directly as coach, or sync from the server.
+                      </p>
+                      <div className="flex items-center justify-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdminEditingCheckin(null);
+                            setShowAdminAddCheckinModal(true);
+                          }}
+                          className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-brand-dark-green text-white text-xs font-bold hover:bg-emerald-900 transition-colors shadow-sm cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Record Check-in for {selectedMember.name.split(' ')[0]}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => refreshMemberWeeklyTracker(selectedMember.email, selectedMember)}
+                          disabled={loadingWeeklyEntries}
+                          className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${loadingWeeklyEntries ? 'animate-spin' : ''}`} />
+                          <span>{loadingWeeklyEntries ? 'Checking...' : 'Sync Server'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Graphical Analysis */}
+                      <WeeklyTrackerCharts entries={adminWeeklyEntries} />
 
-                  {/* Reverse Chronological Log Table */}
-                  <WeeklyTrackerTable
-                    entries={loadUserWeeklyEntries(selectedMember.email)}
-                    onViewPhotos={(id) => setAdminPhotoModalEntryId(id)}
-                    isReadOnly={true}
-                  />
+                      {/* Reverse Chronological Log Table */}
+                      <WeeklyTrackerTable
+                        entries={adminWeeklyEntries}
+                        onViewPhotos={(id) => setAdminPhotoModalEntryId(id)}
+                        onEdit={(entry) => {
+                          setAdminEditingCheckin(entry);
+                          setShowAdminAddCheckinModal(true);
+                        }}
+                        onDelete={(entryId) => handleDeleteAdminCheckin(entryId)}
+                        isReadOnly={false}
+                      />
+                    </>
+                  )}
+
+                  {/* Coach Add / Edit Check-in Modal */}
+                  {showAdminAddCheckinModal && (
+                    <WeeklyTrackerModal
+                      existingEntry={adminEditingCheckin}
+                      defaultEmail={selectedMember.email}
+                      defaultFirstName={selectedMember.profile?.firstName || selectedMember.name.split(' ')[0]}
+                      defaultLastName={selectedMember.profile?.lastName || selectedMember.name.split(' ').slice(1).join(' ')}
+                      suggestedWeekNumber={
+                        adminWeeklyEntries.length > 0
+                          ? Math.max(...adminWeeklyEntries.map((e) => e.weekNumber || 1)) + 1
+                          : 1
+                      }
+                      allEntries={adminWeeklyEntries}
+                      onSave={handleSaveAdminCheckin}
+                      onClose={() => {
+                        setShowAdminAddCheckinModal(false);
+                        setAdminEditingCheckin(null);
+                      }}
+                    />
+                  )}
                 </div>
               )}
 

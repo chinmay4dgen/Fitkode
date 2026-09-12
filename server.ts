@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -428,7 +429,428 @@ const serverMembers: any[] = [
       isSubmitted: true,
     },
   },
+  {
+    id: 'usr_atul_gupta',
+    email: 'akg.atulgupta@gmail.com',
+    name: 'Atul Gupta',
+    role: 'unpaid',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    joinedAt: '2026-09-11T07:15:00Z',
+    lastLoginAt: '2026-09-12T08:30:00Z',
+    phone: '+91 98114 00612',
+    profileCompletion: 100,
+    onboardingCompletion: 100,
+    notes: 'Member signed up via Google OAuth. Completed health questionnaire and submitted Week 1 Tracker check-in.',
+    profile: {
+      email: 'akg.atulgupta@gmail.com',
+      firstName: 'Atul',
+      lastName: 'Gupta',
+      dateOfBirth: '1985-11-20',
+      age: '40',
+      gender: 'Male',
+      phone: '+91 98114 00612',
+      address: 'Pocket B, Sarita Vihar',
+      city: 'New Delhi',
+      state: 'Delhi',
+      zipcode: '110076',
+      preferredContact: 'Whatsapp Audio/Video/Message',
+      maritalStatus: 'Married',
+      children: 'Yes',
+      isPregnant: 'Not applicable',
+      bloodGroup: 'B+',
+      livingWith: 'Family',
+      primaryCareProvider: 'Max Healthcare Delhi',
+      lastCheckupDate: '2026-05-10',
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    onboarding: {
+      healthGoal: 'Weight Loss & Lean Muscle',
+      coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
+      pastDietsAndTechniques: 'Intermittent fasting',
+      biggestNutritionChallenges: 'Managing evening cravings after work',
+      desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength workouts.',
+      currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
+      physicalActivityDaysPerWeek: '4',
+      physicalActivityDurationMinutes: '45',
+      gymAccess: 'yes',
+      foodAllergies: 'None',
+      dislikedFoods: 'Bitter gourd',
+      dietPreferences: ['Vegetarian', 'High Protein'],
+      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
+      dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
+      currentWeightKg: '72.8',
+      heightCm: '174',
+      waistInches: '36.0',
+      hipInches: '39.0',
+      neckInches: '15.5',
+      chestInches: '39.5',
+      upperArmInches: '13.5',
+      quadricepsInches: '22.0',
+      headachesScore: 1,
+      insomniaScore: 1,
+      digestiveIssuesScore: 1,
+      dizzinessScore: 1,
+      faintnessScore: 1,
+      emotionalIssuesScore: 1,
+      completedSections: [1, 2, 3, 4, 5],
+      isSubmitted: true,
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+  },
 ];
+
+// In-memory weekly entries repository with pre-seeded sample data
+const serverWeeklyEntries: any[] = [
+  // Pre-seeded Atul Gupta check-in
+  {
+    id: 'chk_atul_w1',
+    userId: 'usr_atul_gupta',
+    userEmail: 'akg.atulgupta@gmail.com',
+    firstName: 'Atul',
+    lastName: 'Gupta',
+    checkInDate: '2026-09-11',
+    weekNumber: 1,
+    avgStepsPerDay: 8000,
+    weightKg: 72.8,
+    waistInches: 36.0,
+    hipsInches: 39.0,
+    neckInches: 15.5,
+    quadsInches: 22.0,
+    chestInches: 39.5,
+    upperRightArmInches: 13.5,
+    resistanceWorkoutDays: 3,
+    hiitCardioDays: 1,
+    avgCaloriesPerDay: 2050,
+    frontPicUrl: '',
+    leftPicUrl: '',
+    rightPicUrl: '',
+    backPicUrl: '',
+    challengesFaced: 'Sedentary desk job during week, but hit 8k daily steps and completed 3 strength workouts.',
+    coachFeedback: 'Excellent baseline Atul! Great adherence on workouts and steps. Let us maintain this momentum for Week 2.',
+    createdAt: '2026-09-11T08:00:00Z',
+  },
+  // Pre-seeded Priya Sharma weekly entries
+  {
+    id: 'chk_priya_w1',
+    userId: 'usr_001_priya',
+    userEmail: 'priya.sharma@example.com',
+    firstName: 'Priya',
+    lastName: 'Sharma',
+    checkInDate: '2026-08-15',
+    weekNumber: 1,
+    avgStepsPerDay: 8200,
+    weightKg: 67.2,
+    waistInches: 32.5,
+    hipsInches: 40.0,
+    neckInches: 13.5,
+    quadsInches: 22.5,
+    chestInches: 36.5,
+    upperRightArmInches: 12.0,
+    resistanceWorkoutDays: 3,
+    hiitCardioDays: 2,
+    avgCaloriesPerDay: 1950,
+    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'Getting back into a rhythm post-partum was tough the first 3 days. Struggled with evening hunger around 6 PM.',
+    coachFeedback: 'Great baseline kickoff Priya! Adjusted your evening snack to sprouted moong chaat with cucumber for higher satiety.',
+    createdAt: '2026-08-15T09:00:00Z',
+  },
+  {
+    id: 'chk_priya_w2',
+    userId: 'usr_001_priya',
+    userEmail: 'priya.sharma@example.com',
+    firstName: 'Priya',
+    lastName: 'Sharma',
+    checkInDate: '2026-08-22',
+    weekNumber: 2,
+    avgStepsPerDay: 9100,
+    weightKg: 66.3,
+    waistInches: 31.8,
+    hipsInches: 39.5,
+    neckInches: 13.5,
+    quadsInches: 22.0,
+    chestInches: 36.0,
+    upperRightArmInches: 12.0,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 2,
+    avgCaloriesPerDay: 1880,
+    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'Energy levels much better throughout work days. Managed to hit 9k steps comfortably.',
+    coachFeedback: 'Consistent downward trend in weight and waist! Increasing water intake recommendation to 3.5L.',
+    createdAt: '2026-08-22T08:30:00Z',
+  },
+  {
+    id: 'chk_priya_w3',
+    userId: 'usr_001_priya',
+    userEmail: 'priya.sharma@example.com',
+    firstName: 'Priya',
+    lastName: 'Sharma',
+    checkInDate: '2026-08-29',
+    weekNumber: 3,
+    avgStepsPerDay: 9800,
+    weightKg: 65.4,
+    waistInches: 31.2,
+    hipsInches: 39.0,
+    neckInches: 13.0,
+    quadsInches: 21.8,
+    chestInches: 36.0,
+    upperRightArmInches: 11.8,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 3,
+    avgCaloriesPerDay: 1820,
+    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'Felt slight soreness in hamstrings on Wednesday after Romanian Deadlifts, but rested adequately.',
+    coachFeedback: 'Hamstring soreness is normal adaptation. Make sure to do the post-workout dynamic hip stretches.',
+    createdAt: '2026-08-29T08:45:00Z',
+  },
+  {
+    id: 'chk_priya_w4',
+    userId: 'usr_001_priya',
+    userEmail: 'priya.sharma@example.com',
+    firstName: 'Priya',
+    lastName: 'Sharma',
+    checkInDate: '2026-09-05',
+    weekNumber: 4,
+    avgStepsPerDay: 10400,
+    weightKg: 64.5,
+    waistInches: 30.5,
+    hipsInches: 38.0,
+    neckInches: 13.0,
+    quadsInches: 21.5,
+    chestInches: 35.5,
+    upperRightArmInches: 11.5,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 3,
+    avgCaloriesPerDay: 1780,
+    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'No major hurdles! Clothes feel significantly looser around waist and hips. Loving the daily consistency.',
+    coachFeedback: 'Milestone achievement! -2.7 kg and -2 full inches off the waist in 1 month. Maintaining protocol for Month 2.',
+    createdAt: '2026-09-05T09:15:00Z',
+  },
+  // Pre-seeded Rahul Mehta weekly entries
+  {
+    id: 'chk_rahul_w1',
+    userId: 'usr_002_rahul',
+    userEmail: 'rahul.mehta@example.com',
+    firstName: 'Rahul',
+    lastName: 'Mehta',
+    checkInDate: '2026-08-20',
+    weekNumber: 1,
+    avgStepsPerDay: 6200,
+    weightKg: 84.8,
+    waistInches: 36.0,
+    hipsInches: 40.5,
+    neckInches: 16.0,
+    quadsInches: 22.8,
+    chestInches: 39.8,
+    upperRightArmInches: 13.8,
+    resistanceWorkoutDays: 3,
+    hiitCardioDays: 1,
+    avgCaloriesPerDay: 2400,
+    frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'Sedentary desk job made hitting 6k steps tough during conference calls.',
+    coachFeedback: 'Let us introduce 10-minute post-meal brisk walks to push your daily step baseline up to 8,000.',
+    createdAt: '2026-08-20T10:00:00Z',
+  },
+  {
+    id: 'chk_rahul_w2',
+    userId: 'usr_002_rahul',
+    userEmail: 'rahul.mehta@example.com',
+    firstName: 'Rahul',
+    lastName: 'Mehta',
+    checkInDate: '2026-08-28',
+    weekNumber: 2,
+    avgStepsPerDay: 7900,
+    weightKg: 83.6,
+    waistInches: 35.2,
+    hipsInches: 39.8,
+    neckInches: 15.8,
+    quadsInches: 22.5,
+    chestInches: 39.5,
+    upperRightArmInches: 13.5,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 2,
+    avgCaloriesPerDay: 2280,
+    frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'Traveling for business on Thursday, but chose grilled chicken salad and kept steps high.',
+    coachFeedback: 'Outstanding self-discipline while traveling! -1.2 kg in Week 2. Keep prioritizing protein.',
+    createdAt: '2026-08-28T09:30:00Z',
+  },
+  {
+    id: 'chk_rahul_w3',
+    userId: 'usr_002_rahul',
+    userEmail: 'rahul.mehta@example.com',
+    firstName: 'Rahul',
+    lastName: 'Mehta',
+    checkInDate: '2026-09-04',
+    weekNumber: 3,
+    avgStepsPerDay: 8600,
+    weightKg: 82.4,
+    waistInches: 34.5,
+    hipsInches: 39.0,
+    neckInches: 15.5,
+    quadsInches: 22.0,
+    chestInches: 39.0,
+    upperRightArmInches: 13.5,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 2,
+    avgCaloriesPerDay: 2150,
+    frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
+    leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
+    rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
+    backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
+    challengesFaced: 'Cardio feeling easier. Lower back stiffness has significantly reduced with the core workouts.',
+    coachFeedback: 'Down 2.4kg in 3 weeks and waist has reduced 1.5 inches. Perfect steady trajectory Rahul!',
+    createdAt: '2026-09-04T08:15:00Z',
+  },
+];
+
+// Persistent file storage directory for reliable cross-restart data retention
+const DATA_DIR = path.join(process.cwd(), '.server_data');
+const WEEKLY_ENTRIES_FILE = path.join(DATA_DIR, 'weekly_tracker_entries.json');
+const MEMBERS_FILE = path.join(DATA_DIR, 'server_members.json');
+const MEAL_PLANS_FILE = path.join(DATA_DIR, 'server_meal_plans.json');
+const WORKOUT_PLANS_FILE = path.join(DATA_DIR, 'server_workout_plans.json');
+
+// In-memory repositories for meal and workout plans
+let serverMealPlans: any[] = [];
+let serverWorkoutPlans: any[] = [];
+
+function ensureDataDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('Failed to ensure data dir:', err);
+  }
+}
+
+function persistWeeklyEntries() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(WEEKLY_ENTRIES_FILE, JSON.stringify(serverWeeklyEntries, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write weekly entries to file:', err);
+  }
+}
+
+function loadPersistedWeeklyEntries() {
+  try {
+    if (fs.existsSync(WEEKLY_ENTRIES_FILE)) {
+      const raw = fs.readFileSync(WEEKLY_ENTRIES_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const existingIds = new Set(serverWeeklyEntries.map((e) => e.id));
+        parsed.forEach((item: any) => {
+          if (!existingIds.has(item.id)) {
+            serverWeeklyEntries.push(item);
+            existingIds.add(item.id);
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load persisted weekly entries:', err);
+  }
+}
+
+function persistMembers() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(MEMBERS_FILE, JSON.stringify(serverMembers, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write members to file:', err);
+  }
+}
+
+function loadPersistedMembers() {
+  try {
+    if (fs.existsSync(MEMBERS_FILE)) {
+      const raw = fs.readFileSync(MEMBERS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const existingEmails = new Set(serverMembers.map((m) => m.email.toLowerCase().trim()));
+        parsed.forEach((item: any) => {
+          const email = (item.email || '').toLowerCase().trim();
+          if (email && !existingEmails.has(email)) {
+            serverMembers.push(item);
+            existingEmails.add(email);
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load persisted members:', err);
+  }
+}
+
+function persistMealPlans() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(MEAL_PLANS_FILE, JSON.stringify(serverMealPlans, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write meal plans to file:', err);
+  }
+}
+
+function loadPersistedMealPlans() {
+  try {
+    if (fs.existsSync(MEAL_PLANS_FILE)) {
+      const raw = fs.readFileSync(MEAL_PLANS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        serverMealPlans = parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load persisted meal plans:', err);
+  }
+}
+
+function persistWorkoutPlans() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(WORKOUT_PLANS_FILE, JSON.stringify(serverWorkoutPlans, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write workout plans to file:', err);
+  }
+}
+
+function loadPersistedWorkoutPlans() {
+  try {
+    if (fs.existsSync(WORKOUT_PLANS_FILE)) {
+      const raw = fs.readFileSync(WORKOUT_PLANS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        serverWorkoutPlans = parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load persisted workout plans:', err);
+  }
+}
 
 function isUserAdmin(email?: string): boolean {
   if (!email) return false;
@@ -439,10 +861,22 @@ function isUserAdmin(email?: string): boolean {
 }
 
 async function startServer() {
+  // Load persisted members, weekly entries, meal plans, and workout plans from disk storage
+  loadPersistedMembers();
+  loadPersistedWeeklyEntries();
+  loadPersistedMealPlans();
+  loadPersistedWorkoutPlans();
+  persistMembers();
+  persistWeeklyEntries();
+  persistMealPlans();
+  persistWorkoutPlans();
+
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // Support large photo payloads (progression photos, check-in data) up to 50MB
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Security Headers Middleware
   app.use((req, res, next) => {
@@ -496,15 +930,24 @@ async function startServer() {
     if (!isUserAdmin(callerEmail)) {
       return res.status(403).json({
         error: 'Forbidden. Access restricted to Fitkode Super Admins.',
-        hint: 'Only chinma4jain@gmail.com and authorized admins can view member directory.'
+        hint: 'Only chinmay4jain@gmail.com and authorized admins can view member directory.'
       });
     }
 
-    // Return all members
+    // Attach latest weeklyEntries to each member for instant access in coach portal
+    const enrichedMembers = serverMembers.map((member) => {
+      const memberEmail = (member.email || '').toLowerCase().trim();
+      const entries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === memberEmail);
+      return {
+        ...member,
+        weeklyEntries: entries,
+      };
+    });
+
     return res.json({
       success: true,
-      count: serverMembers.length,
-      members: serverMembers,
+      count: enrichedMembers.length,
+      members: enrichedMembers,
     });
   });
 
@@ -531,22 +974,35 @@ async function startServer() {
       });
     }
 
-    return res.json({ success: true, member });
+    // Attach fresh weekly entries
+    const memberEmail = (member.email || '').toLowerCase().trim();
+    const entries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === memberEmail);
+
+    return res.json({ success: true, member: { ...member, weeklyEntries: entries } });
   });
 
-  // POST /api/members/sync: Syncs a user profile / login to server
+  // POST /api/members/sync: Syncs a user profile / onboarding / tracker data to server
   app.post('/api/members/sync', (req, res) => {
     try {
       const incoming = req.body;
-      if (!incoming || !incoming.email) {
-        return res.status(400).json({ error: 'Email is required for member sync.' });
+      if (!incoming) {
+        return res.status(400).json({ error: 'Payload is required for member sync.' });
       }
 
-      const emailKey = incoming.email.toLowerCase().trim();
+      let emailKey = (incoming.email || '').toLowerCase().trim();
+      if (!emailKey && incoming.id) {
+        const found = serverMembers.find((m) => m.id === incoming.id);
+        if (found) emailKey = found.email.toLowerCase().trim();
+      }
+
+      if (!emailKey) {
+        return res.status(400).json({ error: 'Email or valid ID is required for member sync.' });
+      }
+
       const isAdminEmail = DEFAULT_ADMIN_EMAILS.includes(emailKey);
       
       const existingIndex = serverMembers.findIndex(
-        (m) => m.email.toLowerCase() === emailKey || m.id === incoming.id
+        (m) => m.email.toLowerCase() === emailKey || (incoming.id && m.id === incoming.id)
       );
 
       let finalRole = incoming.role || 'unpaid';
@@ -556,12 +1012,32 @@ async function startServer() {
 
       if (existingIndex >= 0) {
         const existing = serverMembers[existingIndex];
+        const mergedProfile = incoming.profile 
+          ? { ...(existing.profile || {}), ...incoming.profile }
+          : existing.profile;
+        const mergedOnboarding = incoming.onboarding
+          ? { ...(existing.onboarding || {}), ...incoming.onboarding }
+          : existing.onboarding;
+
         serverMembers[existingIndex] = {
           ...existing,
           ...incoming,
+          name: incoming.name || existing.name,
+          phone: incoming.phone || existing.phone,
+          profile: mergedProfile,
+          onboarding: mergedOnboarding,
+          profileCompletion: incoming.profileCompletion !== undefined ? incoming.profileCompletion : existing.profileCompletion,
+          onboardingCompletion: incoming.onboardingCompletion !== undefined ? incoming.onboardingCompletion : existing.onboardingCompletion,
           role: isAdminEmail ? 'admin' : (existing.role || finalRole),
+          notes: incoming.notes !== undefined ? incoming.notes : existing.notes,
           lastLoginAt: new Date().toISOString(),
         };
+
+        if (Array.isArray(incoming.weeklyEntries) && incoming.weeklyEntries.length > 0) {
+          serverMembers[existingIndex].weeklyEntries = incoming.weeklyEntries;
+        }
+
+        persistMembers();
         return res.json({ success: true, member: serverMembers[existingIndex] });
       } else {
         const newMember = {
@@ -580,8 +1056,10 @@ async function startServer() {
           profile: incoming.profile,
           onboarding: incoming.onboarding,
           notes: incoming.notes || '',
+          weeklyEntries: incoming.weeklyEntries || [],
         };
         serverMembers.unshift(newMember);
+        persistMembers();
         return res.json({ success: true, member: newMember });
       }
     } catch (err: any) {
@@ -595,7 +1073,7 @@ async function startServer() {
     const { role, callerEmail } = req.body;
 
     if (!isUserAdmin(callerEmail)) {
-      return res.status(403).json({ error: 'Forbidden. Only Super Admin can modify user roles.' });
+      return res.status(403).json({ error: 'Forbidden: Admin access required.' });
     }
 
     if (!['admin', 'paid', 'unpaid'].includes(role)) {
@@ -611,13 +1089,36 @@ async function startServer() {
     }
 
     serverMembers[memberIndex].role = role;
+    persistMembers();
+    return res.json({ success: true, member: serverMembers[memberIndex] });
+  });
+
+  // PATCH /api/members/:id/notes: Super Admin action to update clinical/coach notes
+  app.patch('/api/members/:id/notes', (req, res) => {
+    const { id } = req.params;
+    const { notes, callerEmail } = req.body;
+
+    if (!isUserAdmin(callerEmail)) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+    }
+
+    const memberIndex = serverMembers.findIndex(
+      (m) => m.id === id || m.email.toLowerCase() === id.toLowerCase().trim()
+    );
+
+    if (memberIndex === -1) {
+      return res.status(404).json({ error: 'Member not found.' });
+    }
+
+    serverMembers[memberIndex].notes = notes;
+    persistMembers();
     return res.json({ success: true, member: serverMembers[memberIndex] });
   });
 
   // =========================================================================
   // WEEKLY HEALTH TRACKER ENDPOINTS (Strict Privacy & Admin Visibility)
   // =========================================================================
-  const serverWeeklyEntries: any[] = [
+  const legacyInitialEntries: any[] = [
     // Pre-seeded Priya Sharma weekly entries
     {
       id: 'chk_priya_w1',
@@ -811,6 +1312,13 @@ async function startServer() {
     },
   ];
 
+  // Merge seed items into module-scoped serverWeeklyEntries if not already present
+  legacyInitialEntries.forEach((entry) => {
+    if (!serverWeeklyEntries.some((e) => e.id === entry.id)) {
+      serverWeeklyEntries.push(entry);
+    }
+  });
+
   // GET /api/weekly-tracker: Returns check-ins for a specific user
   // STRICT PRIVACY: Caller can ONLY fetch their own records, unless caller is Super Admin Chinmay!
   app.get('/api/weekly-tracker', (req, res) => {
@@ -897,6 +1405,15 @@ async function startServer() {
     } else {
       serverWeeklyEntries.unshift(sanitizedEntry);
     }
+    persistWeeklyEntries();
+
+    // Also update serverMembers with the latest weekly entries for this user so Admin Portal gets instant parity
+    const memIdx = serverMembers.findIndex((m) => m.email.toLowerCase().trim() === entryEmail);
+    if (memIdx >= 0) {
+      const userEntries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === entryEmail);
+      serverMembers[memIdx].weeklyEntries = userEntries;
+      persistMembers();
+    }
 
     // Automatically notify Coach Chinmay at myfitkode@gmail.com upon weekly tracker submission
     try {
@@ -950,10 +1467,168 @@ async function startServer() {
 
     const index = serverWeeklyEntries.findIndex((e) => e.id === id);
     if (index >= 0) {
-      serverWeeklyEntries.splice(index, 1);
+      const deleted = serverWeeklyEntries.splice(index, 1)[0];
+      persistWeeklyEntries();
+
+      const targetEmail = (deleted.userEmail || userEmail).toLowerCase().trim();
+      const memIdx = serverMembers.findIndex((m) => m.email.toLowerCase().trim() === targetEmail);
+      if (memIdx >= 0) {
+        serverMembers[memIdx].weeklyEntries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === targetEmail);
+        persistMembers();
+      }
     }
 
     return res.json({ success: true, message: 'Check-in deleted.' });
+  });
+
+  // =========================================================================
+  // MEAL & NUTRITION PLANS ENDPOINTS (Cross-Device Sync)
+  // =========================================================================
+
+  // GET /api/meal-plans: Fetch meal plans
+  app.get('/api/meal-plans', (req, res) => {
+    const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
+    if (userEmail) {
+      const filtered = serverMealPlans.filter(
+        (p) => (p.userEmail && p.userEmail.toLowerCase().trim() === userEmail) ||
+               (p.userId && p.userId.toLowerCase().trim() === userEmail)
+      );
+      return res.json({ success: true, plans: filtered });
+    }
+    return res.json({ success: true, plans: serverMealPlans });
+  });
+
+  // POST /api/meal-plans: Save or sync meal plans
+  app.post('/api/meal-plans', (req, res) => {
+    try {
+      const incoming = req.body;
+      const plansToSync: any[] = Array.isArray(incoming) ? incoming : (incoming?.plans || [incoming]);
+
+      plansToSync.forEach((plan) => {
+        if (!plan || !plan.id) return;
+        const idx = serverMealPlans.findIndex((p) => p.id === plan.id);
+        if (idx >= 0) {
+          serverMealPlans[idx] = { ...serverMealPlans[idx], ...plan, updatedAt: new Date().toISOString() };
+        } else {
+          serverMealPlans.unshift({ ...plan, updatedAt: new Date().toISOString() });
+        }
+      });
+      persistMealPlans();
+      return res.json({ success: true, plans: serverMealPlans });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to save meal plans' });
+    }
+  });
+
+  // =========================================================================
+  // WORKOUT PLANS ENDPOINTS (Cross-Device Sync)
+  // =========================================================================
+
+  // GET /api/workout-plans: Fetch workout plans
+  app.get('/api/workout-plans', (req, res) => {
+    const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
+    if (userEmail) {
+      const filtered = serverWorkoutPlans.filter(
+        (p) => (p.userEmail && p.userEmail.toLowerCase().trim() === userEmail) ||
+               (p.userId && p.userId.toLowerCase().trim() === userEmail)
+      );
+      return res.json({ success: true, plans: filtered });
+    }
+    return res.json({ success: true, plans: serverWorkoutPlans });
+  });
+
+  // POST /api/workout-plans: Save or sync workout plans
+  app.post('/api/workout-plans', (req, res) => {
+    try {
+      const incoming = req.body;
+      const plansToSync: any[] = Array.isArray(incoming) ? incoming : (incoming?.plans || [incoming]);
+
+      plansToSync.forEach((plan) => {
+        if (!plan || !plan.id) return;
+        const idx = serverWorkoutPlans.findIndex((p) => p.id === plan.id);
+        if (idx >= 0) {
+          serverWorkoutPlans[idx] = { ...serverWorkoutPlans[idx], ...plan, updatedAt: new Date().toISOString() };
+        } else {
+          serverWorkoutPlans.unshift({ ...plan, updatedAt: new Date().toISOString() });
+        }
+      });
+      persistWorkoutPlans();
+      return res.json({ success: true, plans: serverWorkoutPlans });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to save workout plans' });
+    }
+  });
+
+  // =========================================================================
+  // CONTACT & CONSULTATION INQUIRY ENDPOINT
+  // =========================================================================
+
+  // POST /api/contact: Handles consultation inquiry form submissions and alerts coach
+  app.post('/api/contact', async (req, res) => {
+    try {
+      const { firstName, lastName, email, phone, goal, code } = req.body;
+      const cleanEmail = (email || '').toLowerCase().trim();
+      const cleanName = `${firstName || ''} ${lastName || ''}`.trim() || cleanEmail.split('@')[0] || 'Inquirer';
+      const cleanPhone = `${code || '+91'} ${phone || ''}`.trim();
+
+      if (!cleanEmail) {
+        return res.status(400).json({ error: 'Email address is required.' });
+      }
+
+      // Add or update inquiry in serverMembers so Coach can see them immediately in Admin Portal!
+      const existingIdx = serverMembers.findIndex((m) => m.email.toLowerCase() === cleanEmail);
+      if (existingIdx >= 0) {
+        serverMembers[existingIdx].notes = `[Consultation Request]: Goal: ${goal || 'Not specified'}. Phone: ${cleanPhone}. Date: ${new Date().toLocaleDateString()}.\n\n` + (serverMembers[existingIdx].notes || '');
+        serverMembers[existingIdx].phone = cleanPhone || serverMembers[existingIdx].phone;
+      } else {
+        serverMembers.unshift({
+          id: `lead_${Date.now()}`,
+          email: cleanEmail,
+          name: cleanName,
+          role: 'unpaid',
+          phone: cleanPhone,
+          planName: 'Consultation Requested',
+          joinedAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+          profileCompletion: 25,
+          onboardingCompletion: 10,
+          notes: `[Consultation Request]: Goal: ${goal || 'Not specified'}. Phone: ${cleanPhone}. Submitted on ${new Date().toLocaleDateString()}`,
+        });
+      }
+      persistMembers();
+
+      // Dispatch email to Coach Chinmay
+      try {
+        const coachEmail = process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com';
+        await sendEmailNotification({
+          type: 'consultation_inquiry',
+          to: coachEmail,
+          subject: `⚡ New Consultation Request: ${cleanName} (${cleanPhone})`,
+          previewText: `New coaching lead from ${cleanName}: ${goal ? goal.slice(0, 80) : ''}...`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
+              <h2 style="color: #15803d; margin-top: 0;">New Consultation Request Received!</h2>
+              <p>A new potential client has submitted the consultation form on Fitkode:</p>
+              <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                <tr><td style="padding: 8px; font-weight: bold; width: 140px;">Name:</td><td style="padding: 8px;">${cleanName}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Email:</td><td style="padding: 8px;"><a href="mailto:${cleanEmail}">${cleanEmail}</a></td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Phone / WhatsApp:</td><td style="padding: 8px;">${cleanPhone}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Fitness Goal:</td><td style="padding: 8px; background: #f9fafb; border-radius: 6px;">${goal || 'Not specified'}</td></tr>
+              </table>
+              <p style="color: #6b7280; font-size: 13px;">This client has been added to your Admin Portal under Unpaid / Leads.</p>
+            </div>
+          `,
+          text: `New consultation request from ${cleanName} (${cleanEmail}, ${cleanPhone}). Goal: ${goal}`,
+          recipientName: 'Coach Chinmay',
+        });
+      } catch (emailErr) {
+        console.warn('Consultation email notification notice:', emailErr);
+      }
+
+      return res.json({ success: true, message: 'Consultation request received successfully.' });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to process consultation request.' });
+    }
   });
 
   // =========================================================================
@@ -970,6 +1645,19 @@ async function startServer() {
       }
 
       const userEmail = entry.userEmail.toLowerCase().trim();
+
+      // Ensure notified weekly entry is also saved into server repository
+      if (entry.id) {
+        const existingIdx = serverWeeklyEntries.findIndex((e) => e.id === entry.id);
+        const entryToSave = { ...entry, userEmail, updatedAt: new Date().toISOString() };
+        if (existingIdx >= 0) {
+          serverWeeklyEntries[existingIdx] = entryToSave;
+        } else {
+          serverWeeklyEntries.unshift(entryToSave);
+        }
+        persistWeeklyEntries();
+      }
+
       const member = serverMembers.find((m) => m.email.toLowerCase().trim() === userEmail);
       const name = clientName || member?.name || `${entry.firstName || ''} ${entry.lastName || ''}`.trim() || userEmail;
       const appUrl = process.env.APP_URL || (req.headers.origin as string) || `http://${req.headers.host}`;

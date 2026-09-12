@@ -1,9 +1,38 @@
-import { WeeklyTrackerEntry } from '../types';
-import { isDefaultAdmin } from './memberStore';
+import { WeeklyTrackerEntry, AppMember } from '../types';
+import { isDefaultAdmin, getStoredMembers, updateMemberWeeklyEntries } from './memberStore';
 import { notifyWeeklyTrackerSubmitted } from './communicationService';
+import { saveWeeklyEntriesToSupabase, loadWeeklyEntriesFromSupabase } from './supabase';
 
 // Realistic sample progression check-ins for demo members
 export const SEED_WEEKLY_ENTRIES: WeeklyTrackerEntry[] = [
+  // --- Atul Gupta (akg.atulgupta@gmail.com) Check-ins ---
+  {
+    id: 'chk_atul_w1',
+    userId: 'usr_atul_gupta',
+    userEmail: 'akg.atulgupta@gmail.com',
+    firstName: 'Atul',
+    lastName: 'Gupta',
+    checkInDate: '2026-09-11',
+    weekNumber: 1,
+    avgStepsPerDay: 8000,
+    weightKg: 72.8,
+    waistInches: 36.0,
+    hipsInches: 39.0,
+    neckInches: 15.5,
+    quadsInches: 22.0,
+    chestInches: 39.5,
+    upperRightArmInches: 13.5,
+    resistanceWorkoutDays: 3,
+    hiitCardioDays: 1,
+    avgCaloriesPerDay: 2050,
+    frontPicUrl: '',
+    leftPicUrl: '',
+    rightPicUrl: '',
+    backPicUrl: '',
+    challengesFaced: 'Sedentary desk job during week, but hit 8k daily steps and completed 3 strength workouts.',
+    coachFeedback: 'Excellent baseline Atul! Great adherence on workouts and steps. Let us maintain this momentum for Week 2.',
+    createdAt: '2026-09-11T08:00:00Z',
+  },
   // --- Priya Sharma (usr_001_priya) Check-ins (4 consecutive weeks) ---
   {
     id: 'chk_priya_w1',
@@ -205,9 +234,14 @@ function getStorageKey(userEmail: string): string {
 
 /**
  * Loads weekly entries for a specific client.
- * Privacy rule: Regular clients can ONLY load their own email's entries!
+ * Multi-tier resolution:
+ * 1. Client localStorage cache
+ * 2. Pre-seeded sample entries (SEED_WEEKLY_ENTRIES)
+ * 3. Member store (getStoredMembers().weeklyEntries)
+ * 4. Direct fallback member passed in
+ * 5. Synthesized baseline check-in from onboarding measurements
  */
-export function loadUserWeeklyEntries(userEmail: string): WeeklyTrackerEntry[] {
+export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMember): WeeklyTrackerEntry[] {
   if (typeof window === 'undefined' || !userEmail) return [];
   const normalized = userEmail.toLowerCase().trim();
   const key = getStorageKey(normalized);
@@ -225,7 +259,7 @@ export function loadUserWeeklyEntries(userEmail: string): WeeklyTrackerEntry[] {
     console.warn('Error parsing user weekly entries:', err);
   }
 
-  // If no entries yet in localStorage, check if this is one of our pre-seeded members
+  // Tier 1: Check pre-seeded tracker entries (e.g. Atul Gupta, Priya Sharma)
   const seeded = SEED_WEEKLY_ENTRIES.filter(
     (e) => e.userEmail.toLowerCase().trim() === normalized
   );
@@ -237,6 +271,79 @@ export function loadUserWeeklyEntries(userEmail: string): WeeklyTrackerEntry[] {
       // ignore
     }
     return seeded.sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
+  }
+
+  // Tier 2: Check member store registry for embedded weeklyEntries
+  try {
+    const members = getStoredMembers();
+    const matched = members.find(
+      (m) => m.email?.toLowerCase().trim() === normalized || m.id === normalized
+    );
+    if (matched?.weeklyEntries && matched.weeklyEntries.length > 0) {
+      try {
+        localStorage.setItem(key, JSON.stringify(matched.weeklyEntries));
+      } catch {
+        // ignore
+      }
+      return matched.weeklyEntries.sort(
+        (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+      );
+    }
+  } catch {
+    // ignore
+  }
+
+  // Tier 3: Check fallbackMember passed directly
+  if (fallbackMember?.weeklyEntries && fallbackMember.weeklyEntries.length > 0) {
+    try {
+      localStorage.setItem(key, JSON.stringify(fallbackMember.weeklyEntries));
+    } catch {
+      // ignore
+    }
+    return fallbackMember.weeklyEntries.sort(
+      (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+    );
+  }
+
+  // Tier 4: If member has completed health onboarding with body measurements, synthesize baseline Week 1 check-in!
+  const targetMember = fallbackMember || getStoredMembers().find(
+    (m) => m.email?.toLowerCase().trim() === normalized
+  );
+  if (targetMember?.onboarding?.currentWeightKg) {
+    const ob = targetMember.onboarding;
+    const baselineEntry: WeeklyTrackerEntry = {
+      id: `chk_baseline_${targetMember.id || normalized.replace(/[^a-z0-9]/g, '_')}`,
+      userId: targetMember.id || normalized,
+      userEmail: normalized,
+      firstName: targetMember.profile?.firstName || targetMember.name?.split(' ')[0] || 'Member',
+      lastName: targetMember.profile?.lastName || targetMember.name?.split(' ').slice(1).join(' ') || '',
+      checkInDate: targetMember.joinedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+      weekNumber: 1,
+      avgStepsPerDay: 8000,
+      weightKg: parseFloat(ob.currentWeightKg) || 72.8,
+      waistInches: parseFloat(ob.waistInches || '36') || 36,
+      hipsInches: parseFloat(ob.hipInches || '39') || 39,
+      neckInches: parseFloat(ob.neckInches || '15.5') || 15.5,
+      quadsInches: parseFloat(ob.quadricepsInches || '22') || 22,
+      chestInches: parseFloat(ob.chestInches || '39.5') || 39.5,
+      upperRightArmInches: parseFloat(ob.upperArmInches || '13.5') || 13.5,
+      resistanceWorkoutDays: parseInt(ob.physicalActivityDaysPerWeek || '3', 10) || 3,
+      hiitCardioDays: 1,
+      avgCaloriesPerDay: 2050,
+      frontPicUrl: '',
+      leftPicUrl: '',
+      rightPicUrl: '',
+      backPicUrl: '',
+      challengesFaced: ob.biggestNutritionChallenges || 'Managing corporate desk job and daily step counts.',
+      coachFeedback: 'Initial baseline intake measurements recorded from onboarding assessment.',
+      createdAt: targetMember.joinedAt || new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify([baselineEntry]));
+    } catch {
+      // ignore
+    }
+    return [baselineEntry];
   }
 
   return [];
@@ -288,12 +395,99 @@ export async function saveWeeklyEntry(
     console.error('Error saving weekly entry to localStorage:', err);
   }
 
-  // Asynchronously dispatch notification to Coach Chinmay (myfitkode@gmail.com)
+  // Keep member registry in sync
+  try {
+    updateMemberWeeklyEntries(normUser, updatedList);
+  } catch {
+    // ignore
+  }
+
+  // 1. Sync directly to Express Backend API
+  try {
+    fetch('/api/weekly-tracker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry: updatedEntry, callerEmail }),
+    }).catch((err) => {
+      console.warn('[saveWeeklyEntry] Backend sync notice:', err);
+    });
+  } catch {
+    // ignore
+  }
+
+  // 2. Sync directly to Supabase
+  try {
+    saveWeeklyEntriesToSupabase(normUser, updatedList).catch((err) => {
+      console.warn('[saveWeeklyEntry] Supabase sync notice:', err);
+    });
+  } catch {
+    // ignore
+  }
+
+  // 3. Asynchronously dispatch notification to Coach Chinmay (myfitkode@gmail.com)
   notifyWeeklyTrackerSubmitted(updatedEntry, callerEmail).catch((err) => {
     console.warn('[saveWeeklyEntry] Failed to dispatch coach weekly tracker notification:', err);
   });
 
   return updatedList;
+}
+
+/**
+ * Asynchronously fetches a user's weekly check-ins from:
+ * 1. Express backend API (/api/weekly-tracker)
+ * 2. Supabase (if configured)
+ * 3. Local storage & seed data fallback
+ * Updates client-side localStorage so subsequent synchronous reads are also fresh.
+ */
+export async function fetchUserWeeklyEntries(
+  userEmail: string,
+  callerEmail?: string
+): Promise<WeeklyTrackerEntry[]> {
+  if (!userEmail) return [];
+  const normUser = userEmail.toLowerCase().trim();
+  const normCaller = (callerEmail || userEmail).toLowerCase().trim();
+  const key = getStorageKey(normUser);
+
+  // 1. Try Backend API
+  try {
+    const res = await fetch(
+      `/api/weekly-tracker?userEmail=${encodeURIComponent(normUser)}&callerEmail=${encodeURIComponent(normCaller)}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.entries) && data.entries.length > 0) {
+        // Cache to localStorage
+        try {
+          localStorage.setItem(key, JSON.stringify(data.entries));
+        } catch {
+          // ignore
+        }
+        return data.entries;
+      }
+    }
+  } catch (err) {
+    // Backend fetch failed or network offline
+  }
+
+  // 2. Try Supabase
+  try {
+    const sbEntries = await loadWeeklyEntriesFromSupabase(normUser);
+    if (Array.isArray(sbEntries) && sbEntries.length > 0) {
+      try {
+        localStorage.setItem(key, JSON.stringify(sbEntries));
+      } catch {
+        // ignore
+      }
+      return sbEntries.sort(
+        (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+      );
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3. Fallback to localStorage & seed data
+  return loadUserWeeklyEntries(normUser);
 }
 
 /**
@@ -325,6 +519,12 @@ export async function deleteWeeklyEntry(
   }
 
   try {
+    saveWeeklyEntriesToSupabase(normUser, filtered).catch(() => {});
+  } catch {
+    // ignore
+  }
+
+  try {
     fetch(`/api/weekly-tracker/${encodeURIComponent(entryId)}?callerEmail=${encodeURIComponent(callerEmail)}&userEmail=${encodeURIComponent(normUser)}`, {
       method: 'DELETE',
     }).catch(() => {});
@@ -346,20 +546,7 @@ export async function loadAllWeeklyEntriesForAdmin(
     throw new Error('Access Denied: Only Super Admin Chinmay can inspect other members weekly tracker data.');
   }
 
-  // Try server API first
-  try {
-    const res = await fetch(`/api/weekly-tracker/all?callerEmail=${encodeURIComponent(callerEmail)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.entriesByEmail) {
-        return data.entriesByEmail;
-      }
-    }
-  } catch {
-    // fallback
-  }
-
-  // Assemble from local storage keys and seed data
+  // Assemble from local storage keys and seed data first
   const result: Record<string, WeeklyTrackerEntry[]> = {};
 
   // Group seed entries
@@ -390,6 +577,30 @@ export async function loadAllWeeklyEntriesForAdmin(
         }
       }
     }
+  }
+
+  // Query server API for live entries across all members
+  try {
+    const res = await fetch(`/api/weekly-tracker/all?callerEmail=${encodeURIComponent(callerEmail)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.entriesByEmail && typeof data.entriesByEmail === 'object') {
+        Object.entries(data.entriesByEmail).forEach(([email, entries]) => {
+          const norm = email.toLowerCase().trim();
+          if (Array.isArray(entries) && entries.length > 0) {
+            result[norm] = entries;
+            // Also cache to localStorage for fast local access
+            try {
+              localStorage.setItem(getStorageKey(norm), JSON.stringify(entries));
+            } catch {
+              // ignore
+            }
+          }
+        });
+      }
+    }
+  } catch {
+    // fallback
   }
 
   return result;

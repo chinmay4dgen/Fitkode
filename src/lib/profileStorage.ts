@@ -201,6 +201,30 @@ export function saveUserProfile(profile: UserProfile, userIdOrEmail?: string): v
   } catch {
     // ignore
   }
+
+  // Automatically sync to Express backend server so Coach/Admin portal immediately reflects user updates
+  try {
+    const userEmail = profile.email || (userIdOrEmail && userIdOrEmail.includes('@') ? userIdOrEmail : '');
+    const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
+    if (userEmail || userIdOrEmail) {
+      fetch('/api/members/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userIdOrEmail,
+          email: userEmail || userIdOrEmail,
+          name: fullName || undefined,
+          phone: profile.phone,
+          profile: profile,
+          profileCompletion: getProfileCompletionRate(profile),
+        }),
+      }).catch((err) => {
+        console.warn('Backend sync profile notice:', err);
+      });
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
@@ -246,6 +270,27 @@ export function saveClientOnboarding(onboarding: ClientOnboarding, userIdOrEmail
     saveOnboardingToSupabase(onboarding, userIdOrEmail).catch((err) => {
       console.warn('Background Supabase onboarding save notice:', err?.message);
     });
+  } catch {
+    // ignore
+  }
+
+  // Automatically sync to Express backend server so Coach/Admin portal immediately reflects user onboarding
+  try {
+    const userEmail = (userIdOrEmail && userIdOrEmail.includes('@')) ? userIdOrEmail : '';
+    if (userEmail || userIdOrEmail) {
+      fetch('/api/members/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userIdOrEmail,
+          email: userEmail || userIdOrEmail,
+          onboarding: onboarding,
+          onboardingCompletion: getOnboardingCompletionRate(onboarding),
+        }),
+      }).catch((err) => {
+        console.warn('Backend sync onboarding notice:', err);
+      });
+    }
   } catch {
     // ignore
   }

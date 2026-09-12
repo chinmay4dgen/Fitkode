@@ -75,6 +75,53 @@ export function saveAllMealPlans(plans: MealPlan[]) {
   } catch (err) {
     console.error('Error saving meal plans to storage:', err);
   }
+
+  // Also sync asynchronously to server
+  try {
+    fetch('/api/meal-plans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(plans),
+    }).catch((err) => {
+      console.warn('Backend sync meal plans notice:', err);
+    });
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Fetches latest meal plans from Express server and merges into local cache
+ */
+export async function fetchMealPlansFromServer(userEmail?: string): Promise<MealPlan[]> {
+  try {
+    const url = userEmail
+      ? `/api/meal-plans?userEmail=${encodeURIComponent(userEmail.toLowerCase().trim())}`
+      : '/api/meal-plans';
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.plans) && data.plans.length > 0) {
+        const current = getAllStoredMealPlans();
+        const merged = [...current];
+        data.plans.forEach((p: MealPlan) => {
+          const idx = merged.findIndex((m) => m.id === p.id);
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], ...p };
+          } else {
+            merged.unshift(p);
+          }
+        });
+        try {
+          localStorage.setItem(MEAL_PLANS_KEY, JSON.stringify(merged));
+        } catch {}
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch meal plans from server:', err);
+  }
+  return getAllStoredMealPlans();
 }
 
 export function getAllStoredWorkoutPlans(): WorkoutPlan[] {
@@ -98,6 +145,53 @@ export function saveAllWorkoutPlans(plans: WorkoutPlan[]) {
   } catch (err) {
     console.error('Error saving workout plans to storage:', err);
   }
+
+  // Also sync asynchronously to server
+  try {
+    fetch('/api/workout-plans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(plans),
+    }).catch((err) => {
+      console.warn('Backend sync workout plans notice:', err);
+    });
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Fetches latest workout plans from Express server and merges into local cache
+ */
+export async function fetchWorkoutPlansFromServer(userEmail?: string): Promise<WorkoutPlan[]> {
+  try {
+    const url = userEmail
+      ? `/api/workout-plans?userEmail=${encodeURIComponent(userEmail.toLowerCase().trim())}`
+      : '/api/workout-plans';
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.plans) && data.plans.length > 0) {
+        const current = getAllStoredWorkoutPlans();
+        const merged = [...current];
+        data.plans.forEach((p: WorkoutPlan) => {
+          const idx = merged.findIndex((m) => m.id === p.id);
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], ...p };
+          } else {
+            merged.unshift(p);
+          }
+        });
+        try {
+          localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(merged));
+        } catch {}
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch workout plans from server:', err);
+  }
+  return getAllStoredWorkoutPlans();
 }
 
 // =========================================================================

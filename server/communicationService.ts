@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 export interface CommunicationLog {
   id: string;
-  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test';
+  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test' | 'consultation_inquiry';
   to: string;
   from: string;
   subject: string;

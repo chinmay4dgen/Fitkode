@@ -20,6 +20,7 @@ import { WeeklyTrackerEntry } from '../types';
 import { isLiveProductionSite, shouldShowTestProfiles } from '../lib/environment';
 import {
   loadUserWeeklyEntries,
+  fetchUserWeeklyEntries,
   saveWeeklyEntry,
   deleteWeeklyEntry,
 } from '../lib/weeklyTrackerStore';
@@ -66,6 +67,17 @@ export default function WeeklyTrackerPage() {
     }
     const loaded = loadUserWeeklyEntries(userEmail);
     setEntries(loaded);
+
+    // Asynchronously pull latest from Backend API / Supabase
+    fetchUserWeeklyEntries(userEmail, userEmail)
+      .then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setEntries(fresh);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to asynchronously refresh weekly entries:', err);
+      });
   }, [userEmail]);
 
   const handleSaveEntry = async (entry: WeeklyTrackerEntry) => {

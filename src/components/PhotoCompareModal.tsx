@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Eye, Sparkles, Calendar, ArrowRightLeft } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Sparkles, Calendar, ArrowRightLeft, Camera } from 'lucide-react';
 import { WeeklyTrackerEntry } from '../types';
 
 interface PhotoCompareModalProps {
@@ -168,9 +168,14 @@ export default function PhotoCompareModal({
                     className="w-full h-full object-contain"
                   />
                 ) : (
-                  <div className="text-center p-6 text-gray-500">
-                    <p className="text-sm font-semibold">No photo uploaded for {poseLabels[selectedPose]}</p>
-                    <p className="text-xs mt-1 text-gray-600">Client did not attach a photo for this pose.</p>
+                  <div className="text-center p-6 text-gray-400 max-w-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-800/80 border border-gray-700 flex items-center justify-center mx-auto mb-3 text-gray-500">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-300">No Photo Uploaded for {poseLabels[selectedPose]}</p>
+                    <p className="text-xs mt-1.5 text-gray-500 leading-relaxed">
+                      Actual photos have not been attached for this check-in yet. Use the "Edit" button in the Weekly Tracker to attach front, side, or back photos.
+                    </p>
                   </div>
                 )}
                 

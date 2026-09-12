@@ -399,3 +399,155 @@ export async function loadOnboardingFromSupabase(userIdOrEmail?: string): Promis
   return null;
 }
 
+/**
+ * Persists user's weekly tracker entries to Supabase (Auth User Metadata and database table)
+ */
+export async function saveWeeklyEntriesToSupabase(
+  userEmail: string,
+  entries: any[]
+): Promise<{ success: boolean; channel: string; error?: string }> {
+  if (!client) {
+    return { success: false, channel: 'local_fallback', error: 'Supabase client is not configured yet' };
+  }
+
+  let savedChannel = 'local_fallback';
+  const normEmail = userEmail.toLowerCase().trim();
+
+  try {
+    // 1. Persist to Auth User Metadata if current user matches
+    const authRes = await client.auth.getUser();
+    const currentUser = authRes.data.user;
+
+    if (currentUser && currentUser.email?.toLowerCase().trim() === normEmail) {
+      const { error: metaError } = await client.auth.updateUser({
+        data: {
+          fitkode_weekly_entries: entries,
+          weekly_tracker_count: entries.length,
+          last_checkin_date: entries[0]?.checkInDate || '',
+          tracker_updated_at: new Date().toISOString(),
+        },
+      });
+
+      if (!metaError) {
+        savedChannel = 'supabase_auth_metadata';
+      }
+    }
+
+    // 2. Persist to profiles table (inside profile_data JSONB or weekly_tracker_data)
+    try {
+      const { data: existingProfile } = await client
+        .from('profiles')
+        .select('id, profile_data')
+        .eq('email', normEmail)
+        .maybeSingle();
+
+      if (existingProfile) {
+        const mergedProfileData = {
+          ...(existingProfile.profile_data || {}),
+          weekly_entries: entries,
+          weekly_tracker_count: entries.length,
+          last_checkin_date: entries[0]?.checkInDate || '',
+        };
+
+        const { error: profError } = await client
+          .from('profiles')
+          .update({
+            profile_data: mergedProfileData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingProfile.id);
+
+        if (!profError) {
+          savedChannel = 'supabase_table';
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Also try upserting to weekly_tracker_entries table if present
+    try {
+      for (const entry of entries) {
+        await client
+          .from('weekly_tracker_entries')
+          .upsert(
+            {
+              id: entry.id,
+              user_email: normEmail,
+              user_id: entry.userId || normEmail,
+              week_number: entry.weekNumber,
+              check_in_date: entry.checkInDate,
+              weight_kg: entry.weightKg,
+              waist_inches: entry.waistInches,
+              avg_steps_per_day: entry.avgStepsPerDay,
+              entry_data: entry,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+      }
+    } catch {
+      // Table may not exist yet, safe fallback
+    }
+
+    return { success: true, channel: savedChannel };
+  } catch (err: any) {
+    console.warn('Supabase weekly tracker save notice:', err?.message);
+    return { success: false, channel: savedChannel, error: err?.message };
+  }
+}
+
+/**
+ * Loads weekly tracker entries from Supabase
+ */
+export async function loadWeeklyEntriesFromSupabase(userEmail: string): Promise<any[] | null> {
+  if (!client || !userEmail) return null;
+  const normEmail = userEmail.toLowerCase().trim();
+
+  try {
+    // 1. Try checking table 'weekly_tracker_entries'
+    try {
+      const { data, error } = await client
+        .from('weekly_tracker_entries')
+        .select('*')
+        .eq('user_email', normEmail)
+        .order('check_in_date', { ascending: false });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data.map((row) => row.entry_data || row);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Check table 'profiles' profile_data.weekly_entries
+    try {
+      const { data, error } = await client
+        .from('profiles')
+        .select('profile_data')
+        .eq('email', normEmail)
+        .maybeSingle();
+
+      if (!error && data?.profile_data?.weekly_entries && Array.isArray(data.profile_data.weekly_entries)) {
+        return data.profile_data.weekly_entries;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Fall back to current user auth metadata if user is self
+    const authRes = await client.auth.getUser();
+    if (
+      authRes.data.user?.email?.toLowerCase().trim() === normEmail &&
+      Array.isArray(authRes.data.user.user_metadata?.fitkode_weekly_entries)
+    ) {
+      return authRes.data.user.user_metadata.fitkode_weekly_entries;
+    }
+  } catch (err) {
+    console.warn('Supabase weekly tracker load warning:', err);
+  }
+
+  return null;
+}
+
+
