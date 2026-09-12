@@ -83,6 +83,7 @@ import PhotoCompareModal from './PhotoCompareModal';
 import { ToastContainer, ToastMessage } from './Toast';
 import { CommunicationCenterModal } from './CommunicationCenterModal';
 import { fetchCommunicationLogs, CommunicationLogItem } from '../lib/communicationService';
+import { loadUserProfile, loadClientOnboarding } from '../lib/profileStorage';
 
 export default function AdminMembersPage() {
   const { user, role, isAdmin, setTestingRole, signInWithTestAccount } = useAuth();
@@ -452,7 +453,17 @@ export default function AdminMembersPage() {
       if (selectedMember) {
         const refreshed = data.find((m) => m.id === selectedMember.id);
         if (refreshed) {
-          setSelectedMember(refreshed);
+          const enrichedProfile = (refreshed.profile && (refreshed.profile.phone || refreshed.profile.age || refreshed.profile.address))
+            ? refreshed.profile
+            : loadUserProfile(refreshed.email);
+          const enrichedOnboarding = (refreshed.onboarding && (refreshed.onboarding.healthGoal || refreshed.onboarding.completedSections?.length))
+            ? refreshed.onboarding
+            : loadClientOnboarding(refreshed.email);
+          setSelectedMember({
+            ...refreshed,
+            profile: enrichedProfile,
+            onboarding: enrichedOnboarding,
+          });
           setCoachNotes(refreshed.notes || '');
         }
       }
@@ -517,7 +528,20 @@ export default function AdminMembersPage() {
 
   // When a member is selected: open full screen width, collapse search list, and scroll upfront
   const handleSelectMember = (member: AppMember) => {
-    setSelectedMember(member);
+    const enrichedProfile = (member.profile && (member.profile.phone || member.profile.age || member.profile.address))
+      ? member.profile
+      : loadUserProfile(member.email);
+    const enrichedOnboarding = (member.onboarding && (member.onboarding.healthGoal || member.onboarding.completedSections?.length))
+      ? member.onboarding
+      : loadClientOnboarding(member.email);
+
+    const enrichedMember: AppMember = {
+      ...member,
+      profile: enrichedProfile,
+      onboarding: enrichedOnboarding,
+    };
+
+    setSelectedMember(enrichedMember);
     setCoachNotes(member.notes || '');
     setActiveTab('profile');
     setNotesSaved(false);

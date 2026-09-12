@@ -540,6 +540,30 @@ export function getStoredMembers(): AppMember[] {
                 changed = true;
               }
             }
+            // If seed has rich profile that cached object lacks, enrich it!
+            if (seed.profile) {
+              const curProfile = parsed[existingIndex].profile;
+              if (!curProfile || !curProfile.phone || !curProfile.age) {
+                parsed[existingIndex].profile = {
+                  ...(seed.profile || {}),
+                  ...(curProfile || {}),
+                };
+                parsed[existingIndex].profileCompletion = getProfileCompletionRate(parsed[existingIndex].profile);
+                changed = true;
+              }
+            }
+            // If seed has rich onboarding that cached object lacks, enrich it!
+            if (seed.onboarding) {
+              const curOnboarding = parsed[existingIndex].onboarding;
+              if (!curOnboarding || !curOnboarding.completedSections || curOnboarding.completedSections.length === 0 || !curOnboarding.coreReasonWhy) {
+                parsed[existingIndex].onboarding = {
+                  ...(seed.onboarding || {}),
+                  ...(curOnboarding || {}),
+                };
+                parsed[existingIndex].onboardingCompletion = getOnboardingCompletionRate(parsed[existingIndex].onboarding);
+                changed = true;
+              }
+            }
           }
         }
         if (changed) {
@@ -644,17 +668,36 @@ export async function syncMemberToStore(memberData: {
     const finalRole = isDefaultAdmin(normalizedEmail) ? 'admin' : (memberData.role || existing.role || resolvedRole);
     const isConsentWithdrawn = Boolean(memberData.profile?.isConsentWithdrawn || (existing.consentStatus === 'withdrawn' && memberData.profile?.isConsentWithdrawn !== false));
 
+    const existingProfileRate = existing.profile ? getProfileCompletionRate(existing.profile) : 0;
+    const incomingProfileHasData = Boolean(memberData.profile && (memberData.profile.phone || memberData.profile.age || memberData.profile.address));
+    const mergedProfile = existing.profile
+      ? (incomingProfileHasData ? { ...existing.profile, ...memberData.profile } : existing.profile)
+      : memberData.profile;
+    const finalProfileRate = mergedProfile ? getProfileCompletionRate(mergedProfile) : existing.profileCompletion;
+
+    const existingOnboardingRate = existing.onboarding ? getOnboardingCompletionRate(existing.onboarding) : 0;
+    const incomingOnboardingHasData = Boolean(
+      memberData.onboarding &&
+      ((memberData.onboarding.completedSections && memberData.onboarding.completedSections.length > 0) ||
+        memberData.onboarding.coreReasonWhy)
+    );
+    const mergedOnboarding = existing.onboarding
+      ? (incomingOnboardingHasData ? { ...existing.onboarding, ...memberData.onboarding } : existing.onboarding)
+      : memberData.onboarding;
+    const finalOnboardingRate = mergedOnboarding ? getOnboardingCompletionRate(mergedOnboarding) : existing.onboardingCompletion;
+
     updatedMember = {
       ...existing,
       ...memberData,
       role: finalRole,
       lastLoginAt: new Date().toISOString(),
-      profileCompletion: memberData.profile ? profileRate : existing.profileCompletion,
-      onboardingCompletion: memberData.onboarding ? onboardingRate : existing.onboardingCompletion,
+      profileCompletion: finalProfileRate,
+      onboardingCompletion: finalOnboardingRate,
       consentStatus: isConsentWithdrawn ? 'withdrawn' : 'active',
       consentWithdrawnAt: isConsentWithdrawn ? (existing.consentWithdrawnAt || new Date().toISOString()) : undefined,
-      profile: memberData.profile || existing.profile,
-      onboarding: memberData.onboarding || existing.onboarding,
+      profile: mergedProfile,
+      onboarding: mergedOnboarding,
+      weeklyEntries: existing.weeklyEntries || [],
     };
     members[existingIndex] = updatedMember;
   } else {
@@ -795,11 +838,19 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
           };
 
           if (existingIndex >= 0) {
-            // Merge with existing entry, keeping real Supabase data prioritized
+            // Merge with existing entry, keeping real Supabase data prioritized only when available
+            const existing = mergedList[existingIndex];
+            const hasRemoteProfile = Object.keys(profileData).length > 0;
+            const hasRemoteOnboarding = Object.keys(onboardingData).length > 0;
             mergedList[existingIndex] = {
-              ...mergedList[existingIndex],
+              ...existing,
               ...memberObj,
-              notes: row.notes || mergedList[existingIndex].notes || '',
+              profileCompletion: hasRemoteProfile ? profileRate : existing.profileCompletion,
+              onboardingCompletion: hasRemoteOnboarding ? onboardingRate : existing.onboardingCompletion,
+              profile: hasRemoteProfile ? memberObj.profile : (existing.profile || memberObj.profile),
+              onboarding: hasRemoteOnboarding ? memberObj.onboarding : (existing.onboarding || memberObj.onboarding),
+              weeklyEntries: existing.weeklyEntries || memberObj.weeklyEntries || [],
+              notes: row.notes || existing.notes || '',
             };
           } else {
             // New user from Supabase - add to beginning

@@ -147,19 +147,91 @@ export const defaultClientOnboarding: ClientOnboarding = {
   notificationsConsentWithdrawnAt: '',
 };
 
+export const ATUL_GUPTA_PROFILE: UserProfile = {
+  ...defaultUserProfile,
+  email: 'akg.atulgupta@gmail.com',
+  firstName: 'Atul',
+  lastName: 'Gupta',
+  dateOfBirth: '1985-11-20',
+  age: '40',
+  gender: 'Male',
+  phone: '+91 98114 00612',
+  address: 'Pocket B, Sarita Vihar',
+  city: 'New Delhi',
+  state: 'Delhi',
+  zipcode: '110076',
+  preferredContact: 'Whatsapp Audio/Video/Message',
+  maritalStatus: 'Married',
+  children: 'Yes',
+  isPregnant: 'Not applicable',
+  bloodGroup: 'B+',
+  livingWith: 'Family',
+  primaryCareProvider: 'Max Healthcare Delhi',
+  lastCheckupDate: '2026-05-10',
+  healthDataConsent: true,
+  healthDataConsentGivenAt: '2026-09-11T07:15:00Z',
+  notificationsConsent: true,
+  notificationsConsentGivenAt: '2026-09-11T07:15:00Z',
+  isConsentWithdrawn: false,
+};
+
+export const ATUL_GUPTA_ONBOARDING: ClientOnboarding = {
+  ...defaultClientOnboarding,
+  healthGoal: 'Weight Loss',
+  healthGoalOther: 'Lean Muscle & Stamina',
+  coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
+  pastDietsAndTechniques: 'Intermittent fasting',
+  biggestNutritionChallenges: 'Managing evening cravings after work',
+  desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength workouts.',
+  currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
+  physicalActivityDaysPerWeek: '4',
+  physicalActivityDurationMinutes: '45',
+  gymAccess: 'yes',
+  foodAllergies: 'None',
+  dislikedFoods: 'Bitter gourd',
+  dietPreferences: ['Vegetarian', 'High Protein'],
+  mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
+  dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
+  currentWeightKg: '72.8',
+  heightCm: '174',
+  waistInches: '36.0',
+  hipInches: '39.0',
+  neckInches: '15.5',
+  chestInches: '39.5',
+  upperArmInches: '13.5',
+  quadricepsInches: '22.0',
+  headachesScore: 1,
+  insomniaScore: 1,
+  digestiveIssuesScore: 1,
+  dizzinessScore: 1,
+  faintnessScore: 1,
+  emotionalIssuesScore: 1,
+  completedSections: [1, 2, 3, 4, 5],
+  isSubmitted: true,
+  healthDataConsent: true,
+  healthDataConsentGivenAt: '2026-09-11T07:15:00Z',
+  notificationsConsent: true,
+  notificationsConsentGivenAt: '2026-09-11T07:15:00Z',
+  isConsentWithdrawn: false,
+};
+
 function getStorageKey(type: 'profile' | 'onboarding', userIdOrEmail?: string): string {
   const identifier = (userIdOrEmail || 'anonymous').toLowerCase().trim();
   return `fitkode_${type}_${identifier}`;
 }
 
 export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserProfile>): UserProfile {
-  if (typeof window === 'undefined') return { ...defaultUserProfile, ...defaults };
+  const normId = (userIdOrEmail || '').toLowerCase().trim();
+  const isAtul = normId === 'akg.atulgupta@gmail.com' || normId === 'usr_atul_gupta';
+  const baseline = isAtul ? { ...ATUL_GUPTA_PROFILE, ...defaults } : { ...defaultUserProfile, ...defaults };
+
+  if (typeof window === 'undefined') return baseline;
   const key = getStorageKey('profile', userIdOrEmail);
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      const profile: UserProfile = { ...defaultUserProfile, ...defaults, ...parsed };
+      const profile: UserProfile = { ...baseline, ...parsed };
       // As per DPDP Act: By default whenever a person logs in or accesses the site,
       // all their consents must be marked Yes (true) in respect to their willingness to share data,
       // and turned off ONLY if they explicitly chose to turn it off.
@@ -176,11 +248,17 @@ export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserP
         }
       }
       return profile;
+    } else if (isAtul) {
+      // Cache baseline in localStorage so it is immediately accessible
+      try {
+        localStorage.setItem(key, JSON.stringify(baseline));
+      } catch {}
+      return baseline;
     }
   } catch (err) {
     console.warn('Error reading user profile from localStorage:', err);
   }
-  return { ...defaultUserProfile, ...defaults };
+  return baseline;
 }
 
 export function saveUserProfile(profile: UserProfile, userIdOrEmail?: string): void {
@@ -228,13 +306,17 @@ export function saveUserProfile(profile: UserProfile, userIdOrEmail?: string): v
 }
 
 export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
-  if (typeof window === 'undefined') return defaultClientOnboarding;
+  const normId = (userIdOrEmail || '').toLowerCase().trim();
+  const isAtul = normId === 'akg.atulgupta@gmail.com' || normId === 'usr_atul_gupta';
+  const baseline = isAtul ? ATUL_GUPTA_ONBOARDING : defaultClientOnboarding;
+
+  if (typeof window === 'undefined') return baseline;
   const key = getStorageKey('onboarding', userIdOrEmail);
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      const onboarding: ClientOnboarding = { ...defaultClientOnboarding, ...parsed };
+      const onboarding: ClientOnboarding = { ...baseline, ...parsed };
       if (!onboarding.isConsentWithdrawn) {
         onboarding.healthDataConsent = true;
         if (!onboarding.healthDataConsentGivenAt) {
@@ -248,11 +330,16 @@ export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
         }
       }
       return onboarding;
+    } else if (isAtul) {
+      try {
+        localStorage.setItem(key, JSON.stringify(baseline));
+      } catch {}
+      return baseline;
     }
   } catch (err) {
     console.warn('Error reading onboarding from localStorage:', err);
   }
-  return defaultClientOnboarding;
+  return baseline;
 }
 
 export function saveClientOnboarding(onboarding: ClientOnboarding, userIdOrEmail?: string): void {

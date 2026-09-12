@@ -1012,12 +1012,29 @@ async function startServer() {
 
       if (existingIndex >= 0) {
         const existing = serverMembers[existingIndex];
-        const mergedProfile = incoming.profile 
-          ? { ...(existing.profile || {}), ...incoming.profile }
-          : existing.profile;
-        const mergedOnboarding = incoming.onboarding
-          ? { ...(existing.onboarding || {}), ...incoming.onboarding }
-          : existing.onboarding;
+        const cleanIncomingProfile = incoming.profile
+          ? Object.fromEntries(
+              Object.entries(incoming.profile).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+            )
+          : {};
+        const mergedProfile = { ...(existing.profile || {}), ...cleanIncomingProfile };
+
+        const cleanIncomingOnboarding = incoming.onboarding
+          ? Object.fromEntries(
+              Object.entries(incoming.onboarding).filter(
+                ([_, v]) => v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
+              )
+            )
+          : {};
+        const mergedOnboarding = { ...(existing.onboarding || {}), ...cleanIncomingOnboarding };
+
+        const finalProfileRate = (incoming.profileCompletion && incoming.profileCompletion > 0)
+          ? incoming.profileCompletion
+          : (existing.profileCompletion || 0);
+
+        const finalOnboardingRate = (incoming.onboardingCompletion && incoming.onboardingCompletion > 0)
+          ? incoming.onboardingCompletion
+          : (existing.onboardingCompletion || 0);
 
         serverMembers[existingIndex] = {
           ...existing,
@@ -1026,8 +1043,8 @@ async function startServer() {
           phone: incoming.phone || existing.phone,
           profile: mergedProfile,
           onboarding: mergedOnboarding,
-          profileCompletion: incoming.profileCompletion !== undefined ? incoming.profileCompletion : existing.profileCompletion,
-          onboardingCompletion: incoming.onboardingCompletion !== undefined ? incoming.onboardingCompletion : existing.onboardingCompletion,
+          profileCompletion: finalProfileRate,
+          onboardingCompletion: finalOnboardingRate,
           role: isAdminEmail ? 'admin' : (existing.role || finalRole),
           notes: incoming.notes !== undefined ? incoming.notes : existing.notes,
           lastLoginAt: new Date().toISOString(),
