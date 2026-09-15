@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { OnboardingProfileData, DeterministicNutritionTargets, calculateDeterministicTargets, DietGoal } from '../lib/mealPlanEngine';
 import { loadClientOnboarding, loadUserProfile } from '../lib/profileStorage';
+import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
+import { getStoredMembers } from '../lib/memberStore';
 import { ActivityLevel, MealPlan, MealSlot, MealItem, DietType } from '../types';
 import { saveMealPlanToSupabase } from '../lib/supabase';
 
@@ -62,30 +64,40 @@ export default function AIMealPlanGeneratorModal({
   // Generated Plan Result
   const [generatedAiResult, setGeneratedAiResult] = useState<any | null>(null);
 
-  // Load from local storage when modal opens
+  // Load from member store and local storage when modal opens
   useEffect(() => {
     if (!isOpen) return;
     try {
-      const ob = loadClientOnboarding(userEmail);
-      const prof = loadUserProfile(userEmail);
+      const members = getStoredMembers();
+      const normEmail = userEmail?.toLowerCase().trim();
+      const matchedMember = members.find(
+        (m) => m.email?.toLowerCase().trim() === normEmail || m.id?.toLowerCase().trim() === normEmail
+      );
 
-      if (prof.age) setAge(Number(prof.age) || 30);
-      if (prof.gender) setGender(prof.gender.toLowerCase() === 'female' ? 'female' : 'male');
+      const ob = getMemberOnboarding(userEmail);
+      const prof = matchedMember?.profile || loadUserProfile(userEmail);
+
+      const memberAge = Number(prof.age) || 30;
+      setAge(memberAge);
+
+      const rawGender = (prof.gender || 'male').toLowerCase();
+      setGender(rawGender.includes('female') ? 'female' : 'male');
 
       if (ob.heightCm) setHeightCm(Number(ob.heightCm) || 174);
       if (ob.currentWeightKg) {
         const wt = Number(ob.currentWeightKg) || 72.8;
         setCurrentWeightKg(wt);
-        setTargetWeightKg(Math.round(wt > 70 ? wt - 5 : wt + 3));
+        const tgt = Math.round(wt > 70 ? wt - 5 : wt + 3);
+        setTargetWeightKg(tgt);
       }
 
       // Fitness Goal mapping
       const g = (ob.healthGoal || '').toLowerCase();
-      if (g.includes('muscle') || g.includes('gain')) {
+      if (g.includes('muscle') || g.includes('gain') || g.includes('bodybuilding')) {
         setFitnessGoal('lean_muscle_gain');
-      } else if (g.includes('recomp') || g.includes('tone')) {
+      } else if (g.includes('recomp') || g.includes('tone') || g.includes('aesthetic')) {
         setFitnessGoal('body_recomposition');
-      } else if (g.includes('maintain')) {
+      } else if (g.includes('maintain') || g.includes('fitness')) {
         setFitnessGoal('maintenance');
       } else {
         setFitnessGoal('fat_loss');
@@ -105,15 +117,16 @@ export default function AIMealPlanGeneratorModal({
       }
 
       const initialWeight = Number(ob.currentWeightKg) || 72.8;
+      const targetWeight = Math.round(initialWeight > 70 ? initialWeight - 5 : initialWeight + 3);
       // Compute initial deterministic targets immediately
       const profileData: OnboardingProfileData = {
-        age: Number(prof.age) || 30,
-        gender: prof.gender?.toLowerCase() === 'female' ? 'female' : 'male',
+        age: memberAge,
+        gender: rawGender.includes('female') ? 'female' : 'male',
         heightCm: Number(ob.heightCm) || 174,
         currentWeightKg: initialWeight,
-        targetWeightKg: Math.round(initialWeight > 70 ? initialWeight - 5 : initialWeight + 3),
+        targetWeightKg: targetWeight,
         activityLevel: 'moderately-active',
-        fitnessGoal: g.includes('gain') ? 'lean_muscle_gain' : 'fat_loss',
+        fitnessGoal: g.includes('gain') || g.includes('muscle') ? 'lean_muscle_gain' : 'fat_loss',
         dietaryRestrictions: ob.dietPreferences?.length ? ob.dietPreferences : ['Vegetarian'],
         foodDislikesAllergies: dislikesArr,
         mealStructure: '3_meals_1_snack',
@@ -246,7 +259,7 @@ export default function AIMealPlanGeneratorModal({
 
     const now = new Date().toISOString();
     const planName = isCoachMode
-      ? `AI Prescribed: ${fitnessGoal === 'fat_loss' ? 'Fat Loss' : 'Performance'} (${computedTargets.calorieTarget} kcal)`
+      ? `Coach Prescribed: ${fitnessGoal === 'lean_muscle_gain' ? 'Muscle Gain' : fitnessGoal === 'fat_loss' ? 'Fat Loss' : 'Performance'} (${computedTargets.calorieTarget} kcal)`
       : `AI Meal Plan (${computedTargets.calorieTarget} kcal)`;
 
     const dietType: DietType = dietaryRestrictions.includes('Vegan')
@@ -258,7 +271,7 @@ export default function AIMealPlanGeneratorModal({
       : 'Non-Vegetarian';
 
     const adoptedPlan: MealPlan = {
-      id: `plan_ai_${Date.now()}`,
+      id: isCoachMode ? `coach_diet_ai_${Date.now()}` : `plan_ai_${Date.now()}`,
       name: planName,
       userId: userEmail,
       userEmail: userEmail,
@@ -269,8 +282,10 @@ export default function AIMealPlanGeneratorModal({
       dietType,
       meals,
       createdBy: isCoachMode ? 'coach' : 'user',
-      coachName: isCoachMode ? 'Coach Chinmay' : undefined,
-      coachNotes: `AI-Synthesized on ${new Date().toLocaleDateString('en-IN')}. Deterministic macro formula: ${computedTargets.bmrFormulaUsed} BMR (${computedTargets.bmr} kcal) -> TDEE (${computedTargets.tdee} kcal) -> ${computedTargets.calorieAdjustment >= 0 ? '+' : ''}${computedTargets.calorieAdjustment} kcal adjustment.`,
+      coachName: isCoachMode ? 'Chinmay Jain' : undefined,
+      coachNotes: isCoachMode
+        ? `Coach Prescribed Nutrition Regimen formulated on ${new Date().toLocaleDateString('en-IN')}. Targeted at ${computedTargets.calorieTarget} kcal (${computedTargets.proteinG}g P / ${computedTargets.carbsG}g C / ${computedTargets.fatsG}g F). Adheres to ${dietType} preference and clinical energy balance.`
+        : `AI-Synthesized on ${new Date().toLocaleDateString('en-IN')}. Deterministic macro formula: ${computedTargets.bmrFormulaUsed} BMR (${computedTargets.bmr} kcal) -> TDEE (${computedTargets.tdee} kcal) -> ${computedTargets.calorieAdjustment >= 0 ? '+' : ''}${computedTargets.calorieAdjustment} kcal adjustment.`,
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -302,13 +317,17 @@ export default function AIMealPlanGeneratorModal({
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-bold text-gray-900">AI Meal Plan Generator</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {isCoachMode ? `Coach AI Meal Plan Formulation` : 'AI Meal Plan Generator'}
+                </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300">
-                  Deterministic Math + Gemini
+                  {isCoachMode ? `Prescribing for ${userName}` : 'Deterministic Math + Gemini'}
                 </span>
               </div>
               <p className="text-xs text-gray-500">
-                Evidence-based sports science engine. Computes BMR & macros in code first, then crafts realistic Indian meal portions.
+                {isCoachMode
+                  ? `Clinical sports science nutrition engine for ${userName} (${userEmail}). Computes calibrated macros and generates realistic Indian meal portions.`
+                  : 'Evidence-based sports science engine. Computes BMR & macros in code first, then crafts realistic Indian meal portions.'}
               </p>
             </div>
           </div>
@@ -673,7 +692,7 @@ export default function AIMealPlanGeneratorModal({
                   className="px-5 py-2 rounded-xl bg-brand-green hover:bg-brand-dark-green text-white text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer shadow-sm hover:shadow"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Adopt & Load into Editor</span>
+                  <span>{isCoachMode ? 'Adopt & Assign Coach Plan to Member' : 'Adopt & Load into Editor'}</span>
                 </button>
               </div>
             </>
@@ -700,7 +719,7 @@ export default function AIMealPlanGeneratorModal({
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Generate AI Meal Plan</span>
+                    <span>{isCoachMode ? `Generate Coach Plan for ${userName}` : 'Generate AI Meal Plan'}</span>
                   </>
                 )}
               </button>

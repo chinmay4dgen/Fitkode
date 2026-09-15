@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
+  Sparkles,
   Dumbbell,
   Plus,
   Trash2,
@@ -34,6 +35,7 @@ import { RenamePlanModal } from './PlanNameModals';
 import ExerciseLibraryModal from './ExerciseLibraryModal';
 import ExerciseVideoLinkModal from './ExerciseVideoLinkModal';
 import YouTubeVideoModal from './YouTubeVideoModal';
+import AIWorkoutPlanGeneratorModal from './AIWorkoutPlanGeneratorModal';
 import { formatISTDateTime } from '../lib/timestampUtils';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '../lib/youtubeUtils';
 import { useAuth } from '../context/AuthContext';
@@ -76,6 +78,7 @@ export default function WorkoutPlannerView({
 }: WorkoutPlannerViewProps) {
   const [viewMode, setViewMode] = useState<'editor' | 'list'>(initialViewMode);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [isAIGeneratorModalOpen, setIsAIGeneratorModalOpen] = useState(false);
 
   // Working local state for the active plan
   const [plan, setPlan] = useState<WorkoutPlan>(() => {
@@ -538,6 +541,17 @@ export default function WorkoutPlannerView({
                 <span>New Routine</span>
               </button>
             )}
+
+            {/* AI Workout Routine Generator Button */}
+            <button
+              type="button"
+              onClick={() => setIsAIGeneratorModalOpen(true)}
+              className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs hover:shadow"
+              title="Formulate personalized workout routine with AI"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{isCoachMode ? 'Generate Coach Routine with AI' : 'AI Routine Generator'}</span>
+            </button>
 
             <button
               type="button"
@@ -1112,6 +1126,22 @@ export default function WorkoutPlannerView({
         planType="workout"
         onClose={() => setIsRenameModalOpen(false)}
         onSave={handleRenamePlan}
+      />
+
+      {/* AI Workout Routine Generator Modal */}
+      <AIWorkoutPlanGeneratorModal
+        isOpen={isAIGeneratorModalOpen}
+        onClose={() => setIsAIGeneratorModalOpen(false)}
+        userEmail={userEmail}
+        userName={userName}
+        isCoachMode={effectiveCoachMode}
+        onPlanGenerated={(generatedPlan) => {
+          setPlan(generatedPlan);
+          onSavePlan(generatedPlan);
+          setViewMode('editor');
+          setSaveSuccessNotice(true);
+          setTimeout(() => setSaveSuccessNotice(false), 4000);
+        }}
       />
     </div>
   );

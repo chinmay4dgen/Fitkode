@@ -33,6 +33,34 @@ function getGenAI(): GoogleGenAI | null {
   return genAIClient;
 }
 
+// Resilient helper to query Gemini with automatic model fallback and transient retry
+async function generateGeminiContentWithFallback(
+  ai: GoogleGenAI,
+  requestParams: { contents: any; config?: any },
+  models: string[] = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-flash-latest']
+) {
+  let lastError: any = null;
+  for (const model of models) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: requestParams.contents,
+        config: requestParams.config,
+      });
+      if (response && response.text) {
+        return response;
+      }
+    } catch (err: any) {
+      console.warn(`[Gemini API] Model ${model} encountered error, trying next fallback:`, err.message || err);
+      lastError = err;
+      if (err.message && (err.message.includes('503') || err.message.includes('high demand'))) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+  throw lastError || new Error('Failed to generate content with Gemini after attempting all fallback models.');
+}
+
 // Lazy initialization of Razorpay SDK instance
 let razorpayClient: Razorpay | null = null;
 
@@ -1667,8 +1695,7 @@ Provide practical, delicious, macro-accurate meals with exact weights and househ
         required: ['day_summary', 'meals'],
       };
 
-      const aiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+      const aiResponse = await generateGeminiContentWithFallback(ai, {
         contents: prompt,
         config: {
           systemInstruction,
@@ -1758,7 +1785,7 @@ Every alternative must include raw ingredient weights in grams and Indian kitche
       };
 
       const aiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
         config: {
           systemInstruction: 'You are an expert sports dietitian providing meal swaps that hit exact macro numbers.',
@@ -1863,7 +1890,7 @@ Extract:
       };
 
       const aiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: [
           {
             inlineData: {
@@ -2047,7 +2074,7 @@ Generate the restructured, macro-matched replacement meal plan with exact measur
       };
 
       const aiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
         config: {
           systemInstruction,
@@ -2061,6 +2088,120 @@ Generate the restructured, macro-matched replacement meal plan with exact measur
     } catch (err: any) {
       console.error('Error restructuring meal plan:', err);
       return res.status(500).json({ error: err.message || 'Failed to restructure meal plan' });
+    }
+  });
+
+  // POST /api/generate-workout-plan: Formulates a progressive training split using Gemini AI
+  app.post('/api/generate-workout-plan', async (req, res) => {
+    try {
+      const {
+        memberEmail,
+        memberName,
+        goal = 'Hypertrophy & Muscle Gain',
+        difficulty = 'Intermediate',
+        daysPerWeek = 4,
+        splitPreference = 'Push / Pull / Legs',
+        gymAccess = 'yes',
+        equipmentAvailable = 'Commercial Gym with Barbells, Dumbbells, Cables, and Machines',
+        limitationsAndInjuries = '',
+        isCoachMode = false,
+      } = req.body;
+
+      const ai = getGenAI();
+      if (!ai) {
+        return res.status(503).json({
+          error: 'Gemini API key is not configured on the server.',
+          hint: 'Please provide GEMINI_API_KEY in environment secrets.',
+        });
+      }
+
+      const systemInstruction = `You are an elite clinical sports performance scientist and Certified Strength & Conditioning Specialist (CSCS) for the Fitkode coaching platform under head coach Chinmay Jain.
+Your role is to formulate a periodized, progressive resistance and conditioning training split program tailored to the user's specific goal, schedule, equipment, and medical/physical limitations.
+
+Strict Rules:
+1. Formulate a program with 7 total days in the weekly schedule. Exactly ${daysPerWeek} days must be active training days (is_rest_day: false), and (7 - ${daysPerWeek}) days must be rest or active recovery days (is_rest_day: true).
+2. For training days (is_rest_day: false), prescribe 4 to 6 evidence-based exercises targeting the designated day's focus with balanced compound and isolation volume.
+3. For rest days (is_rest_day: true), set focus to "Rest & Active Recovery" or "Mobility & Cardiovascular Conditioning", with empty exercises array or 2 light mobility drill items.
+4. Exercise names must be standard, recognizable resistance movements (e.g. "Barbell Incline Bench Press", "Romanian Deadlift", "Lat Pulldown (Neutral Grip)", "Bulgarian Split Squats", "Standing Dumbbell Lateral Raise").
+5. Rep ranges must match the goal (e.g. 6-8 for Strength, 8-12 for Hypertrophy, 12-15 for Conditioning/Fat Loss).
+6. Rest periods must be realistic (60-120 seconds).
+7. If the user disclosed injuries, surgeries, or limitations (${limitationsAndInjuries || 'None declared'}), strictly select joint-friendly movements that do NOT contraindicate their condition. Explicitly provide technique cues or safety notes.
+8. Output must adhere strictly to the JSON schema.`;
+
+      const prompt = `Formulate a comprehensive weekly workout routine for:
+- Member Name: ${memberName || 'Member'}
+- Fitness Goal: ${goal}
+- Experience Level: ${difficulty}
+- Days Per Week: ${daysPerWeek}
+- Split Preference: ${splitPreference}
+- Gym Access / Equipment: ${gymAccess === 'no' ? 'Home / Bodyweight / Minimal Equipment' : equipmentAvailable}
+- Medical Disclosures / Limitations / Injuries: ${limitationsAndInjuries || 'None declared'}
+
+Provide an expertly periodized program with exercise cues, sets, reps, and rest intervals.`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          plan_name: { type: Type.STRING, description: 'Descriptive name for the workout regimen' },
+          goal: { type: Type.STRING },
+          difficulty: { type: Type.STRING },
+          days_per_week: { type: Type.INTEGER },
+          coach_notes: { type: Type.STRING, description: 'Clinical coaching notes on progressive overload, warmup, and execution' },
+          days: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                day_name: { type: Type.STRING, description: 'e.g. Day 1: Push (Chest, Shoulders & Triceps) or Monday - Push' },
+                is_rest_day: { type: Type.BOOLEAN },
+                focus: { type: Type.STRING, description: 'e.g. Upper Push Hypertrophy or Rest & Active Recovery' },
+                exercises: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING },
+                      target_muscle: { type: Type.STRING, description: 'e.g. Chest, Back, Quads, Shoulders, Hamstrings, Core, etc.' },
+                      sets: { type: Type.INTEGER },
+                      reps: { type: Type.STRING, description: 'e.g. 8-12, 6-8, 12-15, 30-45s' },
+                      rest_seconds: { type: Type.INTEGER },
+                      notes: { type: Type.STRING, description: 'Form cues, tempo, or safety instructions' },
+                    },
+                    required: ['name', 'target_muscle', 'sets', 'reps', 'rest_seconds', 'notes'],
+                  },
+                },
+              },
+              required: ['day_name', 'is_rest_day', 'focus', 'exercises'],
+            },
+          },
+        },
+        required: ['plan_name', 'goal', 'difficulty', 'days_per_week', 'coach_notes', 'days'],
+      };
+
+      const aiResponse = await generateGeminiContentWithFallback(ai, {
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
+
+      const responseText = aiResponse.text;
+      if (!responseText) {
+        return res.status(500).json({ error: 'Empty response returned by Gemini model.' });
+      }
+
+      const generatedData = JSON.parse(responseText);
+      return res.json({
+        success: true,
+        plan_data: generatedData,
+      });
+    } catch (err: any) {
+      console.error('Error generating workout plan with Gemini:', err);
+      return res.status(500).json({
+        error: err.message || 'Failed to generate workout regimen with Gemini.',
+      });
     }
   });
 
