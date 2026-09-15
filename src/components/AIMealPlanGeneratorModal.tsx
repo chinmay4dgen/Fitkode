@@ -63,6 +63,7 @@ export default function AIMealPlanGeneratorModal({
 
   // Generated Plan Result
   const [generatedAiResult, setGeneratedAiResult] = useState<any | null>(null);
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
 
   // Load from member store and local storage when modal opens
   useEffect(() => {
@@ -205,6 +206,7 @@ export default function AIMealPlanGeneratorModal({
     };
 
     try {
+      setFallbackNotice(null);
       const res = await fetch('/api/generate-meal-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,12 +216,28 @@ export default function AIMealPlanGeneratorModal({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Server failed to generate meal plan with Gemini.');
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        console.warn('Non-JSON response from /api/generate-meal-plan:', text);
+        if (res.status === 504 || res.status === 502) {
+          throw new Error('The AI meal planner request timed out during peak API traffic. Please try again.');
+        }
+        throw new Error(`Server returned unexpected status (${res.status}). Please try again.`);
+      }
+
+      if (!res.ok || !data.success || !data.plan_data) {
+        throw new Error(data.error || 'Server failed to formulate meal plan.');
       }
 
       setGeneratedAiResult(data.plan_data);
+      if (data.fallback_notice) {
+        setFallbackNotice(data.fallback_notice);
+      }
       setStep('preview');
     } catch (err: any) {
       console.error('Error generating AI plan:', err);
@@ -234,25 +252,42 @@ export default function AIMealPlanGeneratorModal({
 
     // Convert AI structured JSON into Fitkode MealPlan interface
     const meals: MealSlot[] = (generatedAiResult.meals || []).map((m: any, idx: number) => {
-      const items: MealItem[] = (m.items || []).map((it: any, itIdx: number) => ({
-        id: `ai_item_${Date.now()}_${idx}_${itIdx}`,
-        name: it.food_item,
-        servingSize: it.portion,
-        quantity: 1,
-        unit: 'serving',
-        measurementType: 'count' as const,
-        calories: Math.round(m.calories / (m.items.length || 1)),
-        protein: Math.round(m.macros.protein_g / (m.items.length || 1)),
-        carbs: Math.round(m.macros.carbs_g / (m.items.length || 1)),
-        fats: Math.round(m.macros.fats_g / (m.items.length || 1)),
-        category: 'Indian Staples',
-        isCustom: true,
-      }));
+      const mealSuggestedRecipe = m.suggested_recipe || '';
+      const items: MealItem[] = (m.items || []).map((it: any, itIdx: number) => {
+        const rawName = it.raw_food_item || it.food_item || 'Food Item';
+        const rawQty = typeof it.raw_quantity === 'number' ? it.raw_quantity : 1;
+        const unitStr = it.unit || 'serving';
+        const itemSuggestedRecipe = it.suggested_recipe || mealSuggestedRecipe;
+        const cal = typeof it.calories === 'number' ? it.calories : Math.round(m.calories / (m.items.length || 1));
+        const pro = typeof it.protein_g === 'number' ? it.protein_g : Math.round(m.macros.protein_g / (m.items.length || 1));
+        const carb = typeof it.carbs_g === 'number' ? it.carbs_g : Math.round(m.macros.carbs_g / (m.items.length || 1));
+        const fat = typeof it.fats_g === 'number' ? it.fats_g : Math.round(m.macros.fats_g / (m.items.length || 1));
+
+        return {
+          id: `ai_item_${Date.now()}_${idx}_${itIdx}`,
+          name: rawName,
+          servingSize: it.portion_label || it.portion || `${rawQty} ${unitStr}`,
+          quantity: rawQty,
+          unit: unitStr,
+          rawWeightG: unitStr === 'g' ? rawQty : undefined,
+          suggestedRecipe: itemSuggestedRecipe,
+          measurementType: (unitStr === 'g' || unitStr === 'ml') ? ('si' as const) : ('count' as const),
+          calories: cal,
+          protein: pro,
+          carbs: carb,
+          fats: fat,
+          category: 'veggies' as const,
+          notes: it.notes || '',
+          isCustom: true,
+        };
+      });
 
       return {
         id: `ai_slot_${Date.now()}_${idx}`,
         name: m.meal_name,
         time: m.target_time,
+        suggestedRecipe: mealSuggestedRecipe,
+        recipeInstructions: m.recipe_notes || '',
         items,
       };
     });
@@ -590,6 +625,12 @@ export default function AIMealPlanGeneratorModal({
 
           {step === 'preview' && generatedAiResult && (
             <div className="space-y-6">
+              {fallbackNotice && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{fallbackNotice}</span>
+                </div>
+              )}
               {/* Summary Bar */}
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center space-x-2">
@@ -613,53 +654,107 @@ export default function AIMealPlanGeneratorModal({
 
               {/* Generated Meals List */}
               <div className="space-y-4">
-                {(generatedAiResult.meals || []).map((meal: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-2xl bg-gray-50/80 border border-gray-200/90 space-y-3 shadow-2xs"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200/70 pb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="w-6 h-6 rounded-full bg-brand-green/20 text-brand-dark-green font-bold text-xs flex items-center justify-center">
-                          {idx + 1}
-                        </span>
-                        <h4 className="font-bold text-sm text-gray-900">{meal.meal_name}</h4>
-                        <span className="text-xs text-gray-500 font-medium flex items-center">
-                          <Clock className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                          {meal.target_time}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-xs font-bold">
-                        <span className="text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-lg">
-                          {meal.calories} kcal
-                        </span>
-                        <span className="text-gray-600 bg-gray-200/60 px-2 py-0.5 rounded-lg text-[11px]">
-                          P: {meal.macros?.protein_g}g | C: {meal.macros?.carbs_g}g | F: {meal.macros?.fats_g}g
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Meal Items with Portion and Notes */}
-                    <div className="space-y-2">
-                      {(meal.items || []).map((it: any, itIdx: number) => (
-                        <div
-                          key={itIdx}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-white border border-gray-200/80 text-xs gap-1.5 shadow-2xs"
-                        >
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-gray-900">{it.food_item}</span>
-                            {it.notes && <p className="text-[11px] text-gray-500 italic">{it.notes}</p>}
-                          </div>
-                          <div className="text-right">
-                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-extrabold text-xs">
-                              {it.portion}
-                            </span>
-                          </div>
+                {(generatedAiResult.meals || []).map((meal: any, idx: number) => {
+                  const mealSuggestedRecipe = meal.suggested_recipe || '';
+                  return (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-2xl bg-gray-50/80 border border-gray-200/90 space-y-3 shadow-2xs"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200/70 pb-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-6 h-6 rounded-full bg-brand-green/20 text-brand-dark-green font-bold text-xs flex items-center justify-center">
+                            {idx + 1}
+                          </span>
+                          <h4 className="font-bold text-sm text-gray-900">{meal.meal_name}</h4>
+                          <span className="text-xs text-gray-500 font-medium flex items-center">
+                            <Clock className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                            {meal.target_time}
+                          </span>
                         </div>
-                      ))}
+                        <div className="flex items-center space-x-2 text-xs font-bold">
+                          <span className="text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-lg">
+                            {meal.calories} kcal
+                          </span>
+                          <span className="text-gray-600 bg-gray-200/60 px-2 py-0.5 rounded-lg text-[11px]">
+                            P: {meal.macros?.protein_g}g | C: {meal.macros?.carbs_g}g | F: {meal.macros?.fats_g}g
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Raw Line Items (Raw Items First) */}
+                      <div className="space-y-2">
+                        <div className="hidden sm:grid sm:grid-cols-12 text-[10px] font-bold uppercase tracking-wider text-gray-400 px-3 py-1 bg-gray-100/80 rounded-lg">
+                          <span className="sm:col-span-5">Raw Line Item</span>
+                          <span className="sm:col-span-2 text-center">Req. Quantity</span>
+                          <span className="sm:col-span-3">Suggested Recipe</span>
+                          <span className="sm:col-span-2 text-right">Macros</span>
+                        </div>
+
+                        {(meal.items || []).map((it: any, itIdx: number) => {
+                          const itemName = it.raw_food_item || it.food_item || 'Food Item';
+                          const itemPortion = it.portion_label || it.portion || `${it.raw_quantity || 1} ${it.unit || 'g'}`;
+                          const itemRecipe = it.suggested_recipe || mealSuggestedRecipe;
+                          const cal = typeof it.calories === 'number' ? it.calories : null;
+                          const p = typeof it.protein_g === 'number' ? it.protein_g : null;
+
+                          return (
+                            <div
+                              key={itIdx}
+                              className="p-2.5 rounded-xl bg-white border border-gray-200/80 text-xs shadow-2xs flex flex-col sm:grid sm:grid-cols-12 sm:items-center gap-2"
+                            >
+                              <div className="sm:col-span-5">
+                                <span className="font-bold text-gray-900 block">{itemName}</span>
+                                {it.notes && <p className="text-[11px] text-gray-500 italic mt-0.5">{it.notes}</p>}
+                              </div>
+
+                              <div className="sm:col-span-2 sm:text-center">
+                                <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-900 font-extrabold text-xs">
+                                  {itemPortion}
+                                </span>
+                              </div>
+
+                              <div className="sm:col-span-3">
+                                {itemRecipe ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-semibold">
+                                    {itemRecipe}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 text-[11px]">—</span>
+                                )}
+                              </div>
+
+                              <div className="sm:col-span-2 sm:text-right text-[11px] font-semibold text-gray-700">
+                                {cal !== null ? (
+                                  <span>{cal} kcal {p !== null && <span className="text-gray-400 font-normal">({p}g P)</span>}</span>
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Adjacent Row for Suggested Recipe & Culinary Instructions */}
+                      {mealSuggestedRecipe && (
+                        <div className="mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-50/90 via-orange-50/50 to-amber-50/90 border border-amber-200/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-start sm:items-center space-x-2">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-950 font-bold text-[10px] uppercase tracking-wider shrink-0">
+                              Suggested Recipe
+                            </span>
+                            <span className="font-bold text-gray-900">{mealSuggestedRecipe}</span>
+                          </div>
+                          {meal.recipe_notes && (
+                            <p className="text-[11px] text-amber-950/80 font-medium italic sm:text-right">
+                              {meal.recipe_notes}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

@@ -43,10 +43,12 @@ export function generateMealPlanPrintableHtml(
           slotC += item.carbs || 0;
           slotF += item.fats || 0;
 
+          const itemRecipe = item.suggestedRecipe || slot.suggestedRecipe || '-';
           return `
           <tr>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #111827;">${item.name}</td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4b5563;">${item.servingSize || '-'}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #92400e; font-size: 11px;">${itemRecipe}</td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #047857; font-weight: 700;">${item.protein || 0}g</td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #b45309;">${item.carbs || 0}g</td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #4338ca;">${item.fats || 0}g</td>
@@ -74,8 +76,9 @@ export function generateMealPlanPrintableHtml(
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
           <thead>
             <tr style="background-color: #ffffff; color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
-              <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">Food Item</th>
-              <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">Portion / Weight</th>
+              <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">Raw Line Item</th>
+              <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">Req. Quantity</th>
+              <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">Suggested Recipe</th>
               <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">Protein</th>
               <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">Carbs</th>
               <th style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">Fats</th>
@@ -83,9 +86,15 @@ export function generateMealPlanPrintableHtml(
             </tr>
           </thead>
           <tbody>
-            ${itemsRows || '<tr><td colspan="6" style="padding: 12px; text-align: center; color: #9ca3af;">No food items in this meal slot.</td></tr>'}
+            ${itemsRows || '<tr><td colspan="7" style="padding: 12px; text-align: center; color: #9ca3af;">No food items in this meal slot.</td></tr>'}
           </tbody>
         </table>
+        ${slot.suggestedRecipe ? `
+        <div style="background-color: #fffbeb; border-top: 1px solid #fef3c7; padding: 9px 14px; font-size: 11px; color: #92400e; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+          <div><strong style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; background-color: #fde68a; padding: 2px 6px; border-radius: 4px; margin-right: 6px; color: #78350f;">Suggested Recipe</strong> <strong>${slot.suggestedRecipe}</strong></div>
+          ${slot.recipeInstructions ? `<div style="color: #78350f; font-style: italic; font-size: 11px;">${slot.recipeInstructions}</div>` : ''}
+        </div>
+        ` : ''}
       </div>
     `;
     })
@@ -685,8 +694,12 @@ export function generateMealPlanWhatsAppText(
       text += `  • (No items specified)\n`;
     } else {
       slot.items.forEach((item) => {
-        text += `  • ${item.name} (${item.servingSize || '1 portion'}) - ${item.calories || 0} kcal (P: ${item.protein || 0}g, C: ${item.carbs || 0}g, F: ${item.fats || 0}g)\n`;
+        const itemRecipeTag = item.suggestedRecipe && item.suggestedRecipe !== slot.suggestedRecipe ? ` [Recipe: ${item.suggestedRecipe}]` : '';
+        text += `  • ${item.name} (${item.servingSize || '1 portion'})${itemRecipeTag} - ${item.calories || 0} kcal (P: ${item.protein || 0}g, C: ${item.carbs || 0}g, F: ${item.fats || 0}g)\n`;
       });
+    }
+    if (slot.suggestedRecipe) {
+      text += `  🍳 *Suggested Recipe:* ${slot.suggestedRecipe}${slot.recipeInstructions ? ` (${slot.recipeInstructions})` : ''}\n`;
     }
     text += `\n`;
   });

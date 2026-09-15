@@ -37,28 +37,321 @@ function getGenAI(): GoogleGenAI | null {
 async function generateGeminiContentWithFallback(
   ai: GoogleGenAI,
   requestParams: { contents: any; config?: any },
-  models: string[] = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-flash-latest']
+  models: string[] = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash']
 ) {
   let lastError: any = null;
   for (const model of models) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: requestParams.contents,
-        config: requestParams.config,
-      });
-      if (response && response.text) {
-        return response;
-      }
-    } catch (err: any) {
-      console.warn(`[Gemini API] Model ${model} encountered error, trying next fallback:`, err.message || err);
-      lastError = err;
-      if (err.message && (err.message.includes('503') || err.message.includes('high demand'))) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Attempt up to 2 times per model if a transient high-demand 503 or 429 occurs
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: requestParams.contents,
+          config: requestParams.config,
+        });
+        if (response && response.text) {
+          return response;
+        }
+      } catch (err: any) {
+        lastError = err;
+        const errMsg = (err.message || '').toLowerCase();
+        console.warn(`[Gemini API] Model ${model} (attempt ${attempt + 1}) encountered error:`, err.message || err);
+        if (errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('unavailable') || errMsg.includes('429')) {
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            continue;
+          }
+        }
+        // If non-transient or on 2nd attempt, advance to next fallback model
+        break;
       }
     }
   }
   throw lastError || new Error('Failed to generate content with Gemini after attempting all fallback models.');
+}
+
+// Deterministic Nutrition Engine Fallback (guarantees coach workflow even if Gemini is in high-demand spike)
+function generateDeterministicFallbackMealPlan(profile: any, targets: any) {
+  const isVeg = (profile?.dietaryRestrictions || []).some((r: string) => /veg|jain/i.test(r)) && !(profile?.dietaryRestrictions || []).some((r: string) => /non/i.test(r));
+  const isJain = (profile?.dietaryRestrictions || []).some((r: string) => /jain/i.test(r));
+  const isVegan = (profile?.dietaryRestrictions || []).some((r: string) => /vegan/i.test(r));
+  const isEgg = (profile?.dietaryRestrictions || []).some((r: string) => /egg/i.test(r));
+
+  const mealAllocations = Array.isArray(targets?.mealAllocations) && targets.mealAllocations.length > 0
+    ? targets.mealAllocations
+    : [
+        { mealName: 'Breakfast', targetTime: '08:30 AM', calorieShare: 0.25, targetCalories: Math.round(targets.calorieTarget * 0.25), targetProteinG: Math.round(targets.proteinG * 0.25), targetCarbsG: Math.round(targets.carbsG * 0.25), targetFatsG: Math.round(targets.fatsG * 0.25) },
+        { mealName: 'Lunch', targetTime: '01:30 PM', calorieShare: 0.35, targetCalories: Math.round(targets.calorieTarget * 0.35), targetProteinG: Math.round(targets.proteinG * 0.35), targetCarbsG: Math.round(targets.carbsG * 0.35), targetFatsG: Math.round(targets.fatsG * 0.35) },
+        { mealName: 'Evening Snack', targetTime: '05:30 PM', calorieShare: 0.10, targetCalories: Math.round(targets.calorieTarget * 0.10), targetProteinG: Math.round(targets.proteinG * 0.10), targetCarbsG: Math.round(targets.carbsG * 0.10), targetFatsG: Math.round(targets.fatsG * 0.10) },
+        { mealName: 'Dinner', targetTime: '08:30 PM', calorieShare: 0.30, targetCalories: Math.round(targets.calorieTarget * 0.30), targetProteinG: Math.round(targets.proteinG * 0.30), targetCarbsG: Math.round(targets.carbsG * 0.30), targetFatsG: Math.round(targets.fatsG * 0.30) },
+      ];
+
+  const meals = mealAllocations.map((slot: any) => {
+    let items: any[] = [];
+    let suggestedRecipe = '';
+    let recipeNotes = '';
+    const cal = slot.targetCalories;
+    const p = slot.targetProteinG;
+    const c = slot.targetCarbsG;
+    const f = slot.targetFatsG;
+
+    if (slot.mealName.toLowerCase().includes('breakfast')) {
+      if (isVegan) {
+        suggestedRecipe = 'Rolled Oats Porridge with Soya Milk & Crumbled Tofu';
+        recipeNotes = 'Simmer raw oats in unsweetened soy milk. Sauté tofu with turmeric and green chillies as a side bhurji.';
+        items = [
+          { raw_food_item: 'Rolled Oats (Raw)', food_item: 'Rolled Oats (Raw)', raw_quantity: Math.max(30, Math.round(c * 0.6)), unit: 'g', portion_label: `${Math.max(30, Math.round(c * 0.6))}g raw`, portion: `${Math.max(30, Math.round(c * 0.6))}g raw oats`, calories: Math.round(c * 0.6 * 3.8), protein_g: Math.round(c * 0.6 * 0.13), carbs_g: Math.round(c * 0.6 * 0.66), fats_g: Math.round(c * 0.6 * 0.07), suggested_recipe: suggestedRecipe, notes: 'Rich in beta-glucans' },
+          { raw_food_item: 'Unsweetened Soy Milk', food_item: 'Unsweetened Soy Milk', raw_quantity: 200, unit: 'ml', portion_label: '200 ml', portion: '200ml (1 cup)', calories: 90, protein_g: 7, carbs_g: 4, fats_g: 4, suggested_recipe: suggestedRecipe, notes: 'Plant-based protein' },
+          { raw_food_item: 'Firm Tofu (Raw)', food_item: 'Firm Tofu (Raw)', raw_quantity: Math.max(80, Math.round(p * 2.2)), unit: 'g', portion_label: `${Math.max(80, Math.round(p * 2.2))}g`, portion: `${Math.max(80, Math.round(p * 2.2))}g raw tofu`, calories: Math.round(p * 2.2 * 1.2), protein_g: Math.round(p * 0.5), carbs_g: 2, fats_g: Math.max(2, Math.round(f * 0.4)), suggested_recipe: suggestedRecipe, notes: 'High bioavailability plant protein' },
+          { raw_food_item: 'Raw Almonds', food_item: 'Raw Almonds', raw_quantity: 10, unit: 'g', portion_label: '10g (~8 nuts)', portion: '10g (8 nuts)', calories: 58, protein_g: 2, carbs_g: 2, fats_g: 5, suggested_recipe: suggestedRecipe, notes: 'Healthy fats & vitamin E' },
+        ];
+      } else if (isEgg || !isVeg) {
+        suggestedRecipe = 'Masala Scrambled Eggs with Toasted Whole Wheat Bread';
+        recipeNotes = 'Whisk eggs with onions, green chillies, and pinch of turmeric. Scramble lightly and serve with toast.';
+        const wholeEggs = 2;
+        const eggWhites = Math.max(1, Math.round((p - 14) / 4));
+        items = [
+          { raw_food_item: 'Whole Eggs', food_item: 'Whole Eggs', raw_quantity: wholeEggs, unit: 'eggs', portion_label: `${wholeEggs} whole eggs`, portion: `${wholeEggs} whole eggs`, calories: wholeEggs * 72, protein_g: wholeEggs * 6.3, carbs_g: 0.5, fats_g: wholeEggs * 4.8, suggested_recipe: suggestedRecipe, notes: 'Complete amino acid source' },
+          { raw_food_item: 'Egg Whites', food_item: 'Egg Whites', raw_quantity: eggWhites, unit: 'eggs', portion_label: `${eggWhites} egg whites`, portion: `${eggWhites} egg whites`, calories: eggWhites * 17, protein_g: eggWhites * 3.6, carbs_g: 0.2, fats_g: 0.1, suggested_recipe: suggestedRecipe, notes: 'Pure lean protein' },
+          { raw_food_item: '100% Whole Wheat Bread', food_item: '100% Whole Wheat Bread', raw_quantity: Math.max(1, Math.round(c / 18)), unit: 'slices', portion_label: `${Math.max(1, Math.round(c / 18))} slices`, portion: `${Math.max(1, Math.round(c / 18))} slices (~${Math.max(1, Math.round(c / 18)) * 30}g)`, calories: Math.max(1, Math.round(c / 18)) * 75, protein_g: Math.max(1, Math.round(c / 18)) * 3, carbs_g: Math.max(1, Math.round(c / 18)) * 14, fats_g: 1, suggested_recipe: suggestedRecipe, notes: 'Complex carbs for morning energy' },
+          { raw_food_item: 'Olive Oil / Butter', food_item: 'Olive Oil / Butter', raw_quantity: 4, unit: 'g', portion_label: '4g (1 tsp)', portion: '4g (1 tsp)', calories: 36, protein_g: 0, carbs_g: 0, fats_g: 4, suggested_recipe: suggestedRecipe, notes: 'Cooking fat' },
+        ];
+      } else if (isJain) {
+        suggestedRecipe = 'Paneer Moong Dal Chilla';
+        recipeNotes = 'Grind soaked raw moong dal with cumin and rock salt. Spread on tawa, top with grated low-fat paneer, and fold.';
+        items = [
+          { raw_food_item: 'Yellow Moong Dal (Raw)', food_item: 'Yellow Moong Dal (Raw)', raw_quantity: 50, unit: 'g', portion_label: '50g raw', portion: '50g raw (~1/4 cup)', calories: 174, protein_g: 12, carbs_g: 30, fats_g: 0.6, suggested_recipe: suggestedRecipe, notes: 'Soak 2-3 hours and grind' },
+          { raw_food_item: 'Low-Fat Paneer', food_item: 'Low-Fat Paneer', raw_quantity: Math.max(60, Math.round(p * 2.2)), unit: 'g', portion_label: `${Math.max(60, Math.round(p * 2.2))}g`, portion: `${Math.max(60, Math.round(p * 2.2))}g low-fat paneer`, calories: Math.round(p * 2.2 * 1.8), protein_g: Math.round(p * 0.55), carbs_g: 2, fats_g: Math.max(2, Math.round(f * 0.45)), suggested_recipe: suggestedRecipe, notes: 'Crumble as chilla filling' },
+          { raw_food_item: 'Toned Cow Milk (Warm)', food_item: 'Toned Cow Milk (Warm)', raw_quantity: 150, unit: 'ml', portion_label: '150 ml', portion: '150ml (1 cup)', calories: 90, protein_g: 5, carbs_g: 7, fats_g: 4.5, suggested_recipe: suggestedRecipe, notes: 'With pinch of cinnamon' },
+          { raw_food_item: 'Ghee / Olive Oil', food_item: 'Ghee / Olive Oil', raw_quantity: 3, unit: 'g', portion_label: '3g', portion: '3g (1/2 tsp)', calories: 27, protein_g: 0, carbs_g: 0, fats_g: 3, suggested_recipe: suggestedRecipe, notes: 'For brushing on tawa' },
+        ];
+      } else {
+        suggestedRecipe = 'Paneer Moong Dal Chilla';
+        recipeNotes = 'Soak moong dal, grind into smooth batter, cook on tawa and fill with spiced crumbled low-fat paneer.';
+        items = [
+          { raw_food_item: 'Yellow Moong Dal (Raw)', food_item: 'Yellow Moong Dal (Raw)', raw_quantity: 50, unit: 'g', portion_label: '50g raw', portion: '50g raw (~1/4 cup)', calories: 174, protein_g: 12, carbs_g: 30, fats_g: 0.6, suggested_recipe: suggestedRecipe, notes: 'High protein plant batter' },
+          { raw_food_item: 'Low-Fat Paneer', food_item: 'Low-Fat Paneer', raw_quantity: Math.max(60, Math.round(p * 2.2)), unit: 'g', portion_label: `${Math.max(60, Math.round(p * 2.2))}g`, portion: `${Math.max(60, Math.round(p * 2.2))}g low-fat paneer`, calories: Math.round(p * 2.2 * 1.8), protein_g: Math.round(p * 0.55), carbs_g: 2, fats_g: Math.max(2, Math.round(f * 0.45)), suggested_recipe: suggestedRecipe, notes: 'Grated for chilla stuffing' },
+          { raw_food_item: 'Rolled Oats (Raw)', food_item: 'Rolled Oats (Raw)', raw_quantity: 25, unit: 'g', portion_label: '25g raw', portion: '25g raw oats', calories: 97, protein_g: 3.5, carbs_g: 17, fats_g: 1.5, suggested_recipe: suggestedRecipe, notes: 'Blend into batter for fiber' },
+          { raw_food_item: 'Ghee / Olive Oil', food_item: 'Ghee / Olive Oil', raw_quantity: 3, unit: 'g', portion_label: '3g', portion: '3g (1/2 tsp)', calories: 27, protein_g: 0, carbs_g: 0, fats_g: 3, suggested_recipe: suggestedRecipe, notes: 'For tawa cooking' },
+        ];
+      }
+    } else if (slot.mealName.toLowerCase().includes('lunch')) {
+      if (isVegan) {
+        suggestedRecipe = 'High-Protein Soya Chunks Curry with Steamed Basmati Rice & Dal';
+        recipeNotes = 'Boil soya chunks, squeeze water, and simmer in tomato-onion gravy. Serve alongside rice and yellow dal.';
+        items = [
+          { raw_food_item: 'Soya Chunks (Raw / Dry)', food_item: 'Soya Chunks (Raw / Dry)', raw_quantity: Math.max(35, Math.round(p * 0.8)), unit: 'g', portion_label: `${Math.max(35, Math.round(p * 0.8))}g dry`, portion: `${Math.max(35, Math.round(p * 0.8))}g dry soya chunks`, calories: Math.round(p * 0.8 * 3.4), protein_g: Math.round(p * 0.8 * 0.52), carbs_g: Math.round(p * 0.8 * 0.33), fats_g: 1, suggested_recipe: suggestedRecipe, notes: '52% protein by dry weight' },
+          { raw_food_item: 'Basmati Rice (Raw)', food_item: 'Basmati Rice (Raw)', raw_quantity: Math.max(40, Math.round(c * 0.6)), unit: 'g', portion_label: `${Math.max(40, Math.round(c * 0.6))}g raw`, portion: `${Math.max(40, Math.round(c * 0.6))}g raw rice (~130g cooked)`, calories: Math.round(c * 0.6 * 3.5), protein_g: Math.round(c * 0.6 * 0.08), carbs_g: Math.round(c * 0.6 * 0.77), fats_g: 0.5, suggested_recipe: suggestedRecipe, notes: 'Steamed grain energy' },
+          { raw_food_item: 'Yellow Toor/Moong Dal (Raw)', food_item: 'Yellow Toor/Moong Dal (Raw)', raw_quantity: 30, unit: 'g', portion_label: '30g raw', portion: '30g raw dal (~1 katori cooked)', calories: 105, protein_g: 6.5, carbs_g: 18, fats_g: 0.5, suggested_recipe: suggestedRecipe, notes: 'Lentil soup' },
+          { raw_food_item: 'Cucumber & Tomato Salad', food_item: 'Cucumber & Tomato Salad', raw_quantity: 100, unit: 'g', portion_label: '100g', portion: '100g sliced salad with lemon', calories: 18, protein_g: 0.8, carbs_g: 3.5, fats_g: 0.2, suggested_recipe: suggestedRecipe, notes: 'Digestive fiber & vitamins' },
+          { raw_food_item: 'Mustard / Olive Oil', food_item: 'Mustard / Olive Oil', raw_quantity: 4, unit: 'g', portion_label: '4g (1 tsp)', portion: '4g (1 tsp)', calories: 36, protein_g: 0, carbs_g: 0, fats_g: 4, suggested_recipe: suggestedRecipe, notes: 'For tempering dal & curry' },
+        ];
+      } else if (!isVeg) {
+        suggestedRecipe = 'Spiced Grilled Chicken Breast with Steamed Rice, Dal & Dahi';
+        recipeNotes = 'Marinate raw chicken in curd and spices, pan-sear or grill with 1 tsp oil. Serve with hot steamed rice and dal.';
+        const chickenG = Math.max(100, Math.round(p * 2.8));
+        items = [
+          { raw_food_item: 'Skinless Chicken Breast (Raw)', food_item: 'Skinless Chicken Breast (Raw)', raw_quantity: chickenG, unit: 'g', portion_label: `${chickenG}g raw`, portion: `${chickenG}g raw chicken breast`, calories: Math.round(chickenG * 1.2), protein_g: Math.round(chickenG * 0.24), carbs_g: 0, fats_g: Math.round(chickenG * 0.025), suggested_recipe: suggestedRecipe, notes: 'Lean, complete amino acid profile' },
+          { raw_food_item: 'Basmati Rice (Raw)', food_item: 'Basmati Rice (Raw)', raw_quantity: Math.max(40, Math.round(c * 0.55)), unit: 'g', portion_label: `${Math.max(40, Math.round(c * 0.55))}g raw`, portion: `${Math.max(40, Math.round(c * 0.55))}g raw rice (~130g cooked)`, calories: Math.round(c * 0.55 * 3.5), protein_g: Math.round(c * 0.55 * 0.08), carbs_g: Math.round(c * 0.55 * 0.77), fats_g: 0.5, suggested_recipe: suggestedRecipe, notes: 'Steamed staple grain' },
+          { raw_food_item: 'Yellow Moong / Arhar Dal (Raw)', food_item: 'Yellow Moong / Arhar Dal (Raw)', raw_quantity: 25, unit: 'g', portion_label: '25g raw', portion: '25g raw dal (~1 katori cooked)', calories: 87, protein_g: 5.5, carbs_g: 15, fats_g: 0.4, suggested_recipe: suggestedRecipe, notes: 'Home cooked tadka dal' },
+          { raw_food_item: 'Low-Fat Curd (Dahi)', food_item: 'Low-Fat Curd (Dahi)', raw_quantity: 100, unit: 'g', portion_label: '100g (1 katori)', portion: '100g low-fat dahi', calories: 60, protein_g: 4, carbs_g: 5, fats_g: 2.5, suggested_recipe: suggestedRecipe, notes: 'Probiotic gut support' },
+          { raw_food_item: 'Olive Oil / Ghee', food_item: 'Olive Oil / Ghee', raw_quantity: 4, unit: 'g', portion_label: '4g (1 tsp)', portion: '4g (1 tsp)', calories: 36, protein_g: 0, carbs_g: 0, fats_g: 4, suggested_recipe: suggestedRecipe, notes: 'For cooking chicken & dal' },
+        ];
+      } else {
+        suggestedRecipe = 'Matar Paneer with Whole Wheat Phulkas & Yellow Dal';
+        recipeNotes = 'Sauté raw paneer cubes and green peas in light tomato gravy. Enjoy with freshly rolled whole wheat phulkas.';
+        const paneerG = Math.max(80, Math.round(p * 2.2));
+        items = [
+          { raw_food_item: 'Low-Fat Paneer', food_item: 'Low-Fat Paneer', raw_quantity: paneerG, unit: 'g', portion_label: `${paneerG}g raw`, portion: `${paneerG}g low-fat paneer`, calories: Math.round(paneerG * 1.8), protein_g: Math.round(paneerG * 0.18), carbs_g: Math.round(paneerG * 0.03), fats_g: Math.round(paneerG * 0.11), suggested_recipe: suggestedRecipe, notes: 'Primary vegetarian protein' },
+          { raw_food_item: 'Green Peas (Fresh/Frozen)', food_item: 'Green Peas (Fresh/Frozen)', raw_quantity: 40, unit: 'g', portion_label: '40g', portion: '40g green peas', calories: 32, protein_g: 2, carbs_g: 5.5, fats_g: 0.2, suggested_recipe: suggestedRecipe, notes: 'Fiber and micronutrients' },
+          { raw_food_item: 'Whole Wheat Atta (Raw)', food_item: 'Whole Wheat Atta (Raw)', raw_quantity: Math.max(45, Math.round(c * 0.6)), unit: 'g', portion_label: `${Math.max(45, Math.round(c * 0.6))}g raw (~2 rotis)`, portion: `${Math.max(45, Math.round(c * 0.6))}g flour for 2 phulkas`, calories: Math.round(c * 0.6 * 3.4), protein_g: Math.round(c * 0.6 * 0.12), carbs_g: Math.round(c * 0.6 * 0.70), fats_g: 1, suggested_recipe: suggestedRecipe, notes: 'Unrefined complex grain' },
+          { raw_food_item: 'Yellow Moong Dal (Raw)', food_item: 'Yellow Moong Dal (Raw)', raw_quantity: 25, unit: 'g', portion_label: '25g raw', portion: '25g raw dal (~1 katori)', calories: 87, protein_g: 5.5, carbs_g: 15, fats_g: 0.4, suggested_recipe: suggestedRecipe, notes: 'Tadka dal' },
+          { raw_food_item: 'Ghee / Olive Oil', food_item: 'Ghee / Olive Oil', raw_quantity: 4, unit: 'g', portion_label: '4g (1 tsp)', portion: '4g (1 tsp)', calories: 36, protein_g: 0, carbs_g: 0, fats_g: 4, suggested_recipe: suggestedRecipe, notes: 'Cooking fat' },
+        ];
+      }
+    } else if (slot.mealName.toLowerCase().includes('snack')) {
+      suggestedRecipe = 'Roasted Chana & Almonds with Spiced Buttermilk';
+      recipeNotes = 'Serve roasted Bengal gram with raw almonds alongside a chilled glass of cumin-spiced buttermilk.';
+      items = [
+        { raw_food_item: 'Roasted Chana (Bengal Gram)', food_item: 'Roasted Chana (Bengal Gram)', raw_quantity: Math.max(30, Math.round(c * 0.6)), unit: 'g', portion_label: `${Math.max(30, Math.round(c * 0.6))}g`, portion: `${Math.max(30, Math.round(c * 0.6))}g roasted chana`, calories: Math.round(c * 0.6 * 3.7), protein_g: Math.round(c * 0.6 * 0.20), carbs_g: Math.round(c * 0.6 * 0.58), fats_g: 2, suggested_recipe: suggestedRecipe, notes: 'Low GI crunch and fiber' },
+        { raw_food_item: 'Raw Almonds / Walnuts', food_item: 'Raw Almonds / Walnuts', raw_quantity: 12, unit: 'g', portion_label: '12g (~10 nuts)', portion: '12g nuts', calories: 70, protein_g: 2.5, carbs_g: 2, fats_g: 6, suggested_recipe: suggestedRecipe, notes: 'Omega-3 and satiety' },
+        { raw_food_item: 'Spiced Buttermilk (Chaas)', food_item: 'Spiced Buttermilk (Chaas)', raw_quantity: 200, unit: 'ml', portion_label: '200 ml', portion: '200ml spiced chaas', calories: 45, protein_g: 3, carbs_g: 4, fats_g: 1.5, suggested_recipe: suggestedRecipe, notes: 'Probiotic hydration' },
+      ];
+    } else {
+      // Dinner
+      if (!isVeg) {
+        suggestedRecipe = 'Herb-Grilled Fish or Chicken with Sautéed Veggies & Whole Wheat Phulka';
+        recipeNotes = 'Pan-sear marinated fish or chicken fillet in olive oil with bell peppers and green beans. Serve with 1-2 light phulkas.';
+        const proteinG = Math.max(120, Math.round(p * 2.8));
+        items = [
+          { raw_food_item: 'Fish Fillet / Chicken Breast (Raw)', food_item: 'Fish Fillet / Chicken Breast (Raw)', raw_quantity: proteinG, unit: 'g', portion_label: `${proteinG}g raw`, portion: `${proteinG}g raw fillet`, calories: Math.round(proteinG * 1.15), protein_g: Math.round(proteinG * 0.23), carbs_g: 0, fats_g: Math.round(proteinG * 0.02), suggested_recipe: suggestedRecipe, notes: 'High biological value protein' },
+          { raw_food_item: 'Whole Wheat Atta (Raw)', food_item: 'Whole Wheat Atta (Raw)', raw_quantity: Math.max(30, Math.round(c * 0.5)), unit: 'g', portion_label: `${Math.max(30, Math.round(c * 0.5))}g raw (~1-2 phulkas)`, portion: `${Math.max(30, Math.round(c * 0.5))}g flour for phulkas`, calories: Math.round(c * 0.5 * 3.4), protein_g: Math.round(c * 0.5 * 0.12), carbs_g: Math.round(c * 0.5 * 0.70), fats_g: 0.5, suggested_recipe: suggestedRecipe, notes: 'Easy to digest dinner carbs' },
+          { raw_food_item: 'Mixed Bell Peppers & Green Beans', food_item: 'Mixed Bell Peppers & Green Beans', raw_quantity: 120, unit: 'g', portion_label: '120g raw', portion: '120g stir-fry veggies', calories: 35, protein_g: 1.5, carbs_g: 6, fats_g: 0.3, suggested_recipe: suggestedRecipe, notes: 'Sautéed with black pepper' },
+          { raw_food_item: 'Olive Oil / Ghee', food_item: 'Olive Oil / Ghee', raw_quantity: 3, unit: 'g', portion_label: '3g', portion: '3g (1/2 tsp)', calories: 27, protein_g: 0, carbs_g: 0, fats_g: 3, suggested_recipe: suggestedRecipe, notes: 'For pan-searing' },
+        ];
+      } else {
+        suggestedRecipe = 'Tawa Paneer Bhurji with Whole Wheat Phulkas & Green Sabzi';
+        recipeNotes = 'Crumble fresh low-fat paneer and sauté with tomatoes, capsicum, and cumin. Pair with freshly prepared phulkas.';
+        const paneerG = Math.max(80, Math.round(p * 2.2));
+        items = [
+          { raw_food_item: 'Low-Fat Paneer (Raw)', food_item: 'Low-Fat Paneer (Raw)', raw_quantity: paneerG, unit: 'g', portion_label: `${paneerG}g raw`, portion: `${paneerG}g fresh low-fat paneer`, calories: Math.round(paneerG * 1.8), protein_g: Math.round(paneerG * 0.18), carbs_g: Math.round(paneerG * 0.03), fats_g: Math.round(paneerG * 0.11), suggested_recipe: suggestedRecipe, notes: 'Slow-digesting casein protein' },
+          { raw_food_item: 'Whole Wheat Atta (Raw)', food_item: 'Whole Wheat Atta (Raw)', raw_quantity: Math.max(35, Math.round(c * 0.55)), unit: 'g', portion_label: `${Math.max(35, Math.round(c * 0.55))}g raw (~2 phulkas)`, portion: `${Math.max(35, Math.round(c * 0.55))}g flour for phulkas`, calories: Math.round(c * 0.55 * 3.4), protein_g: Math.round(c * 0.55 * 0.12), carbs_g: Math.round(c * 0.55 * 0.70), fats_g: 0.5, suggested_recipe: suggestedRecipe, notes: 'Whole grain foundation' },
+          { raw_food_item: 'Seasonal Sabzi (Bhindi / Beans / Gobhi)', food_item: 'Seasonal Sabzi (Bhindi / Beans / Gobhi)', raw_quantity: 120, unit: 'g', portion_label: '120g', portion: '120g cooked sabzi', calories: 45, protein_g: 2, carbs_g: 8, fats_g: 1, suggested_recipe: suggestedRecipe, notes: 'Digestive dietary fiber' },
+          { raw_food_item: 'Ghee / Olive Oil', food_item: 'Ghee / Olive Oil', raw_quantity: 3, unit: 'g', portion_label: '3g', portion: '3g (1/2 tsp)', calories: 27, protein_g: 0, carbs_g: 0, fats_g: 3, suggested_recipe: suggestedRecipe, notes: 'For tempering bhurji' },
+        ];
+      }
+    }
+
+    return {
+      meal_name: slot.mealName,
+      target_time: slot.targetTime,
+      suggested_recipe: suggestedRecipe,
+      recipe_notes: recipeNotes,
+      calories: cal,
+      macros: {
+        protein_g: p,
+        carbs_g: c,
+        fats_g: f,
+      },
+      items,
+    };
+  });
+
+  return {
+    day_summary: {
+      total_calories: targets.calorieTarget,
+      total_protein_g: targets.proteinG,
+      total_carbs_g: targets.carbsG,
+      total_fats_g: targets.fatsG,
+    },
+    meals,
+  };
+}
+
+// Deterministic Kinesiology Routine Fallback
+function generateDeterministicFallbackWorkoutPlan(params: any) {
+  const { goal = 'Muscle Building', difficulty = 'Intermediate', daysPerWeek = 4, splitPreference = 'Upper / Lower', equipmentAvailable = 'Commercial Gym' } = params;
+
+  let days: any[] = [];
+  if (daysPerWeek === 3) {
+    days = [
+      {
+        day_name: 'Day 1: Full Body (Squat & Push Focus)',
+        is_rest_day: false,
+        focus: 'Compound Lower & Upper Push Hypertrophy',
+        exercises: [
+          { name: 'Barbell Back Squats / Goblet Squat', target_muscle: 'Quadriceps & Glutes', sets: 4, reps: '8-10', rest_seconds: 90, notes: 'Hit parallel depth, maintain rigid core bracing.' },
+          { name: 'Incline Dumbbell Bench Press', target_muscle: 'Chest (Clavicular Head)', sets: 4, reps: '8-12', rest_seconds: 75, notes: 'Control the descent, full stretch at the bottom.' },
+          { name: 'Seated Cable Rows', target_muscle: 'Upper Back & Lats', sets: 3, reps: '10-12', rest_seconds: 60, notes: 'Retract scapulae fully, pull towards lower ribcage.' },
+          { name: 'Dumbbell Romanian Deadlift', target_muscle: 'Hamstrings & Glutes', sets: 3, reps: '10-12', rest_seconds: 75, notes: 'Hinge back at hips with soft knees, feel hamstring stretch.' },
+          { name: 'Hanging Leg Raises / Plank', target_muscle: 'Core / Abs', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Prevent swinging, tuck pelvis on flexion.' },
+        ],
+      },
+      {
+        day_name: 'Day 2: Active Recovery & Mobility',
+        is_rest_day: true,
+        focus: 'Joint Health, Foam Rolling & Light Walking',
+        exercises: [],
+      },
+      {
+        day_name: 'Day 3: Full Body (Hinge & Pull Focus)',
+        is_rest_day: false,
+        focus: 'Posterior Chain & Upper Pull Hypertrophy',
+        exercises: [
+          { name: 'Conventional Deadlift / Trap Bar Deadlift', target_muscle: 'Posterior Chain (Glutes & Erector Spinae)', sets: 3, reps: '6-8', rest_seconds: 120, notes: 'Lock hips, wedge bar against shins before pull.' },
+          { name: 'Lat Pulldowns (Neutral or Wide Grip)', target_muscle: 'Latissimus Dorsi', sets: 4, reps: '10-12', rest_seconds: 60, notes: 'Drive elbows down towards hips, hold 1s at contraction.' },
+          { name: 'Standing Overhead Barbell/Dumbbell Press', target_muscle: 'Anterior Deltoids & Triceps', sets: 3, reps: '8-10', rest_seconds: 75, notes: 'Brace core, avoid arching lower back at lockout.' },
+          { name: 'Dumbbell Walking Lunges', target_muscle: 'Quadriceps & Glutes', sets: 3, reps: '12 per leg', rest_seconds: 60, notes: 'Upright torso, knee touches floor gently.' },
+          { name: 'Face Pulls with Rope', target_muscle: 'Rear Deltoids & Rotator Cuff', sets: 3, reps: '15-20', rest_seconds: 45, notes: 'Pull rope apart towards eye level for shoulder health.' },
+        ],
+      },
+      {
+        day_name: 'Day 4: Rest & Regeneration',
+        is_rest_day: true,
+        focus: 'Sleep, Hydration & Tissue Recovery',
+        exercises: [],
+      },
+      {
+        day_name: 'Day 5: Full Body (Hypertrophy & Pump)',
+        is_rest_day: false,
+        focus: 'High Rep Conditioning & Muscle Endurance',
+        exercises: [
+          { name: 'Leg Press', target_muscle: 'Quadriceps & Glutes', sets: 4, reps: '12-15', rest_seconds: 60, notes: 'Controlled tempo, do not lock knees at top.' },
+          { name: 'Dumbbell Flat Bench Press', target_muscle: 'Chest', sets: 3, reps: '10-12', rest_seconds: 60, notes: 'Tuck elbows at 45 degrees, explode upward.' },
+          { name: 'One-Arm Dumbbell Row', target_muscle: 'Lats & Rhomboids', sets: 3, reps: '10-12', rest_seconds: 60, notes: 'Keep torso parallel to ground, full range of motion.' },
+          { name: 'Incline Dumbbell Bicep Curls', target_muscle: 'Biceps', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Keep shoulders back, supinate wrists at peak.' },
+          { name: 'Cable Tricep Rope Pushdowns', target_muscle: 'Triceps', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Flay rope out at bottom, lock elbows in place.' },
+        ],
+      },
+    ];
+  } else {
+    // 4 to 5 day default Upper / Lower split
+    days = [
+      {
+        day_name: 'Day 1: Upper Body (Strength & Power)',
+        is_rest_day: false,
+        focus: 'Chest, Upper Back, Shoulders & Arms',
+        exercises: [
+          { name: 'Flat Barbell Bench Press', target_muscle: 'Pectoralis Major', sets: 4, reps: '6-8', rest_seconds: 90, notes: 'Grip outside shoulder width, control eccentric phase.' },
+          { name: 'Barbell Bent-Over Row', target_muscle: 'Latissimus Dorsi & Rhomboids', sets: 4, reps: '8-10', rest_seconds: 75, notes: 'Hinge 45 degrees, pull bar to upper abdomen.' },
+          { name: 'Overhead Dumbbell Shoulder Press', target_muscle: 'Anterior & Lateral Deltoids', sets: 3, reps: '8-10', rest_seconds: 60, notes: 'Full extension, avoid excessive lumbar arching.' },
+          { name: 'Lat Pulldowns (Close Grip)', target_muscle: 'Lats & Mid-Back', sets: 3, reps: '10-12', rest_seconds: 60, notes: 'Pull chest tall to meet the bar.' },
+          { name: 'Barbell EZ-Bar Bicep Curl & Tricep Skullcrushers Superset', target_muscle: 'Arms (Biceps & Triceps)', sets: 3, reps: '10-12', rest_seconds: 60, notes: 'Strict elbow fixation, continuous tension.' },
+        ],
+      },
+      {
+        day_name: 'Day 2: Lower Body (Quad & Calf Focus)',
+        is_rest_day: false,
+        focus: 'Quadriceps, Glutes, Hamstrings & Calves',
+        exercises: [
+          { name: 'Barbell Back Squat / Hack Squat', target_muscle: 'Quadriceps & Glutes', sets: 4, reps: '8-10', rest_seconds: 90, notes: 'Spread floor with feet, maintain neutral spine.' },
+          { name: 'Romanian Deadlift (Dumbbell or Barbell)', target_muscle: 'Hamstrings & Posterior Glutes', sets: 3, reps: '10-12', rest_seconds: 75, notes: 'Focus on maximum hamstring stretch, soft knees.' },
+          { name: 'Leg Press (Narrow Stance)', target_muscle: 'Quadriceps', sets: 3, reps: '12-15', rest_seconds: 60, notes: 'Consistent cadence, pause 1s at bottom.' },
+          { name: 'Lying or Seated Leg Curls', target_muscle: 'Hamstrings', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Control the release, peak squeeze at peak contraction.' },
+          { name: 'Standing Calf Raises', target_muscle: 'Gastrocnemius & Soleus', sets: 4, reps: '15-20', rest_seconds: 45, notes: 'Deep stretch at bottom, hold contraction for 2s.' },
+        ],
+      },
+      {
+        day_name: 'Day 3: Mid-Week Active Recovery',
+        is_rest_day: true,
+        focus: 'Cardiovascular Conditioning & Dynamic Mobility',
+        exercises: [],
+      },
+      {
+        day_name: 'Day 4: Upper Body (Hypertrophy & Volume)',
+        is_rest_day: false,
+        focus: 'High Repetition Deltoid, Chest & Back Sculpting',
+        exercises: [
+          { name: 'Incline Dumbbell Press', target_muscle: 'Upper Chest', sets: 4, reps: '10-12', rest_seconds: 75, notes: 'Set bench to 30 degrees, press with controlled tempo.' },
+          { name: 'Seated Cable Row (Wide Grip)', target_muscle: 'Upper Back & Rear Delts', sets: 4, reps: '10-12', rest_seconds: 60, notes: 'Squeeze shoulder blades together firmly on each rep.' },
+          { name: 'Dumbbell Lateral Raises', target_muscle: 'Lateral Deltoids', sets: 4, reps: '12-15', rest_seconds: 45, notes: 'Slight forward lean, lead with elbows for capped delts.' },
+          { name: 'Pec Deck Flyes or Cable Crossovers', target_muscle: 'Sternal Chest', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Focus on deep inner chest squeeze.' },
+          { name: 'Cable Overhead Tricep Extension & Hammer Curls', target_muscle: 'Triceps Long Head & Brachialis', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Constant cable tension throughout range of motion.' },
+        ],
+      },
+      {
+        day_name: 'Day 5: Lower Body (Posterior Chain & Core Focus)',
+        is_rest_day: false,
+        focus: 'Hamstrings, Glute Strength & Abdominal Core',
+        exercises: [
+          { name: 'Barbell Hip Thrust / Glute Drive', target_muscle: 'Gluteus Maximus', sets: 4, reps: '10-12', rest_seconds: 75, notes: 'Lock hips at top, pause for 1s, keep ribs down.' },
+          { name: 'Bulgarian Split Squats', target_muscle: 'Single Leg Quad & Glute Stability', sets: 3, reps: '10 per leg', rest_seconds: 60, notes: 'Elevate back foot, descend straight down without caving knee.' },
+          { name: 'Seated Hamstring Curls', target_muscle: 'Hamstrings', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Point toes toward shins to emphasize hamstring recruitment.' },
+          { name: 'Leg Extensions (Machine)', target_muscle: 'Quadriceps (Rectus Femoris)', sets: 3, reps: '15-20', rest_seconds: 45, notes: 'Hold 1s lockout at top for maximum quad burn.' },
+          { name: 'Hanging Knee Raises / Ab Wheel Rollout', target_muscle: 'Anterior Core & Rectus Abdominis', sets: 3, reps: '12-15', rest_seconds: 45, notes: 'Slow eccentric return, avoid hip flexor dominance.' },
+        ],
+      },
+    ];
+  }
+
+  return {
+    plan_name: `${goal} Routine (${daysPerWeek}-Day)`,
+    goal,
+    difficulty,
+    days_per_week: daysPerWeek,
+    coach_notes: `Evidence-based ${splitPreference} program calibrated for ${equipmentAvailable}. Progressive overload focused.`,
+    days,
+  };
 }
 
 // Lazy initialization of Razorpay SDK instance
@@ -1620,13 +1913,20 @@ async function startServer() {
       const systemInstruction = `You are an expert clinical sports nutritionist and dietitian for the Fitkode platform.
 Generate a realistic 1-day sample meal plan adhering strictly to the user's dietary preferences and target macros.
 
-Rules:
-1. Every ingredient must have raw weights in grams and common Indian kitchen measures (e.g., "1 katori cooked dal", "2 medium phulkas (~60g whole wheat flour)", "100g low-fat paneer", "1 cup (240ml) toned milk").
-2. Match the total daily calories and macros within a +/- 5% error margin against the provided targets.
-3. Exclude all declared allergens and disliked foods: ${dislikesAndAllergiesStr}.
-4. Ensure practical home-cooked meals using readily accessible staples (paneer, eggs, chicken breast, oats, soya chunks, curd/dahi, lentils/dal, seasonal sabzi, tofu, etc.).
-5. If the user is Jain, exclude root vegetables (onion, garlic, potato, carrot). If Lactose-Free, use plant milks/tofu. If Vegan, exclude all dairy/honey/eggs.
-6. The output must adhere strictly to the JSON schema.`;
+CRITICAL ARCHITECTURAL RULES (STRICT USER REQUIREMENT):
+1. DO NOT STRUCTURE THE MEAL PLAN WITH THE RECIPE FIRST.
+2. DO NOT combine entire meals into a single composite recipe line item (e.g., do NOT output a single item called "Paneer Moong Dal Chilla").
+3. Instead, EVERY food item must be an INDIVIDUAL RAW LINE ITEM with its exact raw quantity, unit, portion label, and individual macro contribution.
+   Example for Breakfast:
+   - Item 1: Yellow Moong Dal (Raw), 50g
+   - Item 2: Low-Fat Paneer, 80g
+   - Item 3: Rolled Oats (Raw), 25g
+   - Item 4: Ghee / Olive Oil, 3g
+4. The composite or finished dish MUST be provided in the separate 'suggested_recipe' field (e.g. "Paneer Moong Dal Chilla").
+5. Match the total daily calories and macros within a +/- 5% error margin against the provided targets.
+6. Exclude all declared allergens and disliked foods: ${dislikesAndAllergiesStr}.
+7. Ensure practical home-cooked staples (paneer, eggs, chicken breast, oats, soya chunks, curd/dahi, lentils/dal, seasonal sabzi, tofu).
+8. If Jain: no root vegetables (onion, garlic, potato, carrot). If Lactose-Free: plant milks/tofu. If Vegan: no dairy/honey/eggs.`;
 
       const prompt = `Generate a realistic 1-day meal plan for:
 - Dietary Restrictions: ${dietaryRestrictionsStr}
@@ -1643,7 +1943,7 @@ DETERMINISTIC TARGETS TO MATCH EXACTLY (+/- 5%):
 Target Per-Meal Budget:
 ${mealAllocationsPrompt}
 
-Provide practical, delicious, macro-accurate meals with exact weights and household measures.`;
+REMINDER: Structure by raw line items first (raw ingredient + raw quantity). In the 'suggested_recipe' field, indicate how these raw items come together into a suggested recipe (e.g. 'Paneer Moong Dal Chilla').`;
 
       const responseSchema = {
         type: Type.OBJECT,
@@ -1665,6 +1965,8 @@ Provide practical, delicious, macro-accurate meals with exact weights and househ
               properties: {
                 meal_name: { type: Type.STRING, description: 'e.g. Breakfast, Lunch, Evening Snack, Dinner' },
                 target_time: { type: Type.STRING, description: 'e.g. 08:30 AM' },
+                suggested_recipe: { type: Type.STRING, description: 'e.g. Paneer Moong Dal Chilla, Grilled Chicken Rice Bowl' },
+                recipe_notes: { type: Type.STRING, description: 'Preparation / cooking idea combining these raw line items' },
                 calories: { type: Type.INTEGER, description: 'Meal total calories' },
                 macros: {
                   type: Type.OBJECT,
@@ -1680,15 +1982,24 @@ Provide practical, delicious, macro-accurate meals with exact weights and househ
                   items: {
                     type: Type.OBJECT,
                     properties: {
-                      food_item: { type: Type.STRING, description: 'Name of the dish or food combination' },
-                      portion: { type: Type.STRING, description: 'Precise raw weight in grams and kitchen measures' },
-                      notes: { type: Type.STRING, description: 'Cooking instructions or tips' },
+                      raw_food_item: { type: Type.STRING, description: 'Name of the raw line item (e.g. Yellow Moong Dal (Raw), Low-Fat Paneer)' },
+                      food_item: { type: Type.STRING, description: 'Alias for raw food item name' },
+                      raw_quantity: { type: Type.NUMBER, description: 'Raw quantity numeric value (e.g. 50, 100, 2)' },
+                      unit: { type: Type.STRING, description: 'Unit of measure (e.g. g, ml, eggs, slices)' },
+                      portion_label: { type: Type.STRING, description: 'Raw portion display label (e.g. 50g raw, 2 whole eggs)' },
+                      portion: { type: Type.STRING, description: 'Portion description' },
+                      calories: { type: Type.INTEGER, description: 'Calories for this item portion' },
+                      protein_g: { type: Type.NUMBER, description: 'Protein grams for this item portion' },
+                      carbs_g: { type: Type.NUMBER, description: 'Carbs grams for this item portion' },
+                      fats_g: { type: Type.NUMBER, description: 'Fats grams for this item portion' },
+                      suggested_recipe: { type: Type.STRING, description: 'Associated suggested recipe name' },
+                      notes: { type: Type.STRING, description: 'Raw prep or kitchen tip' },
                     },
-                    required: ['food_item', 'portion', 'notes'],
+                    required: ['raw_food_item', 'portion_label', 'calories', 'protein_g', 'carbs_g', 'fats_g'],
                   },
                 },
               },
-              required: ['meal_name', 'target_time', 'calories', 'macros', 'items'],
+              required: ['meal_name', 'target_time', 'suggested_recipe', 'calories', 'macros', 'items'],
             },
           },
         },
@@ -1717,7 +2028,21 @@ Provide practical, delicious, macro-accurate meals with exact weights and househ
         deterministic_targets: targets,
       });
     } catch (err: any) {
-      console.error('Error generating AI meal plan:', err);
+      console.warn('Error generating AI meal plan with Gemini, falling back to deterministic nutrition engine:', err);
+      if (req.body?.targets?.calorieTarget && req.body?.targets?.proteinG) {
+        try {
+          const fallbackPlan = generateDeterministicFallbackMealPlan(req.body.profile, req.body.targets);
+          return res.json({
+            success: true,
+            plan_data: fallbackPlan,
+            deterministic_targets: req.body.targets,
+            is_fallback: true,
+            fallback_notice: 'Generated using Fitkode Sports Nutrition Engine (Gemini AI service experienced high demand).',
+          });
+        } catch (fbErr: any) {
+          console.error('Deterministic meal fallback error:', fbErr);
+        }
+      }
       return res.status(500).json({
         error: err.message || 'Failed to generate AI meal plan',
       });
@@ -2198,7 +2523,18 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
         plan_data: generatedData,
       });
     } catch (err: any) {
-      console.error('Error generating workout plan with Gemini:', err);
+      console.warn('Error generating workout plan with Gemini, falling back to deterministic kinesiology engine:', err);
+      try {
+        const fallbackWorkoutPlan = generateDeterministicFallbackWorkoutPlan(req.body);
+        return res.json({
+          success: true,
+          plan_data: fallbackWorkoutPlan,
+          is_fallback: true,
+          fallback_notice: 'Generated using Fitkode Kinesiology Exercise Engine (Gemini AI service experienced high demand).',
+        });
+      } catch (fbErr: any) {
+        console.error('Deterministic workout fallback error:', fbErr);
+      }
       return res.status(500).json({
         error: err.message || 'Failed to generate workout regimen with Gemini.',
       });

@@ -306,8 +306,9 @@ export default function MealPlanPrintModal({
                     <table className="w-full text-xs text-left">
                       <thead>
                         <tr className="border-b border-gray-100 text-[10px] uppercase font-bold text-gray-400 bg-white">
-                          <th className="py-2 px-4">Food Item</th>
-                          <th className="py-2 px-4">Portion / Weight</th>
+                          <th className="py-2 px-4">Raw Line Item</th>
+                          <th className="py-2 px-4">Req. Quantity</th>
+                          <th className="py-2 px-4">Suggested Recipe</th>
                           <th className="py-2 px-4 text-right">Protein</th>
                           <th className="py-2 px-4 text-right">Carbs</th>
                           <th className="py-2 px-4 text-right">Fats</th>
@@ -315,25 +316,46 @@ export default function MealPlanPrintModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {(slot.items || []).map((item, iIdx) => (
-                          <tr key={item.id || iIdx} className="hover:bg-gray-50/50">
-                            <td className="py-2.5 px-4 font-semibold text-gray-900">{item.name}</td>
-                            <td className="py-2.5 px-4 text-gray-600">{item.servingSize || '-'}</td>
-                            <td className="py-2.5 px-4 text-right font-bold text-emerald-700">{item.protein || 0}g</td>
-                            <td className="py-2.5 px-4 text-right font-semibold text-amber-700">{item.carbs || 0}g</td>
-                            <td className="py-2.5 px-4 text-right font-semibold text-indigo-700">{item.fats || 0}g</td>
-                            <td className="py-2.5 px-4 text-right font-bold text-gray-900">{item.calories || 0}</td>
-                          </tr>
-                        ))}
+                        {(slot.items || []).map((item, iIdx) => {
+                          const itemRecipe = item.suggestedRecipe || slot.suggestedRecipe || '—';
+                          return (
+                            <tr key={item.id || iIdx} className="hover:bg-gray-50/50">
+                              <td className="py-2.5 px-4 font-semibold text-gray-900">{item.name}</td>
+                              <td className="py-2.5 px-4 text-gray-600">{item.servingSize || '-'}</td>
+                              <td className="py-2.5 px-4 text-amber-900 font-medium text-[11px]">{itemRecipe}</td>
+                              <td className="py-2.5 px-4 text-right font-bold text-emerald-700">{item.protein || 0}g</td>
+                              <td className="py-2.5 px-4 text-right font-semibold text-amber-700">{item.carbs || 0}g</td>
+                              <td className="py-2.5 px-4 text-right font-semibold text-indigo-700">{item.fats || 0}g</td>
+                              <td className="py-2.5 px-4 text-right font-bold text-gray-900">{item.calories || 0}</td>
+                            </tr>
+                          );
+                        })}
                         {(!slot.items || slot.items.length === 0) && (
                           <tr>
-                            <td colSpan={6} className="py-4 text-center text-gray-400 italic">
+                            <td colSpan={7} className="py-4 text-center text-gray-400 italic">
                               No food items in this meal slot.
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
+
+                    {/* Adjacent Row for Suggested Recipe & Culinary Method */}
+                    {slot.suggestedRecipe && (
+                      <div className="bg-amber-50/70 border-t border-amber-200/70 px-4 py-2 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2 py-0.5 rounded bg-amber-200/80 text-amber-900 font-bold text-[10px] uppercase tracking-wider">
+                            Suggested Recipe
+                          </span>
+                          <span className="font-bold text-gray-900">{slot.suggestedRecipe}</span>
+                        </div>
+                        {slot.recipeInstructions && (
+                          <span className="text-[11px] text-amber-900/80 italic font-medium">
+                            {slot.recipeInstructions}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

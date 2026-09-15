@@ -62,6 +62,7 @@ export default function AIWorkoutPlanGeneratorModal({
 
   // Generated Plan Result from Gemini
   const [generatedPlanData, setGeneratedPlanData] = useState<any | null>(null);
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
 
   // Medical synopsis from onboarding
   const medicalSynopsis = useMemo(() => {
@@ -148,6 +149,7 @@ export default function AIWorkoutPlanGeneratorModal({
       .join(' | ');
 
     try {
+      setFallbackNotice(null);
       const res = await fetch('/api/generate-workout-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,12 +167,28 @@ export default function AIWorkoutPlanGeneratorModal({
         }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        console.warn('Non-JSON response from /api/generate-workout-plan:', text);
+        if (res.status === 504 || res.status === 502) {
+          throw new Error('The AI workout planner request timed out during peak API traffic. Please try again.');
+        }
+        throw new Error(`Server returned unexpected status (${res.status}). Please try again.`);
+      }
+
       if (!res.ok || !data.success || !data.plan_data) {
         throw new Error(data.error || 'Server failed to formulate workout routine with Gemini.');
       }
 
       setGeneratedPlanData(data.plan_data);
+      if (data.fallback_notice) {
+        setFallbackNotice(data.fallback_notice);
+      }
       setStep('preview');
     } catch (err: any) {
       console.error('Error generating workout plan:', err);
@@ -465,6 +483,12 @@ export default function AIWorkoutPlanGeneratorModal({
 
           {step === 'preview' && generatedPlanData && (
             <div className="space-y-6">
+              {fallbackNotice && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{fallbackNotice}</span>
+                </div>
+              )}
               {/* Plan Summary Banner */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900 to-indigo-950 text-white shadow-sm space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">

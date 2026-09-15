@@ -282,6 +282,8 @@ export interface MealItem {
   quantity?: number; // current quantity numeric value, e.g. 2 or 100
   unit?: string; // current unit, e.g. "units", "eggs", "g", "ml", "scoop", "rotis", "pcs"
   unitWeight?: number; // weight in grams or ml per 1 count unit (e.g. 50g for 1 egg, 30g for 1 roti)
+  rawWeightG?: number; // raw equivalent weight in grams
+  suggestedRecipe?: string; // e.g. "Paneer Moong Dal Chilla"
   countUnitName?: string; // label for count unit, e.g. "units", "eggs", "rotis", "scoops", "pcs"
   siUnitName?: string; // "g" or "ml"
   baseQuantity?: number; // reference quantity from approved database (e.g. 100 or 2)
@@ -298,6 +300,8 @@ export interface MealSlot {
   id: string;
   name: string; // e.g. "Meal 1: Breakfast", "Meal 2: Mid-Morning Snack", "Meal 3: Lunch", "Meal 4: Evening Snack", "Meal 5: Dinner"
   time?: string; // e.g. "08:30 AM"
+  suggestedRecipe?: string; // Suggested recipe combining these raw items, e.g. "Paneer Moong Dal Chilla"
+  recipeInstructions?: string; // Preparation / cooking instructions for the suggested recipe
   items: MealItem[];
 }
 

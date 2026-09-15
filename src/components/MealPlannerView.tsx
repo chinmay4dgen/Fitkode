@@ -252,11 +252,27 @@ export default function MealPlannerView({
     });
   };
 
-  // Update meal slot title or time
-  const handleUpdateSlotMeta = (slotId: string, name: string, time: string) => {
+  // Update meal slot title, time, suggested recipe, or culinary notes
+  const handleUpdateSlotMeta = (
+    slotId: string,
+    name: string,
+    time: string,
+    suggestedRecipe?: string,
+    recipeInstructions?: string
+  ) => {
     setPlan({
       ...plan,
-      meals: plan.meals.map((s) => (s.id === slotId ? { ...s, name, time } : s)),
+      meals: plan.meals.map((s) =>
+        s.id === slotId
+          ? {
+              ...s,
+              name,
+              time,
+              suggestedRecipe: suggestedRecipe !== undefined ? suggestedRecipe : s.suggestedRecipe,
+              recipeInstructions: recipeInstructions !== undefined ? recipeInstructions : s.recipeInstructions,
+            }
+          : s
+      ),
     });
   };
 
@@ -592,9 +608,9 @@ export default function MealPlannerView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0 overflow-hidden">
       {/* Top View Mode Switcher & Last Updated Timestamp */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 max-w-full">
         <div className="flex items-center space-x-1 bg-white p-1 rounded-2xl border border-gray-200 shadow-2xs w-fit">
           <button
             type="button"
@@ -632,7 +648,7 @@ export default function MealPlannerView({
 
       {/* Save Success Banner */}
       {saveSuccessNotice && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between animate-in fade-in duration-200 shadow-sm">
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between animate-in fade-in duration-200 shadow-sm max-w-full">
           <div className="flex items-center space-x-3">
             <Check className="w-5 h-5 text-emerald-600 shrink-0" />
             <div>
@@ -665,31 +681,31 @@ export default function MealPlannerView({
       )}
 
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-brand-light-green shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-gray-100">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-brand-light-green/60 text-brand-dark-green">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-brand-light-green shadow-xs max-w-full min-w-0 overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-6 border-b border-gray-100 max-w-full">
+          <div className="space-y-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <span className="p-2 rounded-xl bg-brand-light-green/60 text-brand-dark-green shrink-0">
                 <Utensils className="w-5 h-5" />
               </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <span>{plan.name}</span>
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 truncate">
+                <span className="truncate">{plan.name}</span>
                 <button
                   type="button"
                   onClick={() => setIsRenameModalOpen(true)}
-                  className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer shrink-0"
                   title="Rename this meal plan"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
               </h2>
               {isCoachCreated ? (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-200">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
                   <ShieldCheck className="w-3.5 h-3.5 mr-1 text-purple-700" />
                   Assigned by Coach {plan.coachName || 'Chinmay Jain'}
                 </span>
               ) : (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                   <User className="w-3.5 h-3.5 mr-1 text-emerald-600" />
                   Self-Created Plan
                 </span>
@@ -703,14 +719,14 @@ export default function MealPlannerView({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 max-w-full">
             {allPlans.length > 1 && onSelectPlan && (
               <div className="flex items-center space-x-2">
                 <div className="relative">
                   <select
                     value={plan.id}
                     onChange={(e) => onSelectPlan(e.target.value)}
-                    className="py-2.5 px-3.5 pr-8 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 hover:border-brand-green cursor-pointer shadow-xs focus:ring-2 focus:ring-brand-green/20"
+                    className="w-full sm:w-auto max-w-[220px] sm:max-w-xs truncate py-2.5 px-3.5 pr-8 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 hover:border-brand-green cursor-pointer shadow-xs focus:ring-2 focus:ring-brand-green/20"
                   >
                     {allPlans.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -722,7 +738,7 @@ export default function MealPlannerView({
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
-                  className="py-2.5 px-3 rounded-xl bg-brand-light-green/70 hover:bg-brand-light-green text-brand-dark-green text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+                  className="py-2.5 px-3 rounded-xl bg-brand-light-green/70 hover:bg-brand-light-green text-brand-dark-green text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
                   title="View all plans in reverse chronological order"
                 >
                   <Layers className="w-3.5 h-3.5" />
@@ -736,7 +752,7 @@ export default function MealPlannerView({
               <button
                 type="button"
                 onClick={onCreateNewPlan}
-                className="py-2.5 px-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+                className="py-2.5 px-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>New Plan</span>
@@ -877,15 +893,15 @@ export default function MealPlannerView({
           )}
 
           {/* Calorie & Macro Target Progress Bars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 max-w-full">
             {/* Calories Card */}
-            <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Calories</span>
-                <span className="text-xs text-amber-700 font-medium">Target: {plan.targetCalories} kcal</span>
+            <div className="p-3 sm:p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2 min-w-0 overflow-hidden">
+              <div className="flex justify-between items-baseline gap-1">
+                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider truncate">Calories</span>
+                <span className="text-[10px] sm:text-xs text-amber-700 font-medium truncate">Target: {plan.targetCalories}</span>
               </div>
               <div className="flex items-baseline space-x-1">
-                <span className="text-2xl font-black text-amber-900">{totals.calories}</span>
+                <span className="text-xl sm:text-2xl font-black text-amber-900">{totals.calories}</span>
                 <span className="text-xs font-bold text-amber-700">kcal</span>
               </div>
               <div className="w-full bg-amber-200/60 h-2 rounded-full overflow-hidden">
@@ -896,21 +912,21 @@ export default function MealPlannerView({
                   }}
                 />
               </div>
-              <div className="text-[11px] text-amber-800/80 text-right font-medium">
+              <div className="text-[10px] sm:text-[11px] text-amber-800/80 text-right font-medium truncate">
                 {totals.calories > plan.targetCalories
-                  ? `+${totals.calories - plan.targetCalories} kcal over target`
-                  : `${plan.targetCalories - totals.calories} kcal remaining`}
+                  ? `+${totals.calories - plan.targetCalories} over`
+                  : `${plan.targetCalories - totals.calories} remaining`}
               </div>
             </div>
 
             {/* Protein Card */}
-            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Protein</span>
-                <span className="text-xs text-emerald-700 font-medium">Target: {plan.targetProtein}g</span>
+            <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2 min-w-0 overflow-hidden">
+              <div className="flex justify-between items-baseline gap-1">
+                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider truncate">Protein</span>
+                <span className="text-[10px] sm:text-xs text-emerald-700 font-medium truncate">Target: {plan.targetProtein}g</span>
               </div>
               <div className="flex items-baseline space-x-1">
-                <span className="text-2xl font-black text-emerald-900">{totals.protein}</span>
+                <span className="text-xl sm:text-2xl font-black text-emerald-900">{totals.protein}</span>
                 <span className="text-xs font-bold text-emerald-700">g</span>
               </div>
               <div className="w-full bg-emerald-200/60 h-2 rounded-full overflow-hidden">
@@ -921,21 +937,21 @@ export default function MealPlannerView({
                   }}
                 />
               </div>
-              <div className="text-[11px] text-emerald-800/80 text-right font-medium">
+              <div className="text-[10px] sm:text-[11px] text-emerald-800/80 text-right font-medium truncate">
                 {totals.protein >= plan.targetProtein
-                  ? 'Target Achieved! 🎯'
+                  ? 'Achieved! 🎯'
                   : `${(plan.targetProtein - totals.protein).toFixed(1)}g to go`}
               </div>
             </div>
 
             {/* Carbohydrates Card */}
-            <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-blue-900 uppercase tracking-wider">Carbs</span>
-                <span className="text-xs text-blue-700 font-medium">Target: {plan.targetCarbs}g</span>
+            <div className="p-3 sm:p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2 min-w-0 overflow-hidden">
+              <div className="flex justify-between items-baseline gap-1">
+                <span className="text-xs font-bold text-blue-900 uppercase tracking-wider truncate">Carbs</span>
+                <span className="text-[10px] sm:text-xs text-blue-700 font-medium truncate">Target: {plan.targetCarbs}g</span>
               </div>
               <div className="flex items-baseline space-x-1">
-                <span className="text-2xl font-black text-blue-900">{totals.carbs}</span>
+                <span className="text-xl sm:text-2xl font-black text-blue-900">{totals.carbs}</span>
                 <span className="text-xs font-bold text-blue-700">g</span>
               </div>
               <div className="w-full bg-blue-200/60 h-2 rounded-full overflow-hidden">
@@ -946,21 +962,21 @@ export default function MealPlannerView({
                   }}
                 />
               </div>
-              <div className="text-[11px] text-blue-800/80 text-right font-medium">
+              <div className="text-[10px] sm:text-[11px] text-blue-800/80 text-right font-medium truncate">
                 {totals.carbs > plan.targetCarbs
-                  ? `+${(totals.carbs - plan.targetCarbs).toFixed(1)}g over target`
+                  ? `+${(totals.carbs - plan.targetCarbs).toFixed(1)}g over`
                   : `${(plan.targetCarbs - totals.carbs).toFixed(1)}g remaining`}
               </div>
             </div>
 
             {/* Healthy Fats Card */}
-            <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-purple-900 uppercase tracking-wider">Fats</span>
-                <span className="text-xs text-purple-700 font-medium">Target: {plan.targetFats}g</span>
+            <div className="p-3 sm:p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 space-y-2 min-w-0 overflow-hidden">
+              <div className="flex justify-between items-baseline gap-1">
+                <span className="text-xs font-bold text-purple-900 uppercase tracking-wider truncate">Fats</span>
+                <span className="text-[10px] sm:text-xs text-purple-700 font-medium truncate">Target: {plan.targetFats}g</span>
               </div>
               <div className="flex items-baseline space-x-1">
-                <span className="text-2xl font-black text-purple-900">{totals.fats}</span>
+                <span className="text-xl sm:text-2xl font-black text-purple-900">{totals.fats}</span>
                 <span className="text-xs font-bold text-purple-700">g</span>
               </div>
               <div className="w-full bg-purple-200/60 h-2 rounded-full overflow-hidden">
@@ -971,9 +987,9 @@ export default function MealPlannerView({
                   }}
                 />
               </div>
-              <div className="text-[11px] text-purple-800/80 text-right font-medium">
+              <div className="text-[10px] sm:text-[11px] text-purple-800/80 text-right font-medium truncate">
                 {totals.fats > plan.targetFats
-                  ? `+${(totals.fats - plan.targetFats).toFixed(1)}g over target`
+                  ? `+${(totals.fats - plan.targetFats).toFixed(1)}g over`
                   : `${(plan.targetFats - totals.fats).toFixed(1)}g remaining`}
               </div>
             </div>
@@ -1026,7 +1042,7 @@ export default function MealPlannerView({
           return (
             <div
               key={slot.id}
-              className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-xs space-y-4"
+              className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 lg:p-6 border border-gray-200/80 shadow-xs space-y-4 max-w-full min-w-0 overflow-hidden"
             >
               {/* Slot Header */}
               <div className="space-y-3 pb-3 border-b border-gray-100">
@@ -1139,9 +1155,9 @@ export default function MealPlannerView({
                   {slot.items.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3.5 rounded-2xl bg-gray-50/90 border border-gray-200/90 space-y-2.5 text-xs shadow-2xs"
+                      className="p-3 sm:p-3.5 rounded-2xl bg-gray-50/90 border border-gray-200/90 space-y-2.5 text-xs shadow-2xs max-w-full min-w-0 overflow-hidden"
                     >
-                      {/* Top Bar: Name, Badges, and Item Delete Button */}
+                      {/* Top Bar: Name (Raw Line Item), Badges, and Item Delete Button */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -1181,7 +1197,7 @@ export default function MealPlannerView({
                         </button>
                       </div>
 
-                      {/* Quantity Stepper, Unit Selector & SI ⇄ Count Mode Switcher */}
+                      {/* Quantity Stepper, Unit Selector, Suggested Recipe Column & SI ⇄ Count Mode Switcher */}
                       <div className="flex flex-wrap items-center gap-2 text-[11px]">
                         {/* Dedicated Numeric Quantity + Unit Selector */}
                         <div className="flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-xl border border-gray-200 shadow-2xs">
@@ -1227,6 +1243,19 @@ export default function MealPlannerView({
                               <option value="ml">ml (milliliters)</option>
                             </optgroup>
                           </select>
+                        </div>
+
+                        {/* Separate Suggested Recipe Column for this line item */}
+                        <div className="flex items-center space-x-1.5 bg-amber-50/70 px-2.5 py-1 rounded-xl border border-amber-200/80 shadow-2xs">
+                          <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider shrink-0">Recipe:</span>
+                          <input
+                            type="text"
+                            value={item.suggestedRecipe || ''}
+                            placeholder={slot.suggestedRecipe || 'e.g. Moong Dal Chilla'}
+                            onChange={(e) => handleUpdateItem(slot.id, item.id, 'suggestedRecipe', e.target.value)}
+                            className="text-[11px] font-semibold text-amber-950 bg-transparent outline-none w-24 sm:w-32 placeholder:text-amber-700/50"
+                            title="Suggested recipe that uses this raw line item"
+                          />
                         </div>
 
                         {/* Quick SI ⇄ Count Mode Switcher Pill */}
@@ -1281,7 +1310,7 @@ export default function MealPlannerView({
                             onChange={(e) =>
                               handleServingTextChange(slot.id, item.id, e.target.value)
                             }
-                            className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-white px-2 py-0.5 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-28 sm:w-32"
+                            className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-white px-2 py-0.5 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-24 sm:w-28"
                           />
                         </div>
 
@@ -1415,6 +1444,36 @@ export default function MealPlannerView({
                   ))}
                 </div>
               )}
+
+              {/* Adjacent Row for Suggested Recipe & Culinary Method */}
+              <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-amber-50/90 border border-amber-200/90 space-y-2 text-xs max-w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-200 text-amber-950 font-bold text-[10px] uppercase tracking-wider shrink-0 shadow-2xs">
+                      Suggested Recipe
+                    </span>
+                    <input
+                      type="text"
+                      value={slot.suggestedRecipe || ''}
+                      placeholder="e.g. Paneer Moong Dal Chilla"
+                      onChange={(e) => handleUpdateSlotMeta(slot.id, slot.name, slot.time || '', e.target.value, slot.recipeInstructions)}
+                      className="font-bold text-xs sm:text-sm text-gray-900 bg-white/90 hover:bg-white px-2.5 py-1 rounded-lg border border-amber-200 focus:border-amber-500 focus:bg-white outline-none w-full max-w-md shadow-2xs"
+                    />
+                  </div>
+                  <span className="text-[10px] text-amber-900/70 font-medium shrink-0">
+                    Suggested recipe shown after raw line items
+                  </span>
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={slot.recipeInstructions || ''}
+                    placeholder="Preparation notes: e.g. Grind soaked raw moong dal into smooth batter, cook on tawa and fill with crumbled low-fat paneer."
+                    onChange={(e) => handleUpdateSlotMeta(slot.id, slot.name, slot.time || '', slot.suggestedRecipe, e.target.value)}
+                    className="w-full text-[11px] text-amber-950 italic bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-amber-200/70 focus:border-amber-500 focus:bg-white outline-none placeholder:text-amber-700/50 shadow-2xs"
+                  />
+                </div>
+              </div>
             </div>
           );
         })}
