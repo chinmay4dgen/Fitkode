@@ -37,12 +37,31 @@ export type ActivePage = 'home' | 'plans-pricing' | 'fitness-tools' | 'contact-u
 
 export type ActivityLevel = 'sedentary' | 'lightly-active' | 'moderately-active' | 'very-active' | 'extra-active';
 
+export interface BodyFatInput {
+  gender: 'male' | 'female';
+  unit: 'metric' | 'imperial';
+  height: number; // cm or inches
+  weight: number; // kg or lbs
+  neck: number; // cm or inches
+  waist: number; // cm or inches
+  hip?: number; // cm or inches (required for females)
+}
+
+export interface BodyFatResult {
+  bodyFatPercentage: number;
+  fatMassKg: number;
+  leanMassKg: number;
+  category: string;
+}
+
 export interface TDEEInput {
   age: number;
   gender: 'male' | 'female';
   weight: number; // in kg
   height: number; // in cm
   activity: ActivityLevel;
+  formulaMethod?: 'katch-mcardle' | 'mifflin-st-jeor';
+  bodyFatPercentage?: number;
 }
 
 export interface MacroSplit {

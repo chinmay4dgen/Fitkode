@@ -61,6 +61,7 @@ export default function App() {
           <Route path="/coaching-plans" element={<PlansPricing searchTerm="" />} />
           <Route path="/coaching-plan" element={<PlansPricing searchTerm="" />} />
           <Route path="/tools" element={<FitnessTools />} />
+          <Route path="/tools/body-fat-calculator" element={<FitnessTools focusedTool="body-fat" />} />
           <Route path="/tools/bmi-calculator" element={<FitnessTools focusedTool="bmi" />} />
           <Route path="/tools/tdee-calculator" element={<FitnessTools focusedTool="tdee" />} />
           <Route path="/tools/macro-calculator" element={<FitnessTools focusedTool="macro" />} />

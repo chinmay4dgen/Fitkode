@@ -22,12 +22,18 @@ import {
   Lock,
   BookmarkPlus,
   Scale,
+  FileText,
 } from 'lucide-react';
 import { MealPlan, MealSlot, MealItem, DietType, MeasurementSystem } from '../types';
 import { FOOD_LIBRARY } from '../lib/plannerLibrary';
 import MealPlanPrintModal from './MealPlanPrintModal';
 import MealPlansListView from './MealPlansListView';
 import { RenamePlanModal, CreatePlanModal } from './PlanNameModals';
+import AIMealPlanGeneratorModal from './AIMealPlanGeneratorModal';
+import MealSwapModal from './MealSwapModal';
+import PDFRestructureModal from './PDFRestructureModal';
+import CoachMedicalSynopsis from './CoachMedicalSynopsis';
+import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
 import { formatISTDateTime } from '../lib/timestampUtils';
 import {
   scaleNutritionByQuantity,
@@ -143,6 +149,16 @@ export default function MealPlannerView({
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isAIGeneratorModalOpen, setIsAIGeneratorModalOpen] = useState(false);
+  const [isPDFRestructureModalOpen, setIsPDFRestructureModalOpen] = useState(false);
+  const [swapModalSlot, setSwapModalSlot] = useState<MealSlot | null>(null);
+
+  // Coach-Only Medical Synopsis extracted from onboarding disclosures
+  const memberMedicalSynopsis = useMemo(() => {
+    if (!isCoachMode) return null;
+    const ob = getMemberOnboarding(userEmail);
+    return extractMedicalSynopsis(ob);
+  }, [isCoachMode, userEmail]);
 
   // New Custom Food Form inside Food Library Modal
   const [showCreateCustomFoodForm, setShowCreateCustomFoodForm] = useState(false);
@@ -638,6 +654,16 @@ export default function MealPlannerView({
         </div>
       )}
 
+      {/* Coach-Only Medical & Allergy Synopsis */}
+      {isCoachMode && memberMedicalSynopsis && (
+        <CoachMedicalSynopsis
+          synopsis={memberMedicalSynopsis}
+          memberName={userName || userEmail}
+          context="meal"
+          isCoachMode={isCoachMode}
+        />
+      )}
+
       {/* Top Header Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-brand-light-green shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-gray-100">
@@ -716,6 +742,28 @@ export default function MealPlannerView({
                 <span>New Plan</span>
               </button>
             )}
+
+            {/* AI Meal Plan Generator Button */}
+            <button
+              type="button"
+              onClick={() => setIsAIGeneratorModalOpen(true)}
+              className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs hover:shadow"
+              title="Generate tailored meal plan using deterministic sports nutrition formulas & Gemini AI"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Generate AI Plan</span>
+            </button>
+
+            {/* Restructure Plan from PDF Button */}
+            <button
+              type="button"
+              onClick={() => setIsPDFRestructureModalOpen(true)}
+              className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-700 hover:from-indigo-700 hover:to-blue-800 text-white text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs hover:shadow"
+              title="Upload your existing diet plan PDF and restructure it in the exact same macro/calorie limits with your preferred food alternatives"
+            >
+              <FileText className="w-3.5 h-3.5 text-indigo-200" />
+              <span>Restructure PDF Plan</span>
+            </button>
 
             <button
               type="button"
@@ -1032,6 +1080,17 @@ export default function MealPlannerView({
 
                   {/* Add Foods Actions */}
                   <div className="flex items-center space-x-1.5">
+                    {/* AI Meal Swap Button */}
+                    <button
+                      type="button"
+                      onClick={() => setSwapModalSlot(slot)}
+                      className="py-1.5 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs"
+                      title="Generate macro-matched alternative options for this meal using Gemini AI"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Swap</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setLibraryModalSlotId(slot.id)}
@@ -1880,6 +1939,61 @@ export default function MealPlannerView({
           userName={userName}
           userEmail={userEmail}
           onClose={() => setIsPrintModalOpen(false)}
+        />
+      )}
+
+      {/* AI Meal Plan Generator Modal */}
+      <AIMealPlanGeneratorModal
+        isOpen={isAIGeneratorModalOpen}
+        onClose={() => setIsAIGeneratorModalOpen(false)}
+        userEmail={userEmail}
+        userName={userName}
+        isCoachMode={isCoachMode}
+        onPlanGenerated={(generatedPlan) => {
+          setPlan(initializePlanNutrition(generatedPlan));
+          onSavePlan(generatedPlan);
+          setViewMode('editor');
+          setSaveSuccessNotice(true);
+          setTimeout(() => setSaveSuccessNotice(false), 4000);
+        }}
+      />
+
+      {/* PDF Meal Plan Restructure Modal */}
+      <PDFRestructureModal
+        isOpen={isPDFRestructureModalOpen}
+        onClose={() => setIsPDFRestructureModalOpen(false)}
+        userEmail={userEmail}
+        userName={userName}
+        isCoachMode={isCoachMode}
+        onAdoptRestructuredPlan={(adoptedPlan) => {
+          setPlan(initializePlanNutrition(adoptedPlan));
+          onSavePlan(adoptedPlan);
+          setViewMode('editor');
+          setSaveSuccessNotice(true);
+          setTimeout(() => setSaveSuccessNotice(false), 4000);
+        }}
+      />
+
+      {/* Meal Swap Modal */}
+      {swapModalSlot && (
+        <MealSwapModal
+          isOpen={Boolean(swapModalSlot)}
+          onClose={() => setSwapModalSlot(null)}
+          slot={swapModalSlot}
+          dietaryRestrictions={[plan.dietType]}
+          onApplySwap={(newItems) => {
+            const updatedMeals = plan.meals.map((s) =>
+              s.id === swapModalSlot.id ? { ...s, items: newItems } : s
+            );
+            const updatedPlan = {
+              ...plan,
+              meals: updatedMeals,
+              updatedAt: new Date().toISOString(),
+            };
+            setPlan(initializePlanNutrition(updatedPlan));
+            onSavePlan(updatedPlan);
+            setSwapModalSlot(null);
+          }}
         />
       )}
     </div>

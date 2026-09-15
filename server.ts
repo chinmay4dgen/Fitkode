@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { GoogleGenAI, Type } from '@google/genai';
 import {
   buildWeeklyTrackerEmail,
   buildDietPlanAssignedEmail,
@@ -20,6 +21,17 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Lazy initialization of GoogleGenAI SDK instance
+let genAIClient: GoogleGenAI | null = null;
+function getGenAI(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  if (!genAIClient) {
+    genAIClient = new GoogleGenAI({ apiKey });
+  }
+  return genAIClient;
+}
 
 // Lazy initialization of Razorpay SDK instance
 let razorpayClient: Razorpay | null = null;
@@ -1534,6 +1546,521 @@ async function startServer() {
       return res.json({ success: true, plans: serverMealPlans });
     } catch (err: any) {
       return res.status(500).json({ error: err.message || 'Failed to save meal plans' });
+    }
+  });
+
+  // =========================================================================
+  // AI-DRIVEN DETERMINISTIC MEAL PLAN GENERATION (HYBRID ARCHITECTURE)
+  // =========================================================================
+
+  // POST /api/generate-meal-plan
+  // Receives onboarding profile & pre-computed deterministic targets, calls Gemini with strict JSON Schema
+  app.post('/api/generate-meal-plan', async (req, res) => {
+    try {
+      const { profile, targets } = req.body;
+      if (!targets || !targets.calorieTarget || !targets.proteinG) {
+        return res.status(400).json({ error: 'Deterministic nutrition targets are required.' });
+      }
+
+      const ai = getGenAI();
+      if (!ai) {
+        return res.status(503).json({
+          error: 'Gemini API key is not configured on the server.',
+          hint: 'Please provide GEMINI_API_KEY in environment secrets.',
+        });
+      }
+
+      const dietaryRestrictionsStr = Array.isArray(profile?.dietaryRestrictions) && profile.dietaryRestrictions.length > 0
+        ? profile.dietaryRestrictions.join(', ')
+        : 'Vegetarian';
+
+      const dislikesAndAllergiesStr = Array.isArray(profile?.foodDislikesAllergies) && profile.foodDislikesAllergies.length > 0
+        ? profile.foodDislikesAllergies.join(', ')
+        : 'None declared';
+
+      const cuisineStyle = profile?.cuisineStyle || 'Indian (North & South Indian balanced)';
+
+      const mealAllocationsPrompt = Array.isArray(targets.mealAllocations)
+        ? targets.mealAllocations
+            .map(
+              (m: any) =>
+                `- ${m.mealName} (approx ${m.targetTime}): Target ~${m.targetCalories} kcal (Protein: ~${m.targetProteinG}g, Carbs: ~${m.targetCarbsG}g, Fats: ~${m.targetFatsG}g)`
+            )
+            .join('\n')
+        : '- Standard 3 meals + 1 snack';
+
+      const systemInstruction = `You are an expert clinical sports nutritionist and dietitian for the Fitkode platform.
+Generate a realistic 1-day sample meal plan adhering strictly to the user's dietary preferences and target macros.
+
+Rules:
+1. Every ingredient must have raw weights in grams and common Indian kitchen measures (e.g., "1 katori cooked dal", "2 medium phulkas (~60g whole wheat flour)", "100g low-fat paneer", "1 cup (240ml) toned milk").
+2. Match the total daily calories and macros within a +/- 5% error margin against the provided targets.
+3. Exclude all declared allergens and disliked foods: ${dislikesAndAllergiesStr}.
+4. Ensure practical home-cooked meals using readily accessible staples (paneer, eggs, chicken breast, oats, soya chunks, curd/dahi, lentils/dal, seasonal sabzi, tofu, etc.).
+5. If the user is Jain, exclude root vegetables (onion, garlic, potato, carrot). If Lactose-Free, use plant milks/tofu. If Vegan, exclude all dairy/honey/eggs.
+6. The output must adhere strictly to the JSON schema.`;
+
+      const prompt = `Generate a realistic 1-day meal plan for:
+- Dietary Restrictions: ${dietaryRestrictionsStr}
+- Excluded Dislikes & Allergies: ${dislikesAndAllergiesStr}
+- Preferred Cuisine: ${cuisineStyle}
+- Fitness Goal: ${profile?.fitnessGoal || 'Fat Loss'}
+
+DETERMINISTIC TARGETS TO MATCH EXACTLY (+/- 5%):
+- Total Daily Calories: ${targets.calorieTarget} kcal
+- Total Protein: ${targets.proteinG} g
+- Total Carbs: ${targets.carbsG} g
+- Total Fats: ${targets.fatsG} g
+
+Target Per-Meal Budget:
+${mealAllocationsPrompt}
+
+Provide practical, delicious, macro-accurate meals with exact weights and household measures.`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          day_summary: {
+            type: Type.OBJECT,
+            properties: {
+              total_calories: { type: Type.INTEGER, description: 'Sum of all meals calories' },
+              total_protein_g: { type: Type.INTEGER, description: 'Total protein in grams' },
+              total_carbs_g: { type: Type.INTEGER, description: 'Total carbs in grams' },
+              total_fats_g: { type: Type.INTEGER, description: 'Total fats in grams' },
+            },
+            required: ['total_calories', 'total_protein_g', 'total_carbs_g', 'total_fats_g'],
+          },
+          meals: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                meal_name: { type: Type.STRING, description: 'e.g. Breakfast, Lunch, Evening Snack, Dinner' },
+                target_time: { type: Type.STRING, description: 'e.g. 08:30 AM' },
+                calories: { type: Type.INTEGER, description: 'Meal total calories' },
+                macros: {
+                  type: Type.OBJECT,
+                  properties: {
+                    protein_g: { type: Type.INTEGER },
+                    carbs_g: { type: Type.INTEGER },
+                    fats_g: { type: Type.INTEGER },
+                  },
+                  required: ['protein_g', 'carbs_g', 'fats_g'],
+                },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      food_item: { type: Type.STRING, description: 'Name of the dish or food combination' },
+                      portion: { type: Type.STRING, description: 'Precise raw weight in grams and kitchen measures' },
+                      notes: { type: Type.STRING, description: 'Cooking instructions or tips' },
+                    },
+                    required: ['food_item', 'portion', 'notes'],
+                  },
+                },
+              },
+              required: ['meal_name', 'target_time', 'calories', 'macros', 'items'],
+            },
+          },
+        },
+        required: ['day_summary', 'meals'],
+      };
+
+      const aiResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
+
+      const responseText = aiResponse.text;
+      if (!responseText) {
+        return res.status(500).json({ error: 'Empty response returned by Gemini model.' });
+      }
+
+      const generatedPlanData = JSON.parse(responseText);
+
+      return res.json({
+        success: true,
+        plan_data: generatedPlanData,
+        deterministic_targets: targets,
+      });
+    } catch (err: any) {
+      console.error('Error generating AI meal plan:', err);
+      return res.status(500).json({
+        error: err.message || 'Failed to generate AI meal plan',
+      });
+    }
+  });
+
+  // POST /api/swap-meal
+  // Regenerates alternative options for a single specific meal slot matching target macros
+  app.post('/api/swap-meal', async (req, res) => {
+    try {
+      const { mealName, targetCalories, targetProtein, targetCarbs, targetFats, dietaryRestrictions, dislikesAndAllergies } = req.body;
+
+      const ai = getGenAI();
+      if (!ai) {
+        return res.status(503).json({ error: 'Gemini API key is not configured on the server.' });
+      }
+
+      const prompt = `Generate 3 distinct alternative ${mealName || 'meal'} options matching:
+- Target Calories: ~${targetCalories || 450} kcal
+- Target Protein: ~${targetProtein || 30} g
+- Target Carbs: ~${targetCarbs || 50} g
+- Target Fats: ~${targetFats || 12} g
+- Dietary Restrictions: ${Array.isArray(dietaryRestrictions) ? dietaryRestrictions.join(', ') : 'Vegetarian'}
+- Exclude: ${Array.isArray(dislikesAndAllergies) ? dislikesAndAllergies.join(', ') : 'None'}
+
+Every alternative must include raw ingredient weights in grams and Indian kitchen measures.`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          alternatives: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                calories: { type: Type.INTEGER },
+                macros: {
+                  type: Type.OBJECT,
+                  properties: {
+                    protein_g: { type: Type.INTEGER },
+                    carbs_g: { type: Type.INTEGER },
+                    fats_g: { type: Type.INTEGER },
+                  },
+                  required: ['protein_g', 'carbs_g', 'fats_g'],
+                },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      food_item: { type: Type.STRING },
+                      portion: { type: Type.STRING },
+                      notes: { type: Type.STRING },
+                    },
+                    required: ['food_item', 'portion', 'notes'],
+                  },
+                },
+              },
+              required: ['title', 'calories', 'macros', 'items'],
+            },
+          },
+        },
+        required: ['alternatives'],
+      };
+
+      const aiResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: 'You are an expert sports dietitian providing meal swaps that hit exact macro numbers.',
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
+
+      const parsed = JSON.parse(aiResponse.text || '{}');
+      return res.json({ success: true, alternatives: parsed.alternatives || [] });
+    } catch (err: any) {
+      console.error('Error swapping meal:', err);
+      return res.status(500).json({ error: err.message || 'Failed to generate meal swap alternatives' });
+    }
+  });
+
+  // =========================================================================
+  // PDF MEAL PLAN INGESTION & RESTRUCTURING WITH ALTERNATE FOODS
+  // =========================================================================
+
+  // POST /api/extract-pdf-meal-plan
+  // Ingests a PDF (as base64 string), extracts meals, ingredients, quantities, and computes baseline macros
+  app.post('/api/extract-pdf-meal-plan', async (req, res) => {
+    try {
+      const { pdfBase64, fileName, mimeType = 'application/pdf' } = req.body;
+      if (!pdfBase64) {
+        return res.status(400).json({ error: 'PDF data (base64) is required.' });
+      }
+
+      const ai = getGenAI();
+      if (!ai) {
+        return res.status(503).json({
+          error: 'Gemini API key is not configured on the server.',
+          hint: 'Please provide GEMINI_API_KEY in environment secrets.',
+        });
+      }
+
+      const systemInstruction = `You are a clinical sports nutritionist and document parsing specialist.
+Analyze this meal plan PDF document carefully.
+Extract all meals, food items, portion sizes, and calculate or read their nutritional values (calories, protein, carbs, fats).
+If exact calories or macros are not explicitly written in the PDF, estimate them accurately based on standard Indian & global nutritional food composition tables.
+Maintain the exact meal structure (e.g. Breakfast, Lunch, Evening Snack, Dinner, Pre-workout, Post-workout).
+Determine the likely diet type (e.g. Vegetarian, Eggetarian, Non-Vegetarian, Vegan).
+Return the result strictly conforming to the requested JSON schema.`;
+
+      const prompt = `Carefully inspect and parse this meal plan PDF (${fileName || 'meal-plan.pdf'}).
+Extract:
+1. Overall summary: total calories, protein (g), carbs (g), fats (g), diet type, and detected patient/client name or goal if present.
+2. Every meal slot: name, suggested timing, total slot calories, protein, carbs, fats.
+3. Every food item in each meal: name, raw/cooked portion quantity and measure (e.g. "2 rotis", "100g paneer", "1 cup dal"), calories, protein, carbs, fats, and any notes/instructions mentioned.`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          plan_name: { type: Type.STRING, description: 'Title or summary of the extracted plan' },
+          client_name: { type: Type.STRING, description: 'Client name if mentioned in PDF, else empty' },
+          diet_type: { type: Type.STRING, description: 'Vegetarian, Eggetarian, Non-Vegetarian, or Vegan' },
+          detected_notes: { type: Type.STRING, description: 'Any instructions, hydration, timing or supplement notes in PDF' },
+          total_summary: {
+            type: Type.OBJECT,
+            properties: {
+              total_calories: { type: Type.INTEGER },
+              protein_g: { type: Type.INTEGER },
+              carbs_g: { type: Type.INTEGER },
+              fats_g: { type: Type.INTEGER },
+            },
+            required: ['total_calories', 'protein_g', 'carbs_g', 'fats_g'],
+          },
+          meals: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                meal_name: { type: Type.STRING },
+                target_time: { type: Type.STRING },
+                calories: { type: Type.INTEGER },
+                protein_g: { type: Type.INTEGER },
+                carbs_g: { type: Type.INTEGER },
+                fats_g: { type: Type.INTEGER },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      food_item: { type: Type.STRING },
+                      portion: { type: Type.STRING },
+                      calories: { type: Type.INTEGER },
+                      protein_g: { type: Type.INTEGER },
+                      carbs_g: { type: Type.INTEGER },
+                      fats_g: { type: Type.INTEGER },
+                      notes: { type: Type.STRING },
+                    },
+                    required: ['food_item', 'portion', 'calories', 'protein_g', 'carbs_g', 'fats_g'],
+                  },
+                },
+              },
+              required: ['meal_name', 'target_time', 'calories', 'protein_g', 'carbs_g', 'fats_g', 'items'],
+            },
+          },
+        },
+        required: ['plan_name', 'diet_type', 'total_summary', 'meals'],
+      };
+
+      const aiResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            inlineData: {
+              data: pdfBase64,
+              mimeType: mimeType,
+            },
+          },
+          { text: prompt },
+        ],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
+
+      const parsed = JSON.parse(aiResponse.text || '{}');
+      return res.json({ success: true, extractedPlan: parsed });
+    } catch (err: any) {
+      console.error('Error extracting PDF meal plan:', err);
+      return res.status(500).json({ error: err.message || 'Failed to parse and extract meal plan from PDF' });
+    }
+  });
+
+  // POST /api/restructure-pdf-meal-plan
+  // Restructures the extracted PDF meal plan under the exact same macro/calorie restrictions using chosen food alternatives
+  // Strictly enforces disclosed medical conditions, food allergies, and gut sensitivities
+  app.post('/api/restructure-pdf-meal-plan', async (req, res) => {
+    try {
+      const {
+        originalPlan,
+        preferredFoods,
+        dislikedFoods,
+        dietaryRestrictions,
+        customInstructions,
+        userMedicalHistory,
+        foodAllergies,
+      } = req.body;
+
+      if (!originalPlan || !originalPlan.total_summary) {
+        return res.status(400).json({ error: 'Original plan summary is required.' });
+      }
+
+      const ai = getGenAI();
+      if (!ai) {
+        return res.status(503).json({ error: 'Gemini API key is not configured on the server.' });
+      }
+
+      const origCalories = originalPlan.total_summary.total_calories || 1800;
+      const origProtein = originalPlan.total_summary.protein_g || 100;
+      const origCarbs = originalPlan.total_summary.carbs_g || 200;
+      const origFats = originalPlan.total_summary.fats_g || 50;
+
+      const preferredFoodsStr = Array.isArray(preferredFoods) && preferredFoods.length > 0
+        ? preferredFoods.join(', ')
+        : (typeof preferredFoods === 'string' && preferredFoods.trim() ? preferredFoods : 'None specified');
+
+      const dislikedFoodsStr = Array.isArray(dislikedFoods) && dislikedFoods.length > 0
+        ? dislikedFoods.join(', ')
+        : (typeof dislikedFoods === 'string' && dislikedFoods.trim() ? dislikedFoods : 'None specified');
+
+      const dietaryRestrictionsStr = Array.isArray(dietaryRestrictions) && dietaryRestrictions.length > 0
+        ? dietaryRestrictions.join(', ')
+        : (originalPlan.diet_type || 'Vegetarian');
+
+      const medicalHistoryStr = userMedicalHistory && typeof userMedicalHistory === 'string' && userMedicalHistory.trim()
+        ? userMedicalHistory.trim()
+        : 'No adverse medical history reported';
+
+      const allergiesStr = Array.isArray(foodAllergies) && foodAllergies.length > 0
+        ? foodAllergies.join(', ')
+        : (typeof foodAllergies === 'string' && foodAllergies.trim() ? foodAllergies.trim() : 'None reported');
+
+      const systemInstruction = `You are an elite sports clinical dietitian and macronutrient specialist.
+Your task is to RESTRUCTURE a person's existing meal plan by swapping food items for their preferred alternatives, while STRICTLY locking in the exact same caloric and macronutrient restrictions (+/- 3% margin).
+
+STRICT CLINICAL & NUTRITIONAL SAFETY DIRECTIVES:
+1. MANDATORY MEDICAL CHECK: Disclosed Medical Conditions / History: "${medicalHistoryStr}". Disclosed Food Allergies / Intolerances: "${allergiesStr}".
+2. NEVER suggest any food item or ingredient that directly conflicts with or triggers their disclosed food allergies or medical conditions, EVEN IF THE USER LISTED IT IN THEIR PREFERRED FOODS.
+   - For example: If allergic to peanuts/nuts, never include peanut butter, almonds, or nut oils.
+   - If lactose intolerant, do not include whole cow's milk or regular whey concentrate; use lactose-free milk, plant milk, or whey isolate.
+   - If hypertensive, avoid high-sodium processed foods or pickles.
+   - If diabetic, avoid refined sugars, high GI syrups, or fruit juice concentrates.
+3. If the user explicitly requested a preferred item that could potentially aggravate or impact their health condition, or if an item requires cautionary use:
+   - YOU MUST attach a clear medical warning in the item's "medical_warning" field explaining: "Using this item is not recommended or requires extreme caution as it is counterproductive to your health goals and may directly impact your medical conditions [specify exact condition/allergy]."
+4. Target Daily Calories: EXACTLY ~${origCalories} kcal (error margin +/- 40 kcal).
+5. Target Protein: EXACTLY ~${origProtein} g (error margin +/- 5g).
+6. Target Carbs: EXACTLY ~${origCarbs} g (error margin +/- 8g).
+7. Target Fats: EXACTLY ~${origFats} g (error margin +/- 4g).
+8. Incorporate the user's PREFERRED alternate food items: "${preferredFoodsStr}" (subject to medical safety above).
+9. STRICTLY REMOVE/EXCLUDE all disliked foods or items to replace: "${dislikedFoodsStr}".
+10. Respect dietary restriction: "${dietaryRestrictionsStr}".
+11. Every new ingredient must provide clear raw gram weights and household kitchen measures (e.g., "120g low-fat paneer", "2 medium chapatis (~60g atta)", "1.5 katori cooked yellow dal", "30g whey isolate").
+12. Distribute the macros across the meals matching the relative proportions of the original plan.
+13. If any warnings were triggered, list them in the top-level "medical_safety_warnings" array.`;
+
+      const prompt = `Restructure the following meal plan:
+Original Summary:
+- Calories: ${origCalories} kcal
+- Protein: ${origProtein} g
+- Carbs: ${origCarbs} g
+- Fats: ${origFats} g
+- Current Meals:
+${(originalPlan.meals || []).map((m: any) => `  * ${m.meal_name} (${m.target_time}): ~${m.calories} kcal, P:${m.protein_g}g, C:${m.carbs_g}g, F:${m.fats_g}g. Current items: ${(m.items || []).map((it: any) => `${it.food_item} (${it.portion})`).join(', ')}`).join('\n')}
+
+USER CUSTOMIZATION REQUEST:
+- Swap with Preferred Alternatives: ${preferredFoodsStr}
+- Exclude/Replace: ${dislikedFoodsStr}
+- Dietary Filter: ${dietaryRestrictionsStr}
+${customInstructions ? `- Specific Directives: ${customInstructions}` : ''}
+
+CLIENT DISCLOSED MEDICAL PROFILE (SAFETY PRIORITY):
+- Disclosed Food Allergies & Intolerances: ${allergiesStr}
+- Disclosed Past Surgeries & Medical Conditions: ${medicalHistoryStr}
+
+Generate the restructured, macro-matched replacement meal plan with exact measurements and mandatory medical safety validation.`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          restructured_title: { type: Type.STRING },
+          diet_type: { type: Type.STRING },
+          day_summary: {
+            type: Type.OBJECT,
+            properties: {
+              total_calories: { type: Type.INTEGER },
+              total_protein_g: { type: Type.INTEGER },
+              total_carbs_g: { type: Type.INTEGER },
+              total_fats_g: { type: Type.INTEGER },
+              macro_variance_notes: { type: Type.STRING, description: 'Comparison showing how accurately it matched original targets' },
+            },
+            required: ['total_calories', 'total_protein_g', 'total_carbs_g', 'total_fats_g'],
+          },
+          medical_safety_warnings: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'List of specific medical or allergy warnings against any requested items that could impact disclosed health conditions',
+          },
+          swaps_applied_summary: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'List of specific food substitutions made (e.g. "Replaced oats with paneer bhurji toast")',
+          },
+          meals: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                meal_name: { type: Type.STRING },
+                target_time: { type: Type.STRING },
+                calories: { type: Type.INTEGER },
+                protein_g: { type: Type.INTEGER },
+                carbs_g: { type: Type.INTEGER },
+                fats_g: { type: Type.INTEGER },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      food_item: { type: Type.STRING },
+                      portion: { type: Type.STRING },
+                      calories: { type: Type.INTEGER },
+                      protein_g: { type: Type.INTEGER },
+                      carbs_g: { type: Type.INTEGER },
+                      fats_g: { type: Type.INTEGER },
+                      notes: { type: Type.STRING },
+                      medical_warning: {
+                        type: Type.STRING,
+                        description: 'Caution or warning if item impacts medical condition or requires restriction',
+                      },
+                    },
+                    required: ['food_item', 'portion', 'calories', 'protein_g', 'carbs_g', 'fats_g'],
+                  },
+                },
+              },
+              required: ['meal_name', 'target_time', 'calories', 'protein_g', 'carbs_g', 'fats_g', 'items'],
+            },
+          },
+        },
+        required: ['restructured_title', 'diet_type', 'day_summary', 'swaps_applied_summary', 'meals'],
+      };
+
+      const aiResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
+
+      const parsed = JSON.parse(aiResponse.text || '{}');
+      return res.json({ success: true, restructuredPlan: parsed });
+    } catch (err: any) {
+      console.error('Error restructuring meal plan:', err);
+      return res.status(500).json({ error: err.message || 'Failed to restructure meal plan' });
     }
   });
 

@@ -41,9 +41,10 @@ export default function Footer() {
             <ul className="space-y-1.5 text-xs text-white/85">
               <li><Link to="/coaching-plans" className="hover:text-white hover:underline transition-colors">Coaching Plans &amp; Pricing</Link></li>
               <li><Link to="/tools" className="hover:text-white hover:underline transition-colors">Fitness Calculators Hub</Link></li>
-              <li><Link to="/tools/bmi-calculator" className="hover:text-white hover:underline transition-colors">BMI Calculator</Link></li>
-              <li><Link to="/tools/tdee-calculator" className="hover:text-white hover:underline transition-colors">TDEE Calorie Calculator</Link></li>
+              <li><Link to="/tools/body-fat-calculator" className="hover:text-white hover:underline transition-colors">Body Fat % (U.S. Navy Formula)</Link></li>
+              <li><Link to="/tools/tdee-calculator" className="hover:text-white hover:underline transition-colors">TDEE Calorie Calculator (Katch-McArdle)</Link></li>
               <li><Link to="/tools/macro-calculator" className="hover:text-white hover:underline transition-colors">Macro-Nutrient Splitter</Link></li>
+              <li><Link to="/tools/bmi-calculator" className="hover:text-white hover:underline transition-colors">BMI Calculator</Link></li>
             </ul>
           </div>
 

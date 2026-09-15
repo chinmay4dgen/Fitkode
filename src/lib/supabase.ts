@@ -550,4 +550,72 @@ export async function loadWeeklyEntriesFromSupabase(userEmail: string): Promise<
   return null;
 }
 
+/**
+ * Saves a generated meal plan into Supabase 'meal_plans' table
+ * Schema: user_id, user_email, created_at, daily_calories, protein_g, carbs_g, fats_g, plan_data (jsonb)
+ */
+export async function saveMealPlanToSupabase(params: {
+  userId: string;
+  userEmail: string;
+  dailyCalories: number;
+  proteinG: number;
+  carbsG: number;
+  fatsG: number;
+  planData: any;
+}): Promise<boolean> {
+  if (!client) return false;
+  try {
+    const payload = {
+      user_id: params.userId,
+      user_email: params.userEmail.toLowerCase().trim(),
+      created_at: new Date().toISOString(),
+      daily_calories: params.dailyCalories,
+      protein_g: params.proteinG,
+      carbs_g: params.carbsG,
+      fats_g: params.fatsG,
+      plan_data: params.planData,
+    };
+
+    const { error } = await client.from('meal_plans').upsert(payload);
+    if (error) {
+      console.warn('Supabase meal_plans table insert note (will use fallback):', error.message);
+      // Fallback: save to user metadata if authenticated
+      const authUser = await client.auth.getUser();
+      if (authUser.data.user) {
+        await client.auth.updateUser({
+          data: {
+            latest_ai_meal_plan: payload,
+          },
+        });
+      }
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase meal plan sync warning:', err);
+    return false;
+  }
+}
+
+/**
+ * Loads meal plans from Supabase 'meal_plans' table
+ */
+export async function loadMealPlansFromSupabase(userEmail: string): Promise<any[] | null> {
+  if (!client || !userEmail) return null;
+  const normEmail = userEmail.toLowerCase().trim();
+  try {
+    const { data, error } = await client
+      .from('meal_plans')
+      .select('*')
+      .eq('user_email', normEmail)
+      .order('created_at', { ascending: false });
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 

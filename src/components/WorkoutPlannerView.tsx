@@ -38,6 +38,8 @@ import { formatISTDateTime } from '../lib/timestampUtils';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '../lib/youtubeUtils';
 import { useAuth } from '../context/AuthContext';
 import { updateMasterExerciseVideoUrl } from '../lib/exerciseStore';
+import CoachMedicalSynopsis from './CoachMedicalSynopsis';
+import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
 
 interface WorkoutPlannerViewProps {
   currentPlan: WorkoutPlan | null;
@@ -107,6 +109,13 @@ export default function WorkoutPlannerView({
 
   const auth = useAuth ? useAuth() : null;
   const effectiveCoachMode = Boolean(isCoachMode || auth?.isAdmin);
+
+  // Coach-Only Medical Synopsis extracted from onboarding disclosures
+  const memberMedicalSynopsis = useMemo(() => {
+    if (!effectiveCoachMode) return null;
+    const ob = getMemberOnboarding(userEmail);
+    return extractMedicalSynopsis(ob);
+  }, [effectiveCoachMode, userEmail]);
 
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [libraryModalDayId, setLibraryModalDayId] = useState<string | null>(null);
@@ -439,6 +448,16 @@ export default function WorkoutPlannerView({
             Dismiss
           </button>
         </div>
+      )}
+
+      {/* Coach-Only Medical & Injury Synopsis */}
+      {effectiveCoachMode && memberMedicalSynopsis && (
+        <CoachMedicalSynopsis
+          synopsis={memberMedicalSynopsis}
+          memberName={userName || userEmail}
+          context="workout"
+          isCoachMode={effectiveCoachMode}
+        />
       )}
 
       {/* Top Header Card */}

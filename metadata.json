@@ -1,6 +1,6 @@
 {
   "name": "Fitkode",
-  "description": "Fitkode - Fitness Simplified. Rebuilt with elegant visuals, responsive layout, and Razorpay plan purchasing integration.",
+  "description": "Fitkode - Fitness Simplified. Evidence-based coaching with U.S. Navy Body Fat Formula, Katch-McArdle BMR, TDEE calculations, AI meal planning, and PDF meal plan restructuring under locked macro limits.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
