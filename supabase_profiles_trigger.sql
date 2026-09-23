@@ -42,6 +42,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON public.profiles(created_at
 -- 2. Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- 2a. Explicit Grants for PostgREST Data API (Supabase October 30+ requirement)
+GRANT SELECT ON public.profiles TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO service_role;
+
 -- Policy: Users can view their own profile
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"

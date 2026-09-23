@@ -42,6 +42,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON public.profiles(created_at
 -- 2. Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- 2a. Explicit Grants for PostgREST Data API (Supabase October 30+ requirement)
+GRANT SELECT ON public.profiles TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO service_role;
+
 -- Policy: Users can view their own profile
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
@@ -252,3 +257,54 @@ EXCEPTION
   WHEN OTHERS THEN
     NULL; -- Publication already contains table or permissions managed by Supabase
 END $$;
+
+-- ==============================================================================
+-- 7. Optional helper tables (Meal Plans & Weekly Tracker) with explicit GRANTs
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.meal_plans (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  daily_calories NUMERIC,
+  protein_g NUMERIC,
+  carbs_g NUMERIC,
+  fats_g NUMERIC,
+  plan_data JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.meal_plans ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.meal_plans TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.meal_plans TO service_role;
+
+DROP POLICY IF EXISTS "Users can manage own meal plans" ON public.meal_plans;
+CREATE POLICY "Users can manage own meal plans"
+ON public.meal_plans
+FOR ALL
+TO authenticated
+USING (auth.uid() = user_id OR auth.jwt() ->> 'email' = user_email);
+
+CREATE TABLE IF NOT EXISTS public.weekly_tracker_entries (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  week_date DATE,
+  weight NUMERIC,
+  waist_cm NUMERIC,
+  chest_cm NUMERIC,
+  arms_cm NUMERIC,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.weekly_tracker_entries ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.weekly_tracker_entries TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.weekly_tracker_entries TO service_role;
+
+DROP POLICY IF EXISTS "Users can manage own tracker entries" ON public.weekly_tracker_entries;
+CREATE POLICY "Users can manage own tracker entries"
+ON public.weekly_tracker_entries
+FOR ALL
+TO authenticated
+USING (auth.uid() = user_id OR auth.jwt() ->> 'email' = user_email);
+
