@@ -1,1 +1,436 @@
-[]
+[
+  {
+    "id": "workout_coach_atul_4day",
+    "name": "4 Days workout",
+    "userId": "akg.atulgupta@gmail.com",
+    "userEmail": "akg.atulgupta@gmail.com",
+    "difficulty": "Intermediate",
+    "goal": "Hypertrophy & Muscle Gain",
+    "daysPerWeek": 4,
+    "createdBy": "coach",
+    "coachName": "Chinmay Jain",
+    "coachNotes": "Personalized 4-Day training split prescribed by Coach Chinmay Jain (Updated 29 September 2026). Daily Target: 12,000 steps. Always begin every workout with the Dynamic Stretching Warm up and finish with the Cool Down routine.",
+    "isActive": true,
+    "createdAt": "2026-09-29T10:00:00.000Z",
+    "updatedAt": "2026-09-29T10:00:00.000Z",
+    "days": [
+      {
+        "id": "day_1_upper",
+        "dayName": "Day 1/ Day 4: Upper Body (Chest, Back, Shoulders & Triceps)",
+        "isRestDay": false,
+        "focus": "Upper Body Hypertrophy & Strength (Chest, Back, Shoulders, Triceps)",
+        "exercises": [
+          {
+            "id": "ex_atul_1_warmup",
+            "name": "Dynamic Stretching Warm up (very starting)",
+            "targetMuscle": "Full Body / Mobility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 30,
+            "notes": "Daily dynamic mobility before starting resistance exercises.",
+            "videoUrl": "https://www.youtube.com/watch?v=uW3-Ue07H0M&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_1",
+            "name": "Inclined Bench Press 30 degree",
+            "targetMuscle": "Chest",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 75,
+            "notes": "30-degree incline. Retract scapula, control the eccentric phase, press through upper pecs.",
+            "videoUrl": "https://www.youtube.com/watch?v=161ogCF7fCA",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_2",
+            "name": "Lat pulley pull down",
+            "targetMuscle": "Back",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 75,
+            "notes": "Full stretch at top, pull bar down towards upper chest with elbows tucked.",
+            "videoUrl": "https://www.youtube.com/watch?v=SALxEARiMkw&t=31s",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_3",
+            "name": "Seated Dumbell Shouder Press",
+            "targetMuscle": "Shoulder",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 75,
+            "notes": "Keep core tight, press dumbbells smoothly overhead without hyperextending lower back.",
+            "videoUrl": "https://www.youtube.com/shorts/OLePvpxQEGk",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_4",
+            "name": "Bent over Barbell rows",
+            "targetMuscle": "Back",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 75,
+            "notes": "Hinge forward at 45 degrees, pull barbell to lower ribcage, squeeze lats and mid-back.",
+            "videoUrl": "https://www.youtube.com/watch?v=jxJA05utuWI",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_5",
+            "name": "Resistance band/dumbell lateral raises",
+            "targetMuscle": "Shoulder",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Lead with elbows to parallel, slow 2-second negative.",
+            "videoUrl": "https://www.youtube.com/watch?v=5Du3PPWisJc",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_6",
+            "name": "Dumbell overhead extension",
+            "targetMuscle": "Triceps",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Keep elbows pointing forward, emphasize the long head stretch behind head.",
+            "videoUrl": "https://www.youtube.com/watch?v=fYqswDVbJDg",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_7",
+            "name": "Dumbell Chest Flyes",
+            "targetMuscle": "Chest",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Slight elbow bend, wide controlled arc to stretch chest fibers.",
+            "videoUrl": "https://www.youtube.com/shorts/Jz7oEmzhnfE",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_8",
+            "name": "Triceps rope bar pushdown",
+            "targetMuscle": "Triceps",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Keep elbows fixed at sides, flare rope apart at bottom lockout.",
+            "videoUrl": "https://www.youtube.com/shorts/vO0t9_j1b70",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_9",
+            "name": "back hyper extensions",
+            "targetMuscle": "Back",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Hinge at hip, squeeze lower back and glutes at peak without over-arching neck.",
+            "videoUrl": "https://www.youtube.com/watch?v=ph3pddpKzzw",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_1_cooldown",
+            "name": "Cool down (at the end)",
+            "targetMuscle": "End / Flexibility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 0,
+            "notes": "Static stretching and deep breathing to promote recovery.",
+            "videoUrl": "https://www.youtube.com/watch?v=NFS0U3X5Aco&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          }
+        ]
+      },
+      {
+        "id": "day_2_lower",
+        "dayName": "Day 2/ Day 5: Lower Body & Abs (Whole Legs, Biceps, Glutes & Abs)",
+        "isRestDay": false,
+        "focus": "Lower Body & Core Hypertrophy (Legs, Biceps, Glutes, Abs)",
+        "exercises": [
+          {
+            "id": "ex_atul_2_warmup",
+            "name": "Dynamic Stretching Warm up (very starting)",
+            "targetMuscle": "Full Body / Mobility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 30,
+            "notes": "Daily dynamic mobility before leg and arm training.",
+            "videoUrl": "https://www.youtube.com/watch?v=uW3-Ue07H0M&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_1",
+            "name": "Dumbell Goblet squats",
+            "targetMuscle": "Whole legs",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 75,
+            "notes": "Hold dumbbell tight against sternum, squat deep between hips with upright chest.",
+            "videoUrl": "https://www.youtube.com/watch?v=gm4ln6PO4rc&t=15s",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_2",
+            "name": "Biceps Curls (Barbell gym)",
+            "targetMuscle": "Biceps",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Strict curls without momentum, full supination and peak squeeze.",
+            "videoUrl": "https://www.youtube.com/shorts/54x2WF1_Suc",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_3",
+            "name": "Machine Leg extensions / Dumbell step ups",
+            "targetMuscle": "Quads",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "1-second peak squeeze at top of leg extension, controlled lowering.",
+            "videoUrl": "https://www.youtube.com/watch?v=Eclgp3vnH6U",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_4",
+            "name": "Dumbell seated Hammer Curls",
+            "targetMuscle": "Biceps",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Neutral palms-in grip to develop brachialis and forearm thickness.",
+            "videoUrl": "https://www.youtube.com/watch?v=bdlqQAVdcEk",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_5",
+            "name": "Seated machine hamstring curls",
+            "targetMuscle": "Hamstring",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Curl heels firmly under, pause for a second and control return.",
+            "videoUrl": "https://www.youtube.com/shorts/aakNLjjm4Qo",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_6",
+            "name": "Dumbell Hip Thrusts",
+            "targetMuscle": "Glutes",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 75,
+            "notes": "Upper back on bench, drive hips upwards through heels, strong glute lock.",
+            "videoUrl": "https://www.youtube.com/watch?v=T4P0SDrJZl4",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_7",
+            "name": "Hanging Leg raises (Gym)",
+            "targetMuscle": "Abs",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Brace core, curl pelvis up toward ribs without excessive swing.",
+            "videoUrl": "https://www.youtube.com/watch?v=Nw0LOKe3_l8",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_8",
+            "name": "Weighted Dumbell Crunches",
+            "targetMuscle": "Abs",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Hold dumbbell securely on upper chest, exhale as you crunch up.",
+            "videoUrl": "https://www.youtube.com/shorts/G9XfQJPBJVI",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_2_cooldown",
+            "name": "Cool down (at the end)",
+            "targetMuscle": "End / Flexibility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 0,
+            "notes": "Lower body hamstring, quad and glute static stretching.",
+            "videoUrl": "https://www.youtube.com/watch?v=NFS0U3X5Aco&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          }
+        ]
+      },
+      {
+        "id": "day_3_functional",
+        "dayName": "Day 3: Functional Strength, Grip, Calves & Cardio",
+        "isRestDay": false,
+        "focus": "Grip, Posterior Chain, Calves, Arms & Cardio Conditioning",
+        "exercises": [
+          {
+            "id": "ex_atul_3_warmup",
+            "name": "Dynamic Stretching Warm up (very starting)",
+            "targetMuscle": "Full Body / Mobility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 30,
+            "notes": "Daily dynamic mobility routine before workout.",
+            "videoUrl": "https://www.youtube.com/watch?v=uW3-Ue07H0M&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_1",
+            "name": "Deadhangs with scapula raise",
+            "targetMuscle": "Lat and grip",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Hang from pull-up bar, depress and retract scapula with controlled reps.",
+            "videoUrl": "https://www.youtube.com/watch?v=V0hzdT1CZnk",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_2",
+            "name": "Farmers Walk",
+            "targetMuscle": "Core and legs",
+            "sets": 3,
+            "reps": "15",
+            "restSeconds": 60,
+            "notes": "Hold heavy dumbbells, maintain upright proud posture with tight core.",
+            "videoUrl": "https://www.youtube.com/watch?v=ZX-9J6UePjQ",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_3",
+            "name": "Smith Machine Calf Raises",
+            "targetMuscle": "Calves",
+            "sets": 3,
+            "reps": "15",
+            "restSeconds": 60,
+            "notes": "Elevate toes on plate/step, full heel drop stretch and press up.",
+            "videoUrl": "https://www.youtube.com/watch?v=hh5516HCu4k",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_4",
+            "name": "Push Ups",
+            "targetMuscle": "Chest/ Tri",
+            "sets": 2,
+            "reps": "12",
+            "restSeconds": 60,
+            "notes": "Standard push-ups with locked core, chest to floor.",
+            "videoUrl": "https://www.youtube.com/watch?v=IODxDxX7oi4&t=17s",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_5",
+            "name": "Dumbell Wrist curls",
+            "targetMuscle": "Forearms",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 45,
+            "notes": "Forearms on bench or knees, curl dumbbells upward using wrists.",
+            "videoUrl": "https://www.youtube.com/watch?v=3VLTzIrnb5g",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_6",
+            "name": "High Cable Woodchopper Serratus",
+            "targetMuscle": "Serratus",
+            "sets": 3,
+            "reps": "15",
+            "restSeconds": 60,
+            "notes": "Diagonal high-to-low pull engaging serratus anterior and obliques.",
+            "videoUrl": "https://www.youtube.com/watch?v=ogC0WRCjLzE",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_7",
+            "name": "EZ bar reverse curls",
+            "targetMuscle": "Forearms",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 45,
+            "notes": "Overhand grip on EZ-bar, builds forearm and arm stability.",
+            "videoUrl": "https://www.youtube.com/shorts/5leIuZHoTZs",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_8",
+            "name": "Dumbbell Wrist Twists Exercise",
+            "targetMuscle": "Wrist",
+            "sets": 3,
+            "reps": "12",
+            "restSeconds": 45,
+            "notes": "Controlled wrist rotation pronation/supination.",
+            "videoUrl": "https://www.youtube.com/watch?v=uxOVXpwYKv0",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_9",
+            "name": "Elliptical Cross Trainer Cardio",
+            "targetMuscle": "Cardio",
+            "sets": 1,
+            "reps": "15 Min",
+            "restSeconds": 0,
+            "notes": "15-minute steady Zone 2 low-impact cardio session.",
+            "videoUrl": "https://www.youtube.com/watch?v=MCVX9wRd_h0&t=3s",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_3_cooldown",
+            "name": "Cool down (at the end)",
+            "targetMuscle": "End / Flexibility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 0,
+            "notes": "Full body cool-down stretching and recovery.",
+            "videoUrl": "https://www.youtube.com/watch?v=NFS0U3X5Aco&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          }
+        ]
+      },
+      {
+        "id": "day_4_rest",
+        "dayName": "Day 4: Rest with warm up and cool down",
+        "isRestDay": true,
+        "focus": "Active Rest, Mobility, Joint Recovery & 12,000 Daily Steps",
+        "exercises": [
+          {
+            "id": "ex_atul_4_warmup",
+            "name": "Dynamic Stretching Warm up (very starting)",
+            "targetMuscle": "Full Body / Mobility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 0,
+            "notes": "Start recovery day with light dynamic stretching.",
+            "videoUrl": "https://www.youtube.com/watch?v=uW3-Ue07H0M&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_4_1",
+            "name": "Rest with warm up and cool down",
+            "targetMuscle": "Active Recovery",
+            "sets": 1,
+            "reps": "Rest Day",
+            "restSeconds": 0,
+            "notes": "Rest day to let muscle tissue rebuild. Hit 12,000 steps with brisk walking.",
+            "videoUrl": "https://www.youtube.com/shorts/UqmbxvOgnX4",
+            "createdBy": "coach"
+          },
+          {
+            "id": "ex_atul_4_cooldown",
+            "name": "Cool down (at the end)",
+            "targetMuscle": "End / Flexibility",
+            "sets": 1,
+            "reps": "5-8 min",
+            "restSeconds": 0,
+            "notes": "End-of-day static stretch to relieve any muscle tension.",
+            "videoUrl": "https://www.youtube.com/watch?v=NFS0U3X5Aco&list=PLo1MG2RRky06s-7kjLhNvbr75gYA4sOxR&index=3",
+            "createdBy": "coach"
+          }
+        ]
+      }
+    ]
+  }
+]

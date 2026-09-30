@@ -38,6 +38,15 @@ export const TEST_USER_PRESETS: DevTestUserPreset[] = [
     description: 'Full administrative access to member directory, 70-question intake records, and role administration',
   },
   {
+    id: 'usr_atul_gupta',
+    email: 'akg.atulgupta@gmail.com',
+    name: 'Atul Gupta',
+    role: 'unpaid',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    badge: 'Member (Atul)',
+    description: 'Member with 4-Day Coach Assigned Workout Plan and Week 2 progress stats',
+  },
+  {
     id: 'usr_001_priya',
     email: 'priya.sharma@example.com',
     name: 'Priya Sharma',

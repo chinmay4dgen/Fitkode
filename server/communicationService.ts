@@ -22,6 +22,25 @@ const FROM_EMAIL = process.env.MAIL_FROM || '"Fitkode Coaching" <myfitkode@gmail
 // Seed initial communication history for demonstration in admin portal
 const communicationLogs: CommunicationLog[] = [
   {
+    id: 'comm_seed_atul_workout',
+    type: 'workout_plan_assigned',
+    to: 'akg.atulgupta@gmail.com',
+    from: FROM_EMAIL,
+    subject: '🏋️ Your Personalized 4-Day Workout Plan has been Assigned by Coach Chinmay!',
+    previewText: 'Coach Chinmay has prescribed your 4-Day Resistance & Conditioning Plan with daily warm-up/cool-down routines and video demos.',
+    html: `<p>Coach Chinmay Jain has assigned your customized 4-Day Resistance & Conditioning Plan for Atul Gupta with daily 12,000 steps target and guided exercise video tutorials.</p>`,
+    text: 'Coach Chinmay has assigned your 4-Day Workout Plan. Target: 12,000 steps daily with warm up & cool down.',
+    status: 'sent',
+    sentAt: '2026-09-29T10:00:00Z',
+    recipientName: 'Atul Gupta',
+    metadata: {
+      clientEmail: 'akg.atulgupta@gmail.com',
+      clientName: 'Atul Gupta',
+      planName: '4 Days workout',
+      coachName: 'Chinmay Jain',
+    },
+  },
+  {
     id: 'comm_seed_atul_w2',
     type: 'weekly_tracker_submission',
     to: 'myfitkode@gmail.com',
