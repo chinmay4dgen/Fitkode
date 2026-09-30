@@ -414,11 +414,11 @@ export const SEED_MEMBERS: AppMember[] = [
     role: 'unpaid',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     joinedAt: '2026-09-11T07:15:00Z',
-    lastLoginAt: '2026-09-12T08:30:00Z',
+    lastLoginAt: '2026-09-22T09:30:00Z',
     phone: '+91 98114 00612',
     profileCompletion: 100,
     onboardingCompletion: 100,
-    notes: 'Member signed up via Google OAuth. Completed health questionnaire and submitted Week 1 Tracker check-in.',
+    notes: 'Member updated stats last week (Week 2 check-in on Sep 22): Weight down to 71.9 kg (-0.9 kg), waist 35.4 in (-0.6 in), steps avg 8,600/day. High adherence.',
     profile: {
       ...defaultUserProfile,
       email: 'akg.atulgupta@gmail.com',
@@ -460,14 +460,14 @@ export const SEED_MEMBERS: AppMember[] = [
       dietPreferences: ['Vegetarian', 'High Protein'],
       mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
       dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
-      currentWeightKg: '72.8',
+      currentWeightKg: '71.9',
       heightCm: '174',
-      waistInches: '36.0',
-      hipInches: '39.0',
-      neckInches: '15.5',
-      chestInches: '39.5',
-      upperArmInches: '13.5',
-      quadricepsInches: '22.0',
+      waistInches: '35.4',
+      hipInches: '38.6',
+      neckInches: '15.4',
+      chestInches: '39.2',
+      upperArmInches: '13.4',
+      quadricepsInches: '21.8',
       headachesScore: 1,
       insomniaScore: 1,
       digestiveIssuesScore: 1,
@@ -481,6 +481,33 @@ export const SEED_MEMBERS: AppMember[] = [
       isConsentWithdrawn: false,
     },
     weeklyEntries: [
+      {
+        id: 'chk_atul_w2',
+        userId: 'usr_atul_gupta',
+        userEmail: 'akg.atulgupta@gmail.com',
+        firstName: 'Atul',
+        lastName: 'Gupta',
+        checkInDate: '2026-09-22',
+        weekNumber: 2,
+        avgStepsPerDay: 8600,
+        weightKg: 71.9,
+        waistInches: 35.4,
+        hipsInches: 38.6,
+        neckInches: 15.4,
+        quadsInches: 21.8,
+        chestInches: 39.2,
+        upperRightArmInches: 13.4,
+        resistanceWorkoutDays: 4,
+        hiitCardioDays: 2,
+        avgCaloriesPerDay: 1980,
+        frontPicUrl: '',
+        leftPicUrl: '',
+        rightPicUrl: '',
+        backPicUrl: '',
+        challengesFaced: 'Managed to hit 8.6k daily steps by taking 15-min post-meal walking breaks between meetings. Evening hunger was much better with the roasted chana snack.',
+        coachFeedback: 'Outstanding progress Atul! Down 0.9kg and more than half an inch off your waist in Week 2. Strength training consistency is paying off.',
+        createdAt: '2026-09-22T08:30:00Z',
+      },
       {
         id: 'chk_atul_w1',
         userId: 'usr_atul_gupta',
@@ -842,6 +869,17 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
             const existing = mergedList[existingIndex];
             const hasRemoteProfile = Object.keys(profileData).length > 0;
             const hasRemoteOnboarding = Object.keys(onboardingData).length > 0;
+            const remoteWeekly = memberObj.weeklyEntries || [];
+            const localWeekly = existing.weeklyEntries || [];
+            // Merge distinct entries by ID
+            const weeklyMap = new Map();
+            [...localWeekly, ...remoteWeekly].forEach((e) => {
+              if (e && e.id) weeklyMap.set(e.id, e);
+            });
+            const mergedWeekly = Array.from(weeklyMap.values()).sort(
+              (a: any, b: any) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+            );
+
             mergedList[existingIndex] = {
               ...existing,
               ...memberObj,
@@ -849,7 +887,7 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
               onboardingCompletion: hasRemoteOnboarding ? onboardingRate : existing.onboardingCompletion,
               profile: hasRemoteProfile ? memberObj.profile : (existing.profile || memberObj.profile),
               onboarding: hasRemoteOnboarding ? memberObj.onboarding : (existing.onboarding || memberObj.onboarding),
-              weeklyEntries: existing.weeklyEntries || memberObj.weeklyEntries || [],
+              weeklyEntries: mergedWeekly,
               notes: row.notes || existing.notes || '',
             };
           } else {

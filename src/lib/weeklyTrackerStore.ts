@@ -7,6 +7,33 @@ import { saveWeeklyEntriesToSupabase, loadWeeklyEntriesFromSupabase } from './su
 export const SEED_WEEKLY_ENTRIES: WeeklyTrackerEntry[] = [
   // --- Atul Gupta (akg.atulgupta@gmail.com) Check-ins ---
   {
+    id: 'chk_atul_w2',
+    userId: 'usr_atul_gupta',
+    userEmail: 'akg.atulgupta@gmail.com',
+    firstName: 'Atul',
+    lastName: 'Gupta',
+    checkInDate: '2026-09-22',
+    weekNumber: 2,
+    avgStepsPerDay: 8600,
+    weightKg: 71.9,
+    waistInches: 35.4,
+    hipsInches: 38.6,
+    neckInches: 15.4,
+    quadsInches: 21.8,
+    chestInches: 39.2,
+    upperRightArmInches: 13.4,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 2,
+    avgCaloriesPerDay: 1980,
+    frontPicUrl: '',
+    leftPicUrl: '',
+    rightPicUrl: '',
+    backPicUrl: '',
+    challengesFaced: 'Managed to hit 8.6k daily steps by taking 15-min post-meal walking breaks between meetings. Evening hunger was much better with the roasted chana snack.',
+    coachFeedback: 'Outstanding progress Atul! Down 0.9kg and more than half an inch off your waist in Week 2. Strength training consistency is paying off.',
+    createdAt: '2026-09-22T08:30:00Z',
+  },
+  {
     id: 'chk_atul_w1',
     userId: 'usr_atul_gupta',
     userEmail: 'akg.atulgupta@gmail.com',
@@ -251,8 +278,40 @@ export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMem
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        // Check if there are newly added seed entries or member store entries not yet in this local cache
+        const seeded = SEED_WEEKLY_ENTRIES.filter((e) => e.userEmail.toLowerCase().trim() === normalized);
+        const existingIds = new Set(parsed.map((e: any) => e.id));
+        let changed = false;
+        const merged = [...parsed];
+
+        for (const s of seeded) {
+          if (!existingIds.has(s.id)) {
+            merged.push(s);
+            existingIds.add(s.id);
+            changed = true;
+          }
+        }
+
+        if (fallbackMember?.weeklyEntries && fallbackMember.weeklyEntries.length > 0) {
+          for (const fe of fallbackMember.weeklyEntries) {
+            if (!existingIds.has(fe.id)) {
+              merged.push(fe);
+              existingIds.add(fe.id);
+              changed = true;
+            }
+          }
+        }
+
+        if (changed) {
+          try {
+            localStorage.setItem(key, JSON.stringify(merged));
+          } catch {
+            // ignore
+          }
+        }
+
         // Sort reverse chronological (newest first)
-        return parsed.sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
+        return merged.sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
       }
     }
   } catch (err) {

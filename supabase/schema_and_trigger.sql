@@ -285,19 +285,23 @@ TO authenticated
 USING (auth.uid() = user_id OR auth.jwt() ->> 'email' = user_email);
 
 CREATE TABLE IF NOT EXISTS public.weekly_tracker_entries (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
   user_email TEXT NOT NULL,
+  check_in_date DATE,
   week_date DATE,
-  weight NUMERIC,
-  waist_cm NUMERIC,
-  chest_cm NUMERIC,
-  arms_cm NUMERIC,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+  week_number INT DEFAULT 1,
+  weight_kg NUMERIC,
+  waist_inches NUMERIC,
+  avg_steps_per_day INT DEFAULT 0,
+  notes TEXT DEFAULT '',
+  entry_data JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 ALTER TABLE public.weekly_tracker_entries ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.weekly_tracker_entries TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.weekly_tracker_entries TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.weekly_tracker_entries TO service_role;
 
@@ -306,5 +310,29 @@ CREATE POLICY "Users can manage own tracker entries"
 ON public.weekly_tracker_entries
 FOR ALL
 TO authenticated
-USING (auth.uid() = user_id OR auth.jwt() ->> 'email' = user_email);
+USING (
+  auth.uid()::text = user_id 
+  OR LOWER(auth.jwt() ->> 'email') = LOWER(user_email)
+  OR LOWER(COALESCE(auth.jwt() ->> 'email', '')) IN ('chinmay4jain@gmail.com', 'chinma4jain@gmail.com')
+  OR EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE public.profiles.id = auth.uid()
+    AND public.profiles.role = 'admin'
+  )
+);
+
+DROP POLICY IF EXISTS "Admins can view and manage all tracker entries" ON public.weekly_tracker_entries;
+CREATE POLICY "Admins can view and manage all tracker entries"
+ON public.weekly_tracker_entries
+FOR ALL
+TO authenticated
+USING (
+  LOWER(COALESCE(auth.jwt() ->> 'email', '')) IN ('chinmay4jain@gmail.com', 'chinma4jain@gmail.com')
+  OR EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE public.profiles.id = auth.uid()
+    AND public.profiles.role = 'admin'
+  )
+);
+
 

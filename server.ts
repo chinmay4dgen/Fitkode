@@ -769,11 +769,11 @@ const serverMembers: any[] = [
     role: 'unpaid',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     joinedAt: '2026-09-11T07:15:00Z',
-    lastLoginAt: '2026-09-12T08:30:00Z',
+    lastLoginAt: '2026-09-22T09:30:00Z',
     phone: '+91 98114 00612',
     profileCompletion: 100,
     onboardingCompletion: 100,
-    notes: 'Member signed up via Google OAuth. Completed health questionnaire and submitted Week 1 Tracker check-in.',
+    notes: 'Member updated stats last week (Week 2 check-in on Sep 22): Weight down to 71.9 kg (-0.9 kg), waist 35.4 in (-0.6 in), steps avg 8,600/day. High adherence.',
     profile: {
       email: 'akg.atulgupta@gmail.com',
       firstName: 'Atul',
@@ -813,14 +813,14 @@ const serverMembers: any[] = [
       dietPreferences: ['Vegetarian', 'High Protein'],
       mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
       dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
-      currentWeightKg: '72.8',
+      currentWeightKg: '71.9',
       heightCm: '174',
-      waistInches: '36.0',
-      hipInches: '39.0',
-      neckInches: '15.5',
-      chestInches: '39.5',
-      upperArmInches: '13.5',
-      quadricepsInches: '22.0',
+      waistInches: '35.4',
+      hipInches: '38.6',
+      neckInches: '15.4',
+      chestInches: '39.2',
+      upperArmInches: '13.4',
+      quadricepsInches: '21.8',
       headachesScore: 1,
       insomniaScore: 1,
       digestiveIssuesScore: 1,
@@ -838,7 +838,34 @@ const serverMembers: any[] = [
 
 // In-memory weekly entries repository with pre-seeded sample data
 const serverWeeklyEntries: any[] = [
-  // Pre-seeded Atul Gupta check-in
+  // Pre-seeded Atul Gupta check-ins
+  {
+    id: 'chk_atul_w2',
+    userId: 'usr_atul_gupta',
+    userEmail: 'akg.atulgupta@gmail.com',
+    firstName: 'Atul',
+    lastName: 'Gupta',
+    checkInDate: '2026-09-22',
+    weekNumber: 2,
+    avgStepsPerDay: 8600,
+    weightKg: 71.9,
+    waistInches: 35.4,
+    hipsInches: 38.6,
+    neckInches: 15.4,
+    quadsInches: 21.8,
+    chestInches: 39.2,
+    upperRightArmInches: 13.4,
+    resistanceWorkoutDays: 4,
+    hiitCardioDays: 2,
+    avgCaloriesPerDay: 1980,
+    frontPicUrl: '',
+    leftPicUrl: '',
+    rightPicUrl: '',
+    backPicUrl: '',
+    challengesFaced: 'Managed to hit 8.6k daily steps by taking 15-min post-meal walking breaks between meetings. Evening hunger was much better with the roasted chana snack.',
+    coachFeedback: 'Outstanding progress Atul! Down 0.9kg and more than half an inch off your waist in Week 2. Strength training consistency is paying off.',
+    createdAt: '2026-09-22T08:30:00Z',
+  },
   {
     id: 'chk_atul_w1',
     userId: 'usr_atul_gupta',
@@ -1242,6 +1269,89 @@ async function startServer() {
       isConfigured,
     });
   });
+
+  // Automated Supabase Free Tier Keep-Alive Ping Endpoint
+  // Suitable for UptimeRobot, Vercel Cron, or any scheduled health pinger to prevent 7-day auto-pause
+  const handleKeepAlivePing = async (req: any, res: any) => {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://okwqbcmndtrdtnqlijip.supabase.co';
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supabase credentials not configured in environment',
+      });
+    }
+
+    try {
+      // 1. Query public.profiles database table
+      const dbRes = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id&limit=1`, {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+      });
+
+      // 2. Query Auth settings to ensure GoTrue is warm
+      const authRes = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+      });
+
+      const isDbOk = dbRes.status >= 200 && dbRes.status < 500;
+      const isAuthOk = authRes.status >= 200 && authRes.status < 500;
+
+      return res.json({
+        success: isDbOk,
+        timestamp: new Date().toISOString(),
+        supabaseUrl,
+        database: {
+          status: dbRes.status,
+          statusText: dbRes.statusText,
+          alive: isDbOk,
+        },
+        auth: {
+          status: authRes.status,
+          statusText: authRes.statusText,
+          alive: isAuthOk,
+        },
+        message: isDbOk
+          ? 'Supabase database & auth pinged successfully. Auto-pause prevented.'
+          : 'Warning: Supabase returned unexpected status. Please verify in Supabase dashboard.',
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        error: err.message || 'Failed to ping Supabase instance',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  app.get('/api/supabase/keep-alive', handleKeepAlivePing);
+  app.get('/api/keep-alive', handleKeepAlivePing);
+  app.get('/api/health-check', handleKeepAlivePing);
+
+  // Periodic background keep-alive ping every 48 hours (well under the 7-day auto-pause threshold)
+  setInterval(async () => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://okwqbcmndtrdtnqlijip.supabase.co';
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+      if (supabaseUrl && supabaseAnonKey) {
+        await fetch(`${supabaseUrl}/rest/v1/profiles?select=id&limit=1`, {
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+        });
+        console.log('[Supabase Keep-Alive] Automatic 48h database ping executed successfully.');
+      }
+    } catch (err) {
+      console.warn('[Supabase Keep-Alive] Periodic ping notice:', err);
+    }
+  }, 48 * 60 * 60 * 1000);
 
   // Razorpay Config status endpoint
   app.get('/api/razorpay/config', (req, res) => {

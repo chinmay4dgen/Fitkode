@@ -1049,6 +1049,153 @@ export default function AdminMembersPage() {
                 </div>
               </div>
 
+              {/* Real-time Health Metrics & Progress Snapshot for Coach */}
+              {(() => {
+                const sortedEntries = [...adminWeeklyEntries].sort(
+                  (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+                );
+                const latestCheckin = sortedEntries[0];
+                const baselineCheckin = sortedEntries[sortedEntries.length - 1];
+                const intakeWeight = parseFloat(selectedMember.onboarding?.currentWeightKg || '0') || null;
+                const currentWeight = latestCheckin?.weightKg || intakeWeight;
+                const intakeWaist = parseFloat(selectedMember.onboarding?.waistInches || '0') || null;
+                const currentWaist = latestCheckin?.waistInches || intakeWaist;
+                
+                const weightDiff = (latestCheckin && baselineCheckin && sortedEntries.length > 1)
+                  ? Number((latestCheckin.weightKg - baselineCheckin.weightKg).toFixed(1))
+                  : (latestCheckin && intakeWeight && latestCheckin.weightKg !== intakeWeight)
+                  ? Number((latestCheckin.weightKg - intakeWeight).toFixed(1))
+                  : null;
+
+                const waistDiff = (latestCheckin && baselineCheckin && sortedEntries.length > 1)
+                  ? Number((latestCheckin.waistInches - baselineCheckin.waistInches).toFixed(1))
+                  : (latestCheckin && intakeWaist && latestCheckin.waistInches !== intakeWaist)
+                  ? Number((latestCheckin.waistInches - intakeWaist).toFixed(1))
+                  : null;
+
+                return (
+                  <div className="bg-gradient-to-br from-emerald-950 via-teal-950 to-gray-900 text-white rounded-2xl p-4 sm:p-5 border border-emerald-700/60 shadow-md space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-800/80 pb-3">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
+                          <Activity className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-emerald-300">
+                              Current Member Stats &amp; Health Trajectory
+                            </h3>
+                            {latestCheckin ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                Week {latestCheckin.weekNumber} Check-in ({latestCheckin.checkInDate})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-700 text-gray-300">
+                                Intake Baseline Only
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-emerald-100/70">
+                            {latestCheckin 
+                              ? `Last stats updated on ${latestCheckin.checkInDate}. All biometric metrics synced directly with Coach Chinmay.`
+                              : 'No weekly tracker check-in logged yet. Showing intake onboarding baseline.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('weekly-tracker')}
+                          className="inline-flex items-center space-x-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-emerald-950 px-3 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                        >
+                          <Scale className="w-3.5 h-3.5" />
+                          <span>View Full Weekly Log ({adminWeeklyEntries.length})</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stat Metrics Strip */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {/* Weight */}
+                      <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
+                        <span className="text-[10px] uppercase font-bold text-emerald-300/80 block">Current Weight</span>
+                        <div className="flex items-baseline space-x-2 mt-0.5">
+                          <span className="text-lg font-black text-white">
+                            {currentWeight ? `${currentWeight} kg` : 'N/A'}
+                          </span>
+                          {weightDiff !== null && (
+                            <span
+                              className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+                                weightDiff < 0
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : weightDiff > 0
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-white/10 text-gray-300'
+                              }`}
+                            >
+                              {weightDiff > 0 ? `+${weightDiff}` : weightDiff} kg
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">
+                          {intakeWeight ? `Intake: ${intakeWeight} kg` : 'Baseline pending'}
+                        </span>
+                      </div>
+
+                      {/* Waist */}
+                      <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
+                        <span className="text-[10px] uppercase font-bold text-emerald-300/80 block">Waistline</span>
+                        <div className="flex items-baseline space-x-2 mt-0.5">
+                          <span className="text-lg font-black text-white">
+                            {currentWaist ? `${currentWaist}"` : 'N/A'}
+                          </span>
+                          {waistDiff !== null && (
+                            <span
+                              className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+                                waistDiff < 0
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : waistDiff > 0
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-white/10 text-gray-300'
+                              }`}
+                            >
+                              {waistDiff > 0 ? `+${waistDiff}` : waistDiff}"
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">
+                          {intakeWaist ? `Intake: ${intakeWaist}"` : 'Baseline pending'}
+                        </span>
+                      </div>
+
+                      {/* Daily Steps */}
+                      <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
+                        <span className="text-[10px] uppercase font-bold text-emerald-300/80 block">Avg Steps / Day</span>
+                        <p className="text-lg font-black text-white mt-0.5">
+                          {latestCheckin?.avgStepsPerDay ? latestCheckin.avgStepsPerDay.toLocaleString() : '8,000'}
+                        </p>
+                        <span className="text-[10px] text-emerald-400 block mt-0.5">
+                          {latestCheckin ? `${latestCheckin.resistanceWorkoutDays || 0} workouts/wk` : 'Target: 8k-10k/day'}
+                        </span>
+                      </div>
+
+                      {/* Transformation Trajectory */}
+                      <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
+                        <span className="text-[10px] uppercase font-bold text-emerald-300/80 block">Adherence &amp; Momentum</span>
+                        <p className="text-sm font-bold text-emerald-300 mt-1 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>{latestCheckin ? `Week ${latestCheckin.weekNumber} On Track` : 'Awaiting Check-in'}</span>
+                        </p>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">
+                          {adminWeeklyEntries.length} check-in log{adminWeeklyEntries.length === 1 ? '' : 's'} recorded
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Dossier Navigation Tabs */}
               <div className="flex items-center space-x-2 border-b border-gray-100 pb-2 overflow-x-auto no-scrollbar scroll-smooth">
                 <button
@@ -1562,49 +1709,153 @@ export default function AdminMembersPage() {
                       </div>
 
                       {/* Section 5: Body Statistics & Measurements */}
-                      <div className="bg-blue-50/40 rounded-2xl p-5 border border-blue-100 space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-blue-800">
-                          5. Body Measurements &amp; Baseline Composition
-                        </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Weight (Morning Fasting)</span>
-                            <span className="text-sm font-black text-blue-950">
-                              {selectedMember.onboarding.currentWeightKg ? `${selectedMember.onboarding.currentWeightKg} kg` : 'N/A'}
-                            </span>
+                      {(() => {
+                        const latestEntry = adminWeeklyEntries[0];
+                        return (
+                          <div className="bg-blue-50/40 rounded-2xl p-5 border border-blue-100 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                              <h4 className="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center space-x-1.5">
+                                <Scale className="w-3.5 h-3.5 text-blue-600" />
+                                <span>5. Body Measurements &amp; Progress Composition</span>
+                              </h4>
+                              {latestEntry && (
+                                <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-lg border border-emerald-200 self-start sm:self-auto">
+                                  Current: Week {latestEntry.weekNumber} Check-in ({latestEntry.checkInDate})
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                              {/* Weight */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Weight (Morning Fasting)</span>
+                                <div className="flex items-baseline space-x-1.5">
+                                  <span className="text-sm font-black text-blue-950">
+                                    {latestEntry?.weightKg
+                                      ? `${latestEntry.weightKg} kg`
+                                      : selectedMember.onboarding.currentWeightKg
+                                      ? `${selectedMember.onboarding.currentWeightKg} kg`
+                                      : 'N/A'}
+                                  </span>
+                                  {latestEntry?.weightKg && selectedMember.onboarding.currentWeightKg && (
+                                    <span
+                                      className={`text-[10px] font-bold ${
+                                        latestEntry.weightKg < parseFloat(selectedMember.onboarding.currentWeightKg)
+                                          ? 'text-emerald-600'
+                                          : latestEntry.weightKg > parseFloat(selectedMember.onboarding.currentWeightKg)
+                                          ? 'text-amber-600'
+                                          : 'text-gray-400'
+                                      }`}
+                                    >
+                                      ({(latestEntry.weightKg - parseFloat(selectedMember.onboarding.currentWeightKg)).toFixed(1)} kg)
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.currentWeightKg || 'N/A'} kg
+                                </span>
+                              </div>
+
+                              {/* Height */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Height</span>
+                                <span className="text-sm font-black text-blue-950">
+                                  {selectedMember.onboarding.heightCm ? `${selectedMember.onboarding.heightCm} cm` : 'N/A'}
+                                </span>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">Constant biometric</span>
+                              </div>
+
+                              {/* Waist */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Waist Circumference</span>
+                                <div className="flex items-baseline space-x-1.5">
+                                  <span className="font-bold text-gray-800">
+                                    {latestEntry?.waistInches || selectedMember.onboarding.waistInches || 'N/A'} in
+                                  </span>
+                                  {latestEntry?.waistInches && selectedMember.onboarding.waistInches && (
+                                    <span
+                                      className={`text-[10px] font-bold ${
+                                        latestEntry.waistInches < parseFloat(selectedMember.onboarding.waistInches)
+                                          ? 'text-emerald-600'
+                                          : latestEntry.waistInches > parseFloat(selectedMember.onboarding.waistInches)
+                                          ? 'text-amber-600'
+                                          : 'text-gray-400'
+                                      }`}
+                                    >
+                                      ({(latestEntry.waistInches - parseFloat(selectedMember.onboarding.waistInches)).toFixed(1)}")
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.waistInches || 'N/A'} in
+                                </span>
+                              </div>
+
+                              {/* Hip */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Hip Circumference</span>
+                                <div className="flex items-baseline space-x-1.5">
+                                  <span className="font-bold text-gray-800">
+                                    {latestEntry?.hipsInches || selectedMember.onboarding.hipInches || 'N/A'} in
+                                  </span>
+                                  {latestEntry?.hipsInches && selectedMember.onboarding.hipInches && (
+                                    <span className="text-[10px] font-bold text-emerald-600">
+                                      ({(latestEntry.hipsInches - parseFloat(selectedMember.onboarding.hipInches)).toFixed(1)}")
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.hipInches || 'N/A'} in
+                                </span>
+                              </div>
+
+                              {/* Chest */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Chest</span>
+                                <span className="font-bold text-gray-800">
+                                  {latestEntry?.chestInches || selectedMember.onboarding.chestInches || 'N/A'} in
+                                </span>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.chestInches || 'N/A'} in
+                                </span>
+                              </div>
+
+                              {/* Upper Arm */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Upper Arm</span>
+                                <span className="font-bold text-gray-800">
+                                  {latestEntry?.upperRightArmInches || selectedMember.onboarding.upperArmInches || 'N/A'} in
+                                </span>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.upperArmInches || 'N/A'} in
+                                </span>
+                              </div>
+
+                              {/* Quadriceps */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Quadriceps (Thigh)</span>
+                                <span className="font-bold text-gray-800">
+                                  {latestEntry?.quadsInches || selectedMember.onboarding.quadricepsInches || 'N/A'} in
+                                </span>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.quadricepsInches || 'N/A'} in
+                                </span>
+                              </div>
+
+                              {/* Neck */}
+                              <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                                <span className="text-gray-400 block text-[10px]">Neck</span>
+                                <span className="font-bold text-gray-800">
+                                  {latestEntry?.neckInches || selectedMember.onboarding.neckInches || 'N/A'} in
+                                </span>
+                                <span className="text-[9px] text-gray-400 block mt-0.5">
+                                  Intake Baseline: {selectedMember.onboarding.neckInches || 'N/A'} in
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Height</span>
-                            <span className="text-sm font-black text-blue-950">
-                              {selectedMember.onboarding.heightCm ? `${selectedMember.onboarding.heightCm} cm` : 'N/A'}
-                            </span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Waist Circumference</span>
-                            <span className="font-bold text-gray-800">{selectedMember.onboarding.waistInches || 'N/A'} in</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Hip Circumference</span>
-                            <span className="font-bold text-gray-800">{selectedMember.onboarding.hipInches || 'N/A'} in</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Chest</span>
-                            <span className="font-bold text-gray-800">{selectedMember.onboarding.chestInches || 'N/A'} in</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Upper Arm</span>
-                            <span className="font-bold text-gray-800">{selectedMember.onboarding.upperArmInches || 'N/A'} in</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Quadriceps (Thigh)</span>
-                            <span className="font-bold text-gray-800">{selectedMember.onboarding.quadricepsInches || 'N/A'} in</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-xl border border-blue-100">
-                            <span className="text-gray-400 block text-[10px]">Neck</span>
-                            <span className="font-bold text-gray-800">{selectedMember.onboarding.neckInches || 'N/A'} in</span>
-                          </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Section 6: Medical History, Surgeries & Family */}
                       <div className="bg-purple-50/40 rounded-2xl p-5 border border-purple-100 space-y-4">

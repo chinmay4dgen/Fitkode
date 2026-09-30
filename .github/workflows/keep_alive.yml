@@ -1,0 +1,47 @@
+name: Keep Supabase Free Tier Alive
+
+on:
+  schedule:
+    # Runs every 3 days at 04:00 UTC (well within Supabase's 7-day inactivity pause window)
+    - cron: '0 4 */3 * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions dashboard
+
+jobs:
+  ping-supabase:
+    name: Ping Supabase Database & Auth API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database REST API (SELECT 1 query on profiles)
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://okwqbcmndtrdtnqlijip.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Sending automated keep-alive ping to Supabase Database..."
+          
+          # Ping database REST endpoint (select 1 from profiles table)
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET \
+            "${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json")
+          
+          STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS")
+          
+          echo "REST API Status Code: $STATUS"
+          echo "REST Response Body: $BODY"
+          
+          # Also ping Auth Settings endpoint to keep Auth instance warm
+          AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+            "${SUPABASE_URL}/auth/v1/settings" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          
+          echo "Auth API Status Code: $AUTH_STATUS"
+          
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+            echo "✅ Supabase keep-alive ping successful at $(date -u)"
+          else
+            echo "⚠️ Supabase returned status $STATUS. Please verify your Supabase project status in dashboard."
+            exit 1
+          fi

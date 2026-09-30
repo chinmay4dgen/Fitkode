@@ -22,6 +22,27 @@ const FROM_EMAIL = process.env.MAIL_FROM || '"Fitkode Coaching" <myfitkode@gmail
 // Seed initial communication history for demonstration in admin portal
 const communicationLogs: CommunicationLog[] = [
   {
+    id: 'comm_seed_atul_w2',
+    type: 'weekly_tracker_submission',
+    to: 'myfitkode@gmail.com',
+    from: FROM_EMAIL,
+    subject: '[Fitkode Weekly Check-in] New Tracker Submission: Atul Gupta (Week 2)',
+    previewText: 'Atul Gupta submitted Week 2 check-in. Weight: 71.9 kg (-0.9kg). Waist: 35.4 in (-0.6 in). Steps: 8,600/day.',
+    html: `<p>Atul Gupta submitted Week 2 check-in. Weight: 71.9 kg (-0.9kg). Waist: 35.4 in (-0.6 in). Steps: 8,600/day. Consistency: 4 workout days, 2 cardio days.</p>`,
+    text: 'Atul Gupta submitted Week 2 check-in. Weight: 71.9 kg (-0.9kg). Waist: 35.4 in. Steps: 8,600/day.',
+    status: 'sent',
+    sentAt: '2026-09-22T08:30:00Z',
+    recipientName: 'Coach Chinmay',
+    metadata: {
+      clientEmail: 'akg.atulgupta@gmail.com',
+      clientName: 'Atul Gupta',
+      weekNumber: 2,
+      weightKg: 71.9,
+      waistInches: 35.4,
+      avgStepsPerDay: 8600,
+    },
+  },
+  {
     id: 'comm_seed_001',
     type: 'weekly_tracker_submission',
     to: 'myfitkode@gmail.com',
