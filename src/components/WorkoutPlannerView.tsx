@@ -20,6 +20,10 @@ import {
   Youtube,
   Play,
   ExternalLink,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
 } from 'lucide-react';
 import {
   WorkoutPlan,
@@ -139,6 +143,26 @@ export default function WorkoutPlannerView({
     exercise: ExerciseItem;
     dayName?: string;
   } | null>(null);
+
+  // Independent Day Navigation Tab Filter State: default to first day of routine for independent navigation
+  const [selectedDayId, setSelectedDayId] = useState<string>(() => {
+    return currentPlan?.days?.[0]?.id || 'all';
+  });
+
+  // Ensure selectedDayId stays valid if days are removed or plan changes
+  React.useEffect(() => {
+    if (currentPlan) {
+      setPlan(currentPlan);
+      if (currentPlan.days && currentPlan.days.length > 0) {
+        setSelectedDayId((prev) => {
+          if (prev === 'all' || !currentPlan.days.some((d) => d.id === prev)) {
+            return currentPlan.days[0].id;
+          }
+          return prev;
+        });
+      }
+    }
+  }, [currentPlan?.id, currentPlan?.name, currentPlan?.updatedAt]);
 
   // Total exercises count
   const totalExercisesCount = useMemo(() => {
@@ -744,311 +768,562 @@ export default function WorkoutPlannerView({
           </div>
         )}
 
-        {/* Days List */}
-        {plan.days.map((day, index) => (
-          <div
-            key={day.id}
-            className={`bg-white rounded-3xl p-5 sm:p-6 border transition-all shadow-xs space-y-4 ${
-              day.isRestDay ? 'border-blue-200 bg-blue-50/20' : 'border-gray-200 hover:border-brand-light-green'
-            }`}
-          >
-            {/* Day Header */}
-            <div className="space-y-3 pb-3 border-b border-gray-100">
-              {/* Row 1: Index, Day Name, Focus, and Delete Day Button */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                      day.isRestDay
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-brand-light-green/60 text-brand-dark-green'
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      value={day.dayName}
-                      onChange={(e) => handleUpdateDayMeta(day.id, e.target.value, day.focus)}
-                      className="text-sm sm:text-base font-bold text-gray-900 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none w-full"
-                    />
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-xs text-gray-500">
-                      <span className="text-[11px] font-semibold text-gray-500 shrink-0">Target Focus:</span>
-                      <input
-                        type="text"
-                        value={day.focus}
-                        placeholder="e.g. Upper Body Push or Active Recovery"
-                        onChange={(e) => handleUpdateDayMeta(day.id, day.dayName, e.target.value)}
-                        className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none flex-1 min-w-[140px]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
+        {/* Independent Day Navigation Bar for fast tab-based daily switching */}
+        {plan.days.length > 0 && (
+          <div className="bg-white rounded-3xl p-3 sm:p-4 border border-gray-200 shadow-2xs space-y-2.5">
+            <div className="flex items-center justify-between gap-2 px-1">
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-purple-600" />
+                <span>Navigate Workout Days ({plan.days.length} Total)</span>
+              </span>
+              {selectedDayId !== 'all' && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteDay(day.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
-                  title="Delete Day"
+                  onClick={() => setSelectedDayId('all')}
+                  className="text-xs font-bold text-purple-700 hover:text-purple-900 cursor-pointer hover:underline"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  View All Days
                 </button>
-              </div>
-
-              {/* Row 2: Action Controls */}
-              <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => handleToggleRestDay(day.id)}
-                  className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                    day.isRestDay
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {day.isRestDay ? 'Rest & Recovery Day' : 'Mark as Rest Day'}
-                </button>
-
-                {!day.isRestDay && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setLibraryModalDayId(day.id)}
-                      className="py-1.5 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold flex items-center space-x-1.5 cursor-pointer transition-colors shadow-2xs"
-                      title="Select from Exercise Library"
-                    >
-                      <BookOpen className="w-3.5 h-3.5 text-purple-700" />
-                      <span>Exercise Library</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomExercise(day.id)}
-                      className="py-1.5 px-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
-                      title="Add Custom Exercise"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Custom</span>
-                    </button>
-                  </>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* Exercises Content */}
-            {day.isRestDay ? (
-              <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 text-center space-y-1.5">
-                <p className="text-xs font-bold text-blue-900">Rest & Active Recovery Day</p>
-                <p className="text-xs text-blue-700 max-w-md mx-auto">
-                  Take a 30-minute light walk, complete 10-15 minutes of dynamic hip and spine mobility, and hit your hydration and protein targets.
-                </p>
-              </div>
-            ) : day.exercises.length === 0 ? (
-              <div className="p-4 rounded-2xl bg-gray-50/70 text-center text-xs text-gray-500 border border-dashed border-gray-200">
-                No exercises added for this day yet. Click{' '}
-                <button
-                  type="button"
-                  onClick={() => setLibraryModalDayId(day.id)}
-                  className="font-bold text-purple-800 underline cursor-pointer"
-                >
-                  Exercise Library
-                </button>{' '}
-                or{' '}
-                <button
-                  type="button"
-                  onClick={() => handleAddCustomExercise(day.id)}
-                  className="font-bold text-gray-700 underline cursor-pointer"
-                >
-                  Custom
-                </button>{' '}
-                to add movements.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {day.exercises.map((ex, exIdx) => (
-                  <div
-                    key={ex.id}
-                    className="p-3.5 sm:p-4 rounded-2xl bg-gray-50/90 border border-gray-200 space-y-2.5 text-xs shadow-2xs"
+            {/* Scrollable Day Navigation Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto py-1 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedDayId('all')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  selectedDayId === 'all'
+                    ? 'bg-purple-950 text-white shadow-xs ring-2 ring-purple-400/40'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All Days ({plan.days.length})
+              </button>
+
+              {plan.days.map((day, idx) => {
+                const isSelected = selectedDayId === day.id;
+                const shortLabel = day.dayName.split(':')[0] || `Day ${idx + 1}`;
+                return (
+                  <button
+                    key={day.id}
+                    type="button"
+                    onClick={() => setSelectedDayId(day.id)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center space-x-1.5 ${
+                      isSelected
+                        ? 'bg-brand-dark-green text-white shadow-xs ring-2 ring-emerald-400/50'
+                        : day.isRestDay
+                        ? 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
                   >
-                    {/* Top Row: Index, Exercise Name, Muscle Badges & Top-Right Delete Button */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center space-x-2 flex-1 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-bold text-[10px] shrink-0">
-                          {exIdx + 1}
-                        </span>
-                        <input
-                          type="text"
-                          value={ex.name}
-                          onChange={(e) => handleUpdateExercise(day.id, ex.id, 'name', e.target.value)}
-                          className="font-bold text-sm text-gray-900 bg-transparent hover:bg-white px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none flex-1 min-w-0"
-                        />
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-800 shrink-0">
-                          {ex.targetMuscle}
-                        </span>
-                        {ex.isCustom && (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 shrink-0">
-                            Custom
-                          </span>
+                    <span>{shortLabel}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected
+                          ? 'bg-white/20 text-white'
+                          : day.isRestDay
+                          ? 'bg-blue-200/80 text-blue-900'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {day.isRestDay ? 'Rest' : `${day.exercises.length} ex`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Days List (Filtered by selectedDayId for independent day navigation) */}
+        {(() => {
+          const displayedDays = selectedDayId === 'all'
+            ? plan.days
+            : plan.days.filter((d) => d.id === selectedDayId);
+          const currentDayIdx = plan.days.findIndex((d) => d.id === selectedDayId);
+
+          return (
+            <div className="space-y-4">
+              {/* Prev / Next day navigation header when viewing a single day independently */}
+              {selectedDayId !== 'all' && (
+                <div className="flex items-center justify-between px-1 text-xs">
+                  <button
+                    type="button"
+                    disabled={currentDayIdx <= 0}
+                    onClick={() => setSelectedDayId(plan.days[currentDayIdx - 1]?.id || 'all')}
+                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-gray-700 flex items-center gap-1 cursor-pointer shadow-2xs transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Previous Day</span>
+                  </button>
+
+                  <span className="font-bold text-purple-900 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
+                    Day {currentDayIdx + 1} of {plan.days.length}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={currentDayIdx >= plan.days.length - 1}
+                    onClick={() => setSelectedDayId(plan.days[currentDayIdx + 1]?.id || 'all')}
+                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-gray-700 flex items-center gap-1 cursor-pointer shadow-2xs transition-all"
+                  >
+                    <span>Next Day</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {displayedDays.map((day) => {
+                const dayIndex = plan.days.findIndex((d) => d.id === day.id);
+                return (
+                  <div
+                    key={day.id}
+                    className={`bg-white rounded-3xl p-5 sm:p-6 border transition-all shadow-xs space-y-4 ${
+                      day.isRestDay ? 'border-blue-200 bg-blue-50/20' : 'border-gray-200 hover:border-brand-light-green'
+                    }`}
+                  >
+                    {/* Day Header */}
+                    <div className="space-y-3 pb-3 border-b border-gray-100">
+                      {/* Row 1: Index, Day Name, Focus, and Delete Day Button */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              day.isRestDay
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-brand-light-green/60 text-brand-dark-green'
+                            }`}
+                          >
+                            {dayIndex + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              value={day.dayName}
+                              onChange={(e) => handleUpdateDayMeta(day.id, e.target.value, day.focus)}
+                              className="text-sm sm:text-base font-bold text-gray-900 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none w-full"
+                            />
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                              <span className="text-[11px] font-semibold text-gray-500 shrink-0">Target Focus:</span>
+                              <input
+                                type="text"
+                                value={day.focus}
+                                placeholder="e.g. Upper Body Push or Active Recovery"
+                                onChange={(e) => handleUpdateDayMeta(day.id, day.dayName, e.target.value)}
+                                className="text-[11px] font-medium text-gray-700 bg-transparent hover:bg-gray-50 px-1 py-0.5 rounded border-b border-transparent hover:border-gray-300 focus:border-brand-green outline-none flex-1 min-w-[140px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDay(day.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                          title="Delete Day"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Row 2: Action Controls */}
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRestDay(day.id)}
+                          className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                            day.isRestDay
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {day.isRestDay ? 'Rest & Recovery Day' : 'Mark as Rest Day'}
+                        </button>
+
+                        {!day.isRestDay && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setLibraryModalDayId(day.id)}
+                              className="py-1.5 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold flex items-center space-x-1.5 cursor-pointer transition-colors shadow-2xs"
+                              title="Select from Exercise Library"
+                            >
+                              <BookOpen className="w-3.5 h-3.5 text-purple-700" />
+                              <span>Exercise Library</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddCustomExercise(day.id)}
+                              className="py-1.5 px-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                              title="Add Custom Exercise"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Custom</span>
+                            </button>
+                          </>
                         )}
                       </div>
-
-                      {/* Top-Right Delete Exercise Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExercise(day.id, ex.id)}
-                        className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
-                        title="Remove exercise"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
 
-                    {/* Middle Row: Notes & Video Reference Demo */}
-                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                      <div className="flex items-center space-x-1.5 flex-1 min-w-[200px]">
-                        <span className="text-[11px] font-semibold text-gray-400 shrink-0">Notes:</span>
-                        <input
-                          type="text"
-                          value={ex.notes || ''}
-                          placeholder="Form cue (e.g. 2s pause at bottom, keep core braced)"
-                          onChange={(e) => handleUpdateExercise(day.id, ex.id, 'notes', e.target.value)}
-                          className="text-[11px] text-gray-600 italic bg-transparent hover:bg-white px-2 py-1 rounded-lg border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none w-full"
-                        />
-                      </div>
+                    {/* Exercises Content */}
+                    {day.isRestDay ? (
+                      <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 text-center space-y-2">
+                        <p className="text-xs font-bold text-blue-900">Rest & Active Recovery Day</p>
+                        <p className="text-xs text-blue-700 max-w-md mx-auto">
+                          Take a 30-minute light walk (towards your 12,000 daily steps), complete dynamic mobility drills, and hit your hydration targets.
+                        </p>
+                        {day.exercises.length > 0 && (
+                          <div className="pt-2 max-w-xl mx-auto space-y-2">
+                            {day.exercises.map((ex, exIdx) => (
+                              <div
+                                key={ex.id}
+                                className="p-3 rounded-2xl bg-white border border-blue-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left shadow-2xs"
+                              >
+                                <div className="space-y-1">
+                                  <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                                      {exIdx + 1}
+                                    </span>
+                                    <span>{ex.name}</span>
+                                    <span className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                      {ex.targetMuscle}
+                                    </span>
+                                  </div>
+                                  {ex.notes && (
+                                    <p className="text-[11px] text-gray-500 italic pl-5.5">{ex.notes}</p>
+                                  )}
+                                </div>
 
-                      {/* YouTube Video Reference Link & Live Thumbnail */}
-                      <div className="flex items-center space-x-1.5 shrink-0">
-                        {ex.videoUrl ? (
-                          (() => {
-                            const videoId = extractYouTubeVideoId(ex.videoUrl);
-                            const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
-                            return (
-                              <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-xl border border-gray-200 shadow-2xs">
-                                {thumb ? (
-                                  <div
-                                    onClick={() =>
-                                      setVideoPreviewModal({
-                                        url: ex.videoUrl!,
-                                        name: ex.name,
-                                        targetMuscle: ex.targetMuscle,
-                                        notes: ex.notes,
-                                      })
-                                    }
-                                    className="relative w-12 h-7 rounded-md overflow-hidden bg-black shrink-0 cursor-pointer group/vthumb"
-                                    title="Watch reference video demonstration"
-                                  >
-                                    <img
-                                      src={thumb}
-                                      alt={ex.name}
-                                      className="w-full h-full object-cover"
-                                      crossOrigin="anonymous"
-                                    />
-                                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/vthumb:bg-black/10">
-                                      <div className="w-3.5 h-3.5 rounded-full bg-red-600 text-white flex items-center justify-center text-[6px] font-bold">
-                                        ▶
+                                {ex.videoUrl && (
+                                  <div className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                    <div
+                                      onClick={() =>
+                                        setVideoPreviewModal({
+                                          url: ex.videoUrl!,
+                                          name: ex.name,
+                                          targetMuscle: ex.targetMuscle,
+                                          notes: ex.notes,
+                                        })
+                                      }
+                                      className="relative w-full sm:w-60 md:w-72 aspect-video rounded-2xl overflow-hidden bg-black cursor-pointer group/vthumb shadow-sm hover:shadow-md border border-gray-300 transition-all"
+                                      title={`Watch ${ex.name} video demonstration`}
+                                    >
+                                      {extractYouTubeVideoId(ex.videoUrl) ? (
+                                        <img
+                                          src={getYouTubeThumbnailUrl(ex.videoUrl, 'hqdefault')!}
+                                          alt={ex.name}
+                                          className="w-full h-full object-cover group-hover/vthumb:scale-105 transition-transform duration-300"
+                                          crossOrigin="anonymous"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-red-500">
+                                          <Youtube className="w-8 h-8" />
+                                        </div>
+                                      )}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 flex items-center justify-center group-hover/vthumb:bg-black/15 transition-colors">
+                                        <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold shadow-md group-hover/vthumb:scale-115 transition-transform">
+                                          <Play className="w-4 h-4 ml-0.5 fill-current" />
+                                        </div>
                                       </div>
                                     </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setVideoPreviewModal({
+                                          url: ex.videoUrl!,
+                                          name: ex.name,
+                                          targetMuscle: ex.targetMuscle,
+                                          notes: ex.notes,
+                                        })
+                                      }
+                                      className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Play className="w-3.5 h-3.5 fill-current" />
+                                      <span>Watch Demo</span>
+                                    </button>
                                   </div>
-                                ) : (
-                                  <Youtube className="w-4 h-4 text-red-600 shrink-0" />
                                 )}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setVideoPreviewModal({
-                                      url: ex.videoUrl!,
-                                      name: ex.name,
-                                      targetMuscle: ex.targetMuscle,
-                                      notes: ex.notes,
-                                    })
-                                  }
-                                  className="text-[10px] font-bold text-gray-800 hover:text-red-600 cursor-pointer px-1 py-0.5"
-                                >
-                                  Watch
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setVideoLinkModalState({
-                                      dayId: day.id,
-                                      exercise: ex,
-                                      dayName: day.dayName,
-                                    })
-                                  }
-                                  className="text-gray-400 hover:text-indigo-600 p-1 rounded hover:bg-gray-50 cursor-pointer"
-                                  title="Edit YouTube Video Link"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
                               </div>
-                            );
-                          })()
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setVideoLinkModalState({
-                                dayId: day.id,
-                                exercise: ex,
-                                dayName: day.dayName,
-                              })
-                            }
-                            className="text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-xl border border-red-200/80 flex items-center space-x-1 cursor-pointer transition-colors"
-                            title="Attach YouTube video demonstration"
-                          >
-                            <Youtube className="w-3 h-3" />
-                            <span>+ Video</span>
-                          </button>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    </div>
-
-                    {/* Bottom Row: Sets, Reps & Rest Time Controls */}
-                    <div className="pt-0.5">
-                      <div className="inline-flex items-center space-x-2 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-2xs">
-                        <div className="text-center px-1">
-                          <span className="text-[9px] font-bold text-gray-400 block">SETS</span>
-                          <input
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={ex.sets}
-                            onChange={(e) =>
-                              handleUpdateExercise(day.id, ex.id, 'sets', Number(e.target.value) || 1)
-                            }
-                            className="w-10 text-center text-xs font-bold text-gray-900 bg-gray-50 rounded py-0.5 outline-none"
-                          />
-                        </div>
-                        <div className="text-center px-1 border-l border-gray-100">
-                          <span className="text-[9px] font-bold text-gray-400 block">REPS</span>
-                          <input
-                            type="text"
-                            value={ex.reps}
-                            placeholder="8-12"
-                            onChange={(e) => handleUpdateExercise(day.id, ex.id, 'reps', e.target.value)}
-                            className="w-16 text-center text-xs font-bold text-brand-dark-green bg-brand-light-green/30 rounded py-0.5 outline-none"
-                          />
-                        </div>
-                        <div className="text-center px-1 border-l border-gray-100">
-                          <span className="text-[9px] font-bold text-gray-400 block">REST (s)</span>
-                          <input
-                            type="number"
-                            step="15"
-                            value={ex.restSeconds}
-                            onChange={(e) =>
-                              handleUpdateExercise(day.id, ex.id, 'restSeconds', Number(e.target.value) || 0)
-                            }
-                            className="w-14 text-center text-xs font-bold text-blue-700 bg-blue-50 rounded py-0.5 outline-none"
-                          />
-                        </div>
+                    ) : day.exercises.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-gray-50/70 text-center text-xs text-gray-500 border border-dashed border-gray-200">
+                        No exercises added for this day yet. Click{' '}
+                        <button
+                          type="button"
+                          onClick={() => setLibraryModalDayId(day.id)}
+                          className="font-bold text-purple-800 underline cursor-pointer"
+                        >
+                          Exercise Library
+                        </button>{' '}
+                        or{' '}
+                        <button
+                          type="button"
+                          onClick={() => handleAddCustomExercise(day.id)}
+                          className="font-bold text-gray-700 underline cursor-pointer"
+                        >
+                          Custom
+                        </button>{' '}
+                        to add movements.
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {day.exercises.map((ex, exIdx) => (
+                          <div
+                            key={ex.id}
+                            className="p-3.5 sm:p-4 rounded-2xl bg-white border border-gray-200 hover:border-purple-200 transition-all text-xs shadow-2xs space-y-3"
+                          >
+                            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 sm:gap-5">
+                              {/* Left: Exercise metadata, form cues and training volume */}
+                              <div className="flex-1 min-w-0 space-y-2.5">
+                                {/* Top: Index, Exercise Name, Muscle Badges & Delete Button */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                    <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">
+                                      {exIdx + 1}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={ex.name}
+                                      onChange={(e) => handleUpdateExercise(day.id, ex.id, 'name', e.target.value)}
+                                      className="font-bold text-sm sm:text-base text-gray-900 bg-transparent hover:bg-gray-50 px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200 focus:border-brand-green focus:bg-white outline-none flex-1 min-w-0"
+                                    />
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-800 shrink-0">
+                                      {ex.targetMuscle}
+                                    </span>
+                                    {ex.isCustom && (
+                                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 shrink-0">
+                                        Custom
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteExercise(day.id, ex.id)}
+                                    className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0 lg:hidden"
+                                    title="Remove exercise"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                {/* Middle: Notes / Form Cues */}
+                                <div className="flex items-center space-x-1.5 bg-gray-50 px-2.5 py-1.5 rounded-xl border border-gray-100">
+                                  <span className="text-[11px] font-semibold text-gray-400 shrink-0">Notes:</span>
+                                  <input
+                                    type="text"
+                                    value={ex.notes || ''}
+                                    placeholder="Form cue (e.g. 2s pause at bottom, keep core braced)"
+                                    onChange={(e) => handleUpdateExercise(day.id, ex.id, 'notes', e.target.value)}
+                                    className="text-[11px] text-gray-700 italic bg-transparent outline-none w-full"
+                                  />
+                                </div>
+
+                                {/* Bottom: Sets, Reps & Rest Time Controls */}
+                                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                  <div className="inline-flex items-center space-x-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200 shadow-2xs">
+                                    <div className="text-center px-1.5">
+                                      <span className="text-[9px] font-bold text-gray-400 block uppercase">SETS</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="10"
+                                        value={ex.sets}
+                                        onChange={(e) =>
+                                          handleUpdateExercise(day.id, ex.id, 'sets', Number(e.target.value) || 1)
+                                        }
+                                        className="w-10 text-center text-xs font-bold text-gray-900 bg-white rounded py-0.5 outline-none border border-gray-200"
+                                      />
+                                    </div>
+                                    <div className="text-center px-1.5 border-l border-gray-200">
+                                      <span className="text-[9px] font-bold text-gray-400 block uppercase">REPS</span>
+                                      <input
+                                        type="text"
+                                        value={ex.reps}
+                                        placeholder="8-12"
+                                        onChange={(e) => handleUpdateExercise(day.id, ex.id, 'reps', e.target.value)}
+                                        className="w-16 text-center text-xs font-bold text-brand-dark-green bg-brand-light-green/30 rounded py-0.5 outline-none border border-brand-light-green"
+                                      />
+                                    </div>
+                                    <div className="text-center px-1.5 border-l border-gray-200">
+                                      <span className="text-[9px] font-bold text-gray-400 block uppercase">REST (s)</span>
+                                      <input
+                                        type="number"
+                                        step="15"
+                                        value={ex.restSeconds}
+                                        onChange={(e) =>
+                                          handleUpdateExercise(day.id, ex.id, 'restSeconds', Number(e.target.value) || 0)
+                                        }
+                                        className="w-14 text-center text-xs font-bold text-blue-700 bg-blue-50 rounded py-0.5 outline-none border border-blue-200"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right: Substantially Larger High-Definition Video Demonstration Thumbnail */}
+                              <div className="shrink-0 w-full lg:w-auto self-stretch lg:self-center">
+                                {ex.videoUrl ? (
+                                  (() => {
+                                    const videoId = extractYouTubeVideoId(ex.videoUrl);
+                                    const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'hqdefault') : null;
+                                    return (
+                                      <div className="flex flex-col items-start lg:items-end gap-2 w-full lg:w-auto">
+                                        <div
+                                          onClick={() =>
+                                            setVideoPreviewModal({
+                                              url: ex.videoUrl!,
+                                              name: ex.name,
+                                              targetMuscle: ex.targetMuscle,
+                                              notes: ex.notes,
+                                            })
+                                          }
+                                          className="relative w-full sm:w-72 md:w-80 lg:w-96 aspect-video rounded-2xl overflow-hidden bg-black shrink-0 cursor-pointer group/vthumb shadow-md hover:shadow-xl transition-all border-2 border-gray-200 hover:border-brand-green ring-1 ring-black/5"
+                                          title={`Click to watch ${ex.name} video demonstration`}
+                                        >
+                                          {thumb ? (
+                                            <img
+                                              src={thumb}
+                                              alt={ex.name}
+                                              className="w-full h-full object-cover group-hover/vthumb:scale-105 transition-transform duration-300"
+                                              crossOrigin="anonymous"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-gray-400">
+                                              <Youtube className="w-10 h-10 text-red-500" />
+                                            </div>
+                                          )}
+
+                                          {/* Gradient Overlay & High-Contrast Play Button */}
+                                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30 flex flex-col justify-between p-2.5 sm:p-3 transition-opacity">
+                                            <div className="flex items-center justify-between w-full">
+                                              <span className="px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                                                <Youtube className="w-3.5 h-3.5 text-red-500" />
+                                                <span>Video Demo</span>
+                                              </span>
+                                              <span className="px-1.5 py-0.5 rounded bg-black/60 text-[9px] font-semibold text-gray-200 uppercase">
+                                                HD Video
+                                              </span>
+                                            </div>
+
+                                            {/* Centered Large Play Button */}
+                                            <div className="self-center">
+                                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover/vthumb:scale-115 group-hover/vthumb:bg-red-500 transition-all">
+                                                <Play className="w-6 h-6 sm:w-7 sm:h-7 ml-0.5 fill-current" />
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between w-full text-white text-xs drop-shadow-xs">
+                                              <span className="font-bold truncate max-w-[200px] text-[11px] text-gray-100">
+                                                {ex.name}
+                                              </span>
+                                              <span className="font-bold text-[11px] text-emerald-300 flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded-full">
+                                                <span>Tap to Watch</span>
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Action Buttons below thumbnail */}
+                                        <div className="flex items-center justify-between lg:justify-end space-x-3 text-xs w-full pt-0.5 px-0.5">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setVideoPreviewModal({
+                                                url: ex.videoUrl!,
+                                                name: ex.name,
+                                                targetMuscle: ex.targetMuscle,
+                                                notes: ex.notes,
+                                              })
+                                            }
+                                            className="font-bold text-indigo-700 hover:text-indigo-900 flex items-center space-x-1 cursor-pointer hover:underline"
+                                          >
+                                            <Play className="w-3.5 h-3.5 text-indigo-600 fill-current" />
+                                            <span>Play Full Screen</span>
+                                          </button>
+                                          <span className="text-gray-300">•</span>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setVideoLinkModalState({
+                                                dayId: day.id,
+                                                exercise: ex,
+                                                dayName: day.dayName,
+                                              })
+                                            }
+                                            className="font-semibold text-gray-500 hover:text-gray-900 flex items-center space-x-1 cursor-pointer hover:underline"
+                                            title="Edit YouTube Video Link"
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                            <span>Edit Link</span>
+                                          </button>
+                                          {videoId && (
+                                            <>
+                                              <span className="text-gray-300">•</span>
+                                              <a
+                                                href={`https://www.youtube.com/watch?v=${videoId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-gray-500 hover:text-red-600 flex items-center space-x-1 hover:underline text-xs"
+                                                title="Open on YouTube"
+                                              >
+                                                <ExternalLink className="w-3 h-3" />
+                                                <span className="hidden sm:inline">YouTube</span>
+                                              </a>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setVideoLinkModalState({
+                                        dayId: day.id,
+                                        exercise: ex,
+                                        dayName: day.dayName,
+                                      })
+                                    }
+                                    className="w-full sm:w-72 md:w-80 lg:w-96 aspect-video rounded-2xl border-2 border-dashed border-gray-300 hover:border-red-400 bg-gray-50 hover:bg-red-50/30 flex flex-col items-center justify-center p-4 text-center cursor-pointer transition-all group/btn"
+                                  >
+                                    <div className="w-10 h-10 rounded-full bg-gray-200 group-hover/btn:bg-red-100 flex items-center justify-center text-gray-500 group-hover/btn:text-red-600 transition-colors mb-1.5">
+                                      <Youtube className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-700 group-hover/btn:text-red-700">
+                                      + Attach YouTube Demo Video
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 mt-0.5">
+                                      Link video demonstration for exercise cues
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExercise(day.id, ex.id)}
+                                  className="hidden lg:flex p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0 ml-1"
+                                  title="Remove exercise"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Exercise & Movement Library Modal */}

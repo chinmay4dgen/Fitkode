@@ -244,7 +244,7 @@ export default function WorkoutPlanPrintModal({
                       {(day.exercises || []).map((ex, exIdx) => {
                         const videoId = extractYouTubeVideoId(ex.videoUrl);
                         const watchUrl = videoId ? getYouTubeWatchUrl(ex.videoUrl) : null;
-                        const thumbUrl = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
+                        const thumbUrl = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'hqdefault') : null;
 
                         return (
                           <tr key={ex.id || exIdx} className="hover:bg-gray-50/50">
@@ -263,20 +263,20 @@ export default function WorkoutPlanPrintModal({
                                   className="inline-flex flex-col items-center gap-1 group/thumb hover:opacity-90 transition-opacity"
                                   title={`Watch ${ex.name} reference demo on YouTube`}
                                 >
-                                  <div className="relative w-16 h-9 rounded-md overflow-hidden bg-black border border-gray-200 shadow-2xs">
+                                  <div className="relative w-24 aspect-video rounded-lg overflow-hidden bg-black border border-gray-300 shadow-2xs">
                                     <img
                                       src={thumbUrl}
                                       alt={ex.name}
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
                                       crossOrigin="anonymous"
                                     />
                                     <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/thumb:bg-black/10 transition-colors">
-                                      <div className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[7px] font-bold">
+                                      <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[8px] font-bold">
                                         ▶
                                       </div>
                                     </div>
                                   </div>
-                                  <span className="text-[9px] font-bold text-red-600 group-hover/thumb:underline">
+                                  <span className="text-[10px] font-bold text-red-600 group-hover/thumb:underline">
                                     Watch Link →
                                   </span>
                                 </a>

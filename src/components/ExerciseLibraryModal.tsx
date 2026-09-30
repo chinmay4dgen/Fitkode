@@ -616,7 +616,7 @@ export default function ExerciseLibraryModal({
               ) : (
                 filteredExercises.map((ex) => {
                   const videoId = extractYouTubeVideoId(ex.videoUrl);
-                  const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'mqdefault') : null;
+                  const thumb = videoId ? getYouTubeThumbnailUrl(ex.videoUrl, 'hqdefault') : null;
 
                   return (
                     <div
@@ -624,32 +624,32 @@ export default function ExerciseLibraryModal({
                       className="p-3 sm:p-4 rounded-2xl bg-white border border-gray-200 hover:border-indigo-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
                     >
                       {/* Left: Thumbnail & Details */}
-                      <div className="flex items-start space-x-3 min-w-0">
+                      <div className="flex items-start space-x-3.5 min-w-0">
                         {/* Video Thumbnail Button */}
                         {thumb && ex.videoUrl ? (
                           <div
                             onClick={() =>
                               onOpenVideoPreview(ex.videoUrl!, ex.name, ex.targetMuscle, ex.notes)
                             }
-                            className="relative w-20 h-13 rounded-xl overflow-hidden bg-black shrink-0 border border-gray-200 cursor-pointer group/thumb shadow-2xs hover:opacity-90 transition-all"
+                            className="relative w-28 sm:w-36 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-gray-200 cursor-pointer group/thumb shadow-2xs hover:opacity-90 transition-all"
                             title="Click to preview YouTube video demonstration"
                           >
                             <img
                               src={thumb}
                               alt={ex.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
                               crossOrigin="anonymous"
                             />
-                            <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/thumb:bg-black/10 transition-colors">
-                              <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[8px] font-bold">
+                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/thumb:bg-black/15 transition-colors">
+                              <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold shadow-md">
                                 ▶
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <div className="w-20 h-13 rounded-xl bg-gray-100 border border-dashed border-gray-300 shrink-0 flex flex-col items-center justify-center text-gray-400">
-                            <Youtube className="w-4 h-4 opacity-40" />
-                            <span className="text-[9px] mt-0.5">No video</span>
+                          <div className="w-28 sm:w-36 aspect-video rounded-xl bg-gray-100 border border-dashed border-gray-300 shrink-0 flex flex-col items-center justify-center text-gray-400">
+                            <Youtube className="w-5 h-5 opacity-40 text-red-500" />
+                            <span className="text-[10px] mt-0.5">No video</span>
                           </div>
                         )}
 
