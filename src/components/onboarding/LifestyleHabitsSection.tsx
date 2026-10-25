@@ -261,8 +261,8 @@ export const LifestyleHabitsSection: React.FC<LifestyleHabitsSectionProps> = ({
           {/* 27. Social stress */}
           <ScaleRating
             label="27. Stress due to Social Life"
-            value={formData.stressSocial || 2}
-            onChange={(val) => onFieldChange('stressSocial', val)}
+            value={formData.stressSocialLife || 2}
+            onChange={(val) => onFieldChange('stressSocialLife', val)}
             lowLabel="1 (Extremely Low)"
             highLabel="5 (Very High)"
           />
@@ -289,8 +289,8 @@ export const LifestyleHabitsSection: React.FC<LifestyleHabitsSectionProps> = ({
           <div className="bg-natural-oat/50 p-4 rounded-2xl border border-gray-200/80 space-y-3">
             <ScaleRating
               label="30. Stress due to Anything Else?"
-              value={formData.stressOtherScore || 1}
-              onChange={(val) => onFieldChange('stressOtherScore', val)}
+              value={formData.stressOther || 1}
+              onChange={(val) => onFieldChange('stressOther', val)}
               lowLabel="1 (Extremely Low)"
               highLabel="5 (Very High)"
             />
@@ -300,8 +300,8 @@ export const LifestyleHabitsSection: React.FC<LifestyleHabitsSectionProps> = ({
               </label>
               <input
                 type="text"
-                value={formData.stressOtherDetail || ''}
-                onChange={(e) => onFieldChange('stressOtherDetail', e.target.value)}
+                value={formData.stressOtherDetails || ''}
+                onChange={(e) => onFieldChange('stressOtherDetails', e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-brand-green bg-white"
                 placeholder="e.g. Commuting traffic, exam preparations, shifting homes"
               />

@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, ShieldCheck } from 'lucide-react';
 
 interface Props {
@@ -15,11 +15,23 @@ interface State {
  * Prevents any single malformed record or transient component error from white-screening the app,
  * and provides a one-click cache repair + reload action that preserves user authentication.
  */
-export default class ErrorBoundary extends Component<Props, State> {
+export default class ErrorBoundary extends React.Component<Props, State> {
+  declare public props: Readonly<Props>;
+  declare public setState: React.Component<Props, State>['setState'];
+
   public state: State = {
     hasError: false,
     errorMessage: '',
   };
+
+  constructor(props: Props) {
+    super(props);
+    this.props = props;
+    this.state = {
+      hasError: false,
+      errorMessage: '',
+    };
+  }
 
   public static getDerivedStateFromError(error: Error): State {
     return {

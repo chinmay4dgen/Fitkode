@@ -775,11 +775,7 @@ export default function MealPlannerView({
           <button
             type="button"
             onClick={() => setViewMode('editor')}
-            className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              viewMode === 'editor'
-                ? 'bg-brand-green text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+            className="py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-brand-green text-white shadow-xs"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>Plan Editor</span>
@@ -787,11 +783,7 @@ export default function MealPlannerView({
           <button
             type="button"
             onClick={() => setViewMode('list')}
-            className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-brand-green text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+            className="py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           >
             <Layers className="w-3.5 h-3.5" />
             <span>All Plans ({allPlans.length || 1})</span>

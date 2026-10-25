@@ -1905,7 +1905,7 @@ export default function AdminMembersPage() {
                             </div>
                             <div className="bg-white p-2 rounded-xl border border-sky-100 text-center">
                               <span className="text-gray-400 block text-[9px]">Social</span>
-                              <span className="font-bold text-sky-900">{selectedMember.onboarding.stressSocial || 2}/5</span>
+                              <span className="font-bold text-sky-900">{selectedMember.onboarding.stressSocialLife || 2}/5</span>
                             </div>
                             <div className="bg-white p-2 rounded-xl border border-sky-100 text-center">
                               <span className="text-gray-400 block text-[9px]">Finance</span>
@@ -1917,7 +1917,7 @@ export default function AdminMembersPage() {
                             </div>
                             <div className="bg-white p-2 rounded-xl border border-sky-100 text-center">
                               <span className="text-gray-400 block text-[9px]">Other</span>
-                              <span className="font-bold text-sky-900">{selectedMember.onboarding.stressOtherScore || 1}/5</span>
+                              <span className="font-bold text-sky-900">{selectedMember.onboarding.stressOther || 1}/5</span>
                             </div>
                           </div>
                         </div>
@@ -3149,28 +3149,28 @@ export default function AdminMembersPage() {
                 </div>
               ) : dbDiagnostics ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.profilesReadable ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-red-50 border-red-200 text-red-900'}`}>
+                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.profilesOk ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-red-50 border-red-200 text-red-900'}`}>
                     <p className="font-bold">1. Profiles &amp; RLS Recursion Check</p>
                     <p className="mt-1 text-[11px]">
                       {dbDiagnostics.rlsRecursionDetected
                         ? '⚠️ Infinite RLS Recursion (42P17) detected! Run the SQL patch below in Supabase SQL Editor.'
-                        : dbDiagnostics.profilesReadable
+                        : dbDiagnostics.profilesOk
                         ? '✅ Healthy — Non-recursive public.profiles access is working.'
                         : `⚠️ Status: ${dbDiagnostics.errorMessage || 'Not connected'}`}
                     </p>
                   </div>
-                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.weeklyTableExists ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.weeklyTrackerTableOk ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
                     <p className="font-bold">2. Weekly Check-ins Sync</p>
                     <p className="mt-1 text-[11px]">
-                      {dbDiagnostics.weeklyTableExists
+                      {dbDiagnostics.weeklyTrackerTableOk
                         ? '✅ Dedicated weekly_tracker_entries table + profiles.profile_data mirror active.'
                         : 'ℹ️ Using profiles.profile_data.weekly_entries fallback. Run SQL below to also create weekly_tracker_entries.'}
                     </p>
                   </div>
-                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.mealPlansTableExists && dbDiagnostics.workoutPlansTableExists ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.mealPlansTableOk && dbDiagnostics.workoutPlansTableOk ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
                     <p className="font-bold">3. Meal &amp; Workout Plans Sync</p>
                     <p className="mt-1 text-[11px]">
-                      {dbDiagnostics.mealPlansTableExists && dbDiagnostics.workoutPlansTableExists
+                      {dbDiagnostics.mealPlansTableOk && dbDiagnostics.workoutPlansTableOk
                         ? '✅ Dedicated meal_plans & workout_plans tables + profile_data mirror active.'
                         : 'ℹ️ Using profiles.profile_data mirror. Run SQL below to enable dedicated plan tables.'}
                     </p>

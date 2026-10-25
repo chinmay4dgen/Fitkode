@@ -89,6 +89,7 @@ interface AuthContextType {
   signIn: () => Promise<void>;
   signInWithTestAccount: (presetOrEmail: 'admin' | 'paid' | 'unpaid' | string, customRole?: UserRole) => Promise<User>;
   logOut: () => Promise<void>;
+  signOut: () => Promise<void>;
   authError: string | null;
   clearAuthError: () => void;
   syncCurrentMember: (data?: Partial<AppMember>) => Promise<AppMember | null>;
@@ -576,6 +577,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signInWithTestAccount,
         logOut,
+        signOut: logOut,
         authError,
         clearAuthError,
         syncCurrentMember,

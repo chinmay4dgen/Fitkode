@@ -446,11 +446,7 @@ export default function WorkoutPlannerView({
           <button
             type="button"
             onClick={() => setViewMode('editor')}
-            className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              viewMode === 'editor'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+            className="py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 text-white shadow-xs"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>Routine Editor</span>
@@ -458,11 +454,7 @@ export default function WorkoutPlannerView({
           <button
             type="button"
             onClick={() => setViewMode('list')}
-            className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+            className="py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           >
             <Layers className="w-3.5 h-3.5" />
             <span>All Routines ({allPlans.length || 1})</span>

@@ -259,17 +259,17 @@ export default function PDFRestructureModal({
     try {
       // Compile full medical context from onboarding disclosures
       const medicalHistoryParts: string[] = [];
-      if (clientOnboarding?.pastSurgeriesMedicalConditions) {
-        medicalHistoryParts.push(`Medical History / Conditions: ${clientOnboarding.pastSurgeriesMedicalConditions}`);
+      if (clientOnboarding?.medicalAndSurgicalHistory) {
+        medicalHistoryParts.push(`Medical History / Conditions: ${clientOnboarding.medicalAndSurgicalHistory}`);
       }
-      if (clientOnboarding?.painInjuryDetails) {
-        medicalHistoryParts.push(`Pain / Injuries: ${clientOnboarding.painInjuryDetails}`);
+      if (clientOnboarding?.physicalActivityLimitations?.length) {
+        medicalHistoryParts.push(`Pain / Injuries: ${clientOnboarding.physicalActivityLimitations.join(', ')}`);
       }
-      if (clientOnboarding?.digestiveIssues) {
-        medicalHistoryParts.push(`Digestive Issues: ${clientOnboarding.digestiveIssues}`);
+      if (clientOnboarding?.missedDetails) {
+        medicalHistoryParts.push(`Digestive Issues: ${clientOnboarding.missedDetails}`);
       }
-      if (clientOnboarding?.medications) {
-        medicalHistoryParts.push(`Current Medications: ${clientOnboarding.medications}`);
+      if (clientOnboarding?.currentMedications) {
+        medicalHistoryParts.push(`Current Medications: ${clientOnboarding.currentMedications}`);
       }
 
       const allergyList = clientOnboarding?.foodAllergies || [];
@@ -321,7 +321,7 @@ export default function PDFRestructureModal({
         protein: Math.round(it.protein_g || m.protein_g / (m.items.length || 1)),
         carbs: Math.round(it.carbs_g || m.carbs_g / (m.items.length || 1)),
         fats: Math.round(it.fats_g || m.fats_g / (m.items.length || 1)),
-        category: 'Custom Restructured',
+        category: 'snack',
         isCustom: true,
       }));
 
@@ -630,7 +630,7 @@ export default function PDFRestructureModal({
                 </div>
 
                 {/* Disclosed Medical & Allergy Context Notice */}
-                {medicalSynopsis && (medicalSynopsis.allergies.length > 0 || medicalSynopsis.injuriesOrSurgeries.length > 0 || medicalSynopsis.gutOrDigestiveIssues.length > 0) && (
+                {medicalSynopsis && (medicalSynopsis.foodAllergies.length > 0 || medicalSynopsis.injuriesAndSurgeries.length > 0 || medicalSynopsis.gutAndDigestiveIssues.length > 0) && (
                   <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200/90 text-xs space-y-1.5">
                     <div className="flex items-center space-x-1.5 text-amber-900 font-bold text-xs">
                       <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
@@ -640,17 +640,17 @@ export default function PDFRestructureModal({
                       Food alternatives will strictly exclude contraindicated items to prevent adverse reactions.
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {medicalSynopsis.allergies.map((allg, aIdx) => (
+                      {medicalSynopsis.foodAllergies.map((allg, aIdx) => (
                         <span key={aIdx} className="px-2 py-0.5 rounded-md bg-red-100/80 text-red-900 font-semibold text-[10px] border border-red-200">
                           Allergy/Intolerance: {allg}
                         </span>
                       ))}
-                      {medicalSynopsis.gutOrDigestiveIssues.map((gut, gIdx) => (
+                      {medicalSynopsis.gutAndDigestiveIssues.map((gut, gIdx) => (
                         <span key={gIdx} className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-semibold text-[10px] border border-amber-200">
                           Digestive/Gut: {gut}
                         </span>
                       ))}
-                      {medicalSynopsis.injuriesOrSurgeries.slice(0, 2).map((inj, iIdx) => (
+                      {medicalSynopsis.injuriesAndSurgeries.slice(0, 2).map((inj, iIdx) => (
                         <span key={iIdx} className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 font-semibold text-[10px] border border-blue-200">
                           Medical/Surgery: {inj}
                         </span>
