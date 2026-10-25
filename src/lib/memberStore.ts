@@ -1,6 +1,7 @@
 import { AppMember, UserRole, UserProfile, ClientOnboarding, WeeklyTrackerEntry } from '../types';
 import { defaultUserProfile, defaultClientOnboarding, getProfileCompletionRate, getOnboardingCompletionRate } from './profileStorage';
-import { getSupabase } from './supabase';
+import { getSupabase, getSupabaseAuthHeaders, loadAllWeeklyEntriesFromSupabaseForAdmin } from './supabase';
+import { safeLocalStorageSet } from './storageGuard';
 
 export const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com'];
 
@@ -594,11 +595,7 @@ export function getStoredMembers(): AppMember[] {
           }
         }
         if (changed) {
-          try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
-          } catch {
-            // ignore
-          }
+          safeLocalStorageSet(LOCAL_STORAGE_KEY, parsed);
         }
         return parsed;
       }
@@ -607,21 +604,13 @@ export function getStoredMembers(): AppMember[] {
     console.warn('Error reading members from localStorage:', err);
   }
   // Initialize with seed members
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(SEED_MEMBERS));
-  } catch {
-    // ignore
-  }
+  safeLocalStorageSet(LOCAL_STORAGE_KEY, SEED_MEMBERS);
   return SEED_MEMBERS;
 }
 
 export function saveStoredMembers(members: AppMember[]): void {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(members));
-  } catch (err) {
-    console.error('Error saving members to localStorage:', err);
-  }
+  safeLocalStorageSet(LOCAL_STORAGE_KEY, members);
 }
 
 export function updateMemberWeeklyEntries(userEmail: string, entries: WeeklyTrackerEntry[]): void {
@@ -754,12 +743,14 @@ export async function syncMemberToStore(memberData: {
 
   // Also sync to backend API asynchronously if server is running
   try {
-    fetch('/api/members/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedMember),
-    }).catch(() => {
-      // server sync fallback
+    getSupabaseAuthHeaders().then((authHeaders) => {
+      fetch('/api/members/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(updatedMember),
+      }).catch(() => {
+        // server sync fallback
+      });
     });
   } catch {
     // ignore
@@ -787,7 +778,10 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
   // 1. Fetch server & local members as baseline
   let baseMembers: AppMember[] = [];
   try {
-    const res = await fetch(`/api/members?caller=${encodeURIComponent(callerEmail)}`);
+    const authHeaders = await getSupabaseAuthHeaders();
+    const res = await fetch(`/api/members?caller=${encodeURIComponent(callerEmail)}`, {
+      headers: authHeaders,
+    });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.members)) {
@@ -798,18 +792,33 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
     // Fall back to local storage
   }
 
+  const localStored = getStoredMembers();
   if (baseMembers.length === 0) {
-    baseMembers = getStoredMembers();
+    baseMembers = localStored;
+  } else {
+    // Merge any localStored entries not yet on server
+    for (const loc of localStored) {
+      const locEmail = (loc.email || '').toLowerCase().trim();
+      const idx = baseMembers.findIndex(
+        (m) => (locEmail && m.email.toLowerCase().trim() === locEmail) || m.id === loc.id
+      );
+      if (idx === -1) {
+        baseMembers.push(loc);
+      }
+    }
   }
 
-  // 2. Query Supabase public.profiles table directly
+  // 2. Query Supabase public.profiles and public.weekly_tracker_entries directly
   const supabase = getSupabase();
   if (supabase) {
     try {
-      const { data: profileRows, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [profilesRes, allSupabaseWeeklyByEmail] = await Promise.all([
+        supabase.from('profiles').select('*').order('updated_at', { ascending: false }),
+        loadAllWeeklyEntriesFromSupabaseForAdmin(),
+      ]);
+
+      const profileRows = profilesRes.data;
+      const error = profilesRes.error;
 
       if (!error && Array.isArray(profileRows) && profileRows.length > 0) {
         const mergedList: AppMember[] = [...baseMembers];
@@ -824,74 +833,181 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
             (firstName ? `${firstName} ${lastName}`.trim() : '') ||
             row.email?.split('@')[0] ||
             'Member';
-          const email = (row.email || '').toLowerCase().trim();
+          const email = (row.email || profileData.email || '').toLowerCase().trim();
           const isEmailAdmin = isDefaultAdmin(email);
           const resolvedRole: UserRole = isEmailAdmin ? 'admin' : (row.role || 'unpaid');
 
-          const profileRate = getProfileCompletionRate(profileData);
-          const onboardingRate = getOnboardingCompletionRate(onboardingData);
+          // Extract embedded weekly entries from profile_data + dedicated weekly_tracker_entries table
+          const embeddedWeekly: WeeklyTrackerEntry[] = Array.isArray(profileData.weekly_entries)
+            ? profileData.weekly_entries
+            : [];
+          const tableWeekly: WeeklyTrackerEntry[] = email && Array.isArray(allSupabaseWeeklyByEmail[email])
+            ? allSupabaseWeeklyByEmail[email]
+            : [];
+
+          // Strip heavy internal arrays before passing profileData as UserProfile
+          const {
+            weekly_entries: _we,
+            meal_plans: embeddedMealPlans,
+            workout_plans: embeddedWorkoutPlans,
+            ...cleanProfileFields
+          } = profileData;
+
+          // If member saved meal_plans or workout_plans in profile_data, merge into localStorage cache for instant Coach inspection
+          if (typeof window !== 'undefined' && email) {
+            if (Array.isArray(embeddedMealPlans) && embeddedMealPlans.length > 0) {
+              try {
+                const rawMp = localStorage.getItem('fk_meal_plans_v1');
+                const parsedMp = rawMp ? JSON.parse(rawMp) : [];
+                if (Array.isArray(parsedMp)) {
+                  let mpChanged = false;
+                  for (const p of embeddedMealPlans) {
+                    if (!p || !p.id) continue;
+                    const idx = parsedMp.findIndex((x: any) => x.id === p.id);
+                    if (idx === -1) {
+                      parsedMp.unshift(p);
+                      mpChanged = true;
+                    } else if (new Date(p.updatedAt || 0) > new Date(parsedMp[idx].updatedAt || 0)) {
+                      parsedMp[idx] = p;
+                      mpChanged = true;
+                    }
+                  }
+                  if (mpChanged) localStorage.setItem('fk_meal_plans_v1', JSON.stringify(parsedMp));
+                }
+              } catch {
+                // ignore
+              }
+            }
+            if (Array.isArray(embeddedWorkoutPlans) && embeddedWorkoutPlans.length > 0) {
+              try {
+                const rawWp = localStorage.getItem('fk_workout_plans_v1');
+                const parsedWp = rawWp ? JSON.parse(rawWp) : [];
+                if (Array.isArray(parsedWp)) {
+                  let wpChanged = false;
+                  for (const p of embeddedWorkoutPlans) {
+                    if (!p || !p.id) continue;
+                    const idx = parsedWp.findIndex((x: any) => x.id === p.id);
+                    if (idx === -1) {
+                      parsedWp.unshift(p);
+                      wpChanged = true;
+                    } else if (new Date(p.updatedAt || 0) > new Date(parsedWp[idx].updatedAt || 0)) {
+                      parsedWp[idx] = p;
+                      wpChanged = true;
+                    }
+                  }
+                  if (wpChanged) localStorage.setItem('fk_workout_plans_v1', JSON.stringify(parsedWp));
+                }
+              } catch {
+                // ignore
+              }
+            }
+          }
+
+          const constructedProfile: UserProfile = {
+            ...defaultUserProfile,
+            ...cleanProfileFields,
+            firstName: firstName || cleanProfileFields.firstName || '',
+            lastName: lastName || cleanProfileFields.lastName || '',
+            phone: row.phone || cleanProfileFields.phone || '',
+            email: email || cleanProfileFields.email || '',
+          };
+
+          const hasRemoteOnboarding =
+            onboardingData &&
+            Object.keys(onboardingData).length > 0 &&
+            (onboardingData.isSubmitted ||
+              (Array.isArray(onboardingData.completedSections) && onboardingData.completedSections.length > 0) ||
+              Boolean(onboardingData.coreReasonWhy) ||
+              Boolean(onboardingData.currentWeightKg));
+
+          const profileRate = getProfileCompletionRate(constructedProfile);
+          const onboardingRate = hasRemoteOnboarding ? getOnboardingCompletionRate(onboardingData as ClientOnboarding) : 0;
 
           const existingIndex = mergedList.findIndex(
-            (m) => (email && m.email.toLowerCase() === email) || m.id === row.id
+            (m) => (email && m.email.toLowerCase().trim() === email) || m.id === row.id
           );
+
+          // Combine weekly entries from all sources (local, embedded in profile_data, and weekly_tracker_entries table)
+          const existingWeekly = existingIndex >= 0 ? (mergedList[existingIndex].weeklyEntries || []) : [];
+          const weeklyMap = new Map<string, WeeklyTrackerEntry>();
+          [...existingWeekly, ...embeddedWeekly, ...tableWeekly].forEach((e) => {
+            if (e && e.id) {
+              const prev = weeklyMap.get(e.id);
+              if (!prev || new Date(e.updatedAt || e.createdAt || 0) >= new Date(prev.updatedAt || prev.createdAt || 0)) {
+                weeklyMap.set(e.id, e);
+              }
+            }
+          });
+          const mergedWeekly = Array.from(weeklyMap.values()).sort(
+            (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+          );
+
+          // Cache merged weekly entries to localStorage for this member so synchronous reads are fresh
+          if (typeof window !== 'undefined' && email && mergedWeekly.length > 0) {
+            safeLocalStorageSet(`fitkode_weekly_entries_${email}`, mergedWeekly);
+          }
+
+          // Cache remote profile & onboarding to localStorage for this member so Coach Dossier tabs see latest data
+          if (typeof window !== 'undefined' && email) {
+            if (profileRate > 0) {
+              safeLocalStorageSet(`fitkode_profile_${email}`, constructedProfile);
+            }
+            if (hasRemoteOnboarding) {
+              safeLocalStorageSet(`fitkode_onboarding_${email}`, {
+                ...defaultClientOnboarding,
+                ...onboardingData,
+              });
+            }
+          }
 
           const memberObj: AppMember = {
             id: row.id,
             email,
             name: fullName,
             role: resolvedRole,
-            avatarUrl: row.avatar_url || profileData.avatarUrl || '',
+            avatarUrl: row.avatar_url || cleanProfileFields.avatarUrl || '',
             joinedAt: row.created_at || new Date().toISOString(),
             lastLoginAt: row.updated_at || row.created_at || new Date().toISOString(),
-            phone: row.phone || profileData.phone || '',
-            planId: row.plan_id || profileData.planId,
-            planName: row.plan_name || profileData.planName,
-            planPurchasedAt: row.plan_purchased_at || profileData.planPurchasedAt,
+            phone: row.phone || cleanProfileFields.phone || '',
+            planId: row.plan_id || cleanProfileFields.planId,
+            planName: row.plan_name || cleanProfileFields.planName,
+            planPurchasedAt: row.plan_purchased_at || cleanProfileFields.planPurchasedAt,
             profileCompletion: profileRate,
             onboardingCompletion: onboardingRate,
             notes: row.notes || (existingIndex >= 0 ? mergedList[existingIndex].notes : ''),
-            profile: {
-              ...defaultUserProfile,
-              ...profileData,
-              firstName: firstName || profileData.firstName || '',
-              lastName: lastName || profileData.lastName || '',
-              phone: row.phone || profileData.phone || '',
-              email: email || profileData.email || '',
-            },
-            onboarding: Object.keys(onboardingData).length > 0 ? {
-              ...defaultClientOnboarding,
-              ...onboardingData,
-            } : (existingIndex >= 0 ? mergedList[existingIndex].onboarding : undefined),
+            profile: constructedProfile,
+            onboarding: hasRemoteOnboarding
+              ? {
+                  ...defaultClientOnboarding,
+                  ...onboardingData,
+                }
+              : existingIndex >= 0
+              ? mergedList[existingIndex].onboarding
+              : undefined,
+            weeklyEntries: mergedWeekly,
           };
 
           if (existingIndex >= 0) {
-            // Merge with existing entry, keeping real Supabase data prioritized only when available
             const existing = mergedList[existingIndex];
-            const hasRemoteProfile = Object.keys(profileData).length > 0;
-            const hasRemoteOnboarding = Object.keys(onboardingData).length > 0;
-            const remoteWeekly = memberObj.weeklyEntries || [];
-            const localWeekly = existing.weeklyEntries || [];
-            // Merge distinct entries by ID
-            const weeklyMap = new Map();
-            [...localWeekly, ...remoteWeekly].forEach((e) => {
-              if (e && e.id) weeklyMap.set(e.id, e);
-            });
-            const mergedWeekly = Array.from(weeklyMap.values()).sort(
-              (a: any, b: any) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
-            );
+            const hasRemoteProfile = Object.keys(cleanProfileFields).length > 0 && profileRate >= existing.profileCompletion;
 
             mergedList[existingIndex] = {
               ...existing,
               ...memberObj,
-              profileCompletion: hasRemoteProfile ? profileRate : existing.profileCompletion,
-              onboardingCompletion: hasRemoteOnboarding ? onboardingRate : existing.onboardingCompletion,
-              profile: hasRemoteProfile ? memberObj.profile : (existing.profile || memberObj.profile),
-              onboarding: hasRemoteOnboarding ? memberObj.onboarding : (existing.onboarding || memberObj.onboarding),
+              profileCompletion: Math.max(profileRate, existing.profileCompletion || 0),
+              onboardingCompletion: hasRemoteOnboarding
+                ? onboardingRate
+                : Math.max(onboardingRate, existing.onboardingCompletion || 0),
+              profile: hasRemoteProfile
+                ? { ...(existing.profile || defaultUserProfile), ...constructedProfile }
+                : existing.profile || constructedProfile,
+              onboarding: hasRemoteOnboarding
+                ? { ...(existing.onboarding || defaultClientOnboarding), ...onboardingData }
+                : existing.onboarding || memberObj.onboarding,
               weeklyEntries: mergedWeekly,
               notes: row.notes || existing.notes || '',
             };
           } else {
-            // New user from Supabase - add to beginning
             mergedList.unshift(memberObj);
           }
         }
@@ -927,18 +1043,21 @@ export async function updateMemberRole(
     throw new Error('Member not found.');
   }
 
+  const targetEmail = members[index].email.toLowerCase().trim();
   members[index].role = newRole;
   saveStoredMembers(members);
 
-  // 1. Sync to Supabase profiles table directly
+  // 1. Sync to Supabase profiles table directly (matching by UUID or email safely)
   const supabase = getSupabase();
   if (supabase) {
     try {
-      supabase
-        .from('profiles')
-        .update({ role: newRole, updated_at: new Date().toISOString() })
-        .or(`id.eq.${memberId},email.eq.${memberId}`)
-        .then(() => {});
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberId);
+      const query = supabase.from('profiles').update({ role: newRole, updated_at: new Date().toISOString() });
+      if (isUuid) {
+        await query.eq('id', memberId);
+      } else if (targetEmail) {
+        await query.ilike('email', targetEmail);
+      }
     } catch {
       // ignore
     }
@@ -946,9 +1065,10 @@ export async function updateMemberRole(
 
   // 2. Sync to backend API
   try {
+    const authHeaders = await getSupabaseAuthHeaders();
     await fetch(`/api/members/${encodeURIComponent(memberId)}/role`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ role: newRole, callerEmail }),
     });
   } catch {
@@ -965,21 +1085,43 @@ export function updateMemberNotes(memberId: string, notes: string): void {
   const members = getStoredMembers();
   const index = members.findIndex((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
   if (index >= 0) {
+    const targetEmail = members[index].email.toLowerCase().trim();
     members[index].notes = notes;
     saveStoredMembers(members);
 
-    // Sync to Supabase profiles table
+    // Sync to Supabase profiles table safely
     const supabase = getSupabase();
     if (supabase) {
       try {
-        supabase
-          .from('profiles')
-          .update({ notes, updated_at: new Date().toISOString() })
-          .or(`id.eq.${memberId},email.eq.${memberId}`)
-          .then(() => {});
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberId);
+        const query = supabase.from('profiles').update({ notes, updated_at: new Date().toISOString() });
+        if (isUuid) {
+          query.eq('id', memberId).then(() => {});
+        } else if (targetEmail) {
+          query.ilike('email', targetEmail).then(() => {});
+        }
       } catch {
         // ignore
       }
     }
+
+    // Also sync to backend API
+    try {
+      getSupabaseAuthHeaders().then((authHeaders) => {
+        fetch('/api/members/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            id: memberId,
+            email: targetEmail,
+            notes,
+          }),
+        }).catch(() => {});
+      });
+    } catch {
+      // ignore
+    }
   }
 }
+
+

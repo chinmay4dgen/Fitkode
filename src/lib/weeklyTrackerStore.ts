@@ -1,7 +1,15 @@
 import { WeeklyTrackerEntry, AppMember } from '../types';
 import { isDefaultAdmin, getStoredMembers, updateMemberWeeklyEntries } from './memberStore';
 import { notifyWeeklyTrackerSubmitted } from './communicationService';
-import { saveWeeklyEntriesToSupabase, loadWeeklyEntriesFromSupabase } from './supabase';
+import {
+  saveWeeklyEntriesToSupabase,
+  loadWeeklyEntriesFromSupabase,
+  deleteWeeklyEntryFromSupabase,
+  loadAllWeeklyEntriesFromSupabaseForAdmin,
+  uploadProgressPhotoToSupabase,
+  getSupabaseAuthHeaders,
+} from './supabase';
+import { safeLocalStorageSet } from './storageGuard';
 
 // Realistic sample progression check-ins for demo members
 export const SEED_WEEKLY_ENTRIES: WeeklyTrackerEntry[] = [
@@ -303,11 +311,7 @@ export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMem
         }
 
         if (changed) {
-          try {
-            localStorage.setItem(key, JSON.stringify(merged));
-          } catch {
-            // ignore
-          }
+          safeLocalStorageSet(key, merged);
         }
 
         // Sort reverse chronological (newest first)
@@ -324,11 +328,7 @@ export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMem
   );
 
   if (seeded.length > 0) {
-    try {
-      localStorage.setItem(key, JSON.stringify(seeded));
-    } catch {
-      // ignore
-    }
+    safeLocalStorageSet(key, seeded);
     return seeded.sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
   }
 
@@ -339,11 +339,7 @@ export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMem
       (m) => m.email?.toLowerCase().trim() === normalized || m.id === normalized
     );
     if (matched?.weeklyEntries && matched.weeklyEntries.length > 0) {
-      try {
-        localStorage.setItem(key, JSON.stringify(matched.weeklyEntries));
-      } catch {
-        // ignore
-      }
+      safeLocalStorageSet(key, matched.weeklyEntries);
       return matched.weeklyEntries.sort(
         (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
       );
@@ -354,11 +350,7 @@ export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMem
 
   // Tier 3: Check fallbackMember passed directly
   if (fallbackMember?.weeklyEntries && fallbackMember.weeklyEntries.length > 0) {
-    try {
-      localStorage.setItem(key, JSON.stringify(fallbackMember.weeklyEntries));
-    } catch {
-      // ignore
-    }
+    safeLocalStorageSet(key, fallbackMember.weeklyEntries);
     return fallbackMember.weeklyEntries.sort(
       (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
     );
@@ -397,11 +389,7 @@ export function loadUserWeeklyEntries(userEmail: string, fallbackMember?: AppMem
       coachFeedback: 'Initial baseline intake measurements recorded from onboarding assessment.',
       createdAt: targetMember.joinedAt || new Date().toISOString(),
     };
-    try {
-      localStorage.setItem(key, JSON.stringify([baselineEntry]));
-    } catch {
-      // ignore
-    }
+    safeLocalStorageSet(key, [baselineEntry]);
     return [baselineEntry];
   }
 
@@ -447,12 +435,8 @@ export async function saveWeeklyEntry(
   // Sort descending by check-in date
   updatedList.sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
 
-  // Save to client localStorage
-  try {
-    localStorage.setItem(key, JSON.stringify(updatedList));
-  } catch (err) {
-    console.error('Error saving weekly entry to localStorage:', err);
-  }
+  // Save to client localStorage with 5MB quota protection
+  safeLocalStorageSet(key, updatedList);
 
   // Keep member registry in sync
   try {
@@ -463,12 +447,14 @@ export async function saveWeeklyEntry(
 
   // 1. Sync directly to Express Backend API
   try {
-    fetch('/api/weekly-tracker', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry: updatedEntry, callerEmail }),
-    }).catch((err) => {
-      console.warn('[saveWeeklyEntry] Backend sync notice:', err);
+    getSupabaseAuthHeaders().then((authHeaders) => {
+      fetch('/api/weekly-tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ entry: updatedEntry, callerEmail }),
+      }).catch((err) => {
+        console.warn('[saveWeeklyEntry] Backend sync notice:', err);
+      });
     });
   } catch {
     // ignore
@@ -492,11 +478,11 @@ export async function saveWeeklyEntry(
 }
 
 /**
- * Asynchronously fetches a user's weekly check-ins from:
- * 1. Express backend API (/api/weekly-tracker)
- * 2. Supabase (if configured)
+ * Asynchronously fetches a user's weekly check-ins from BOTH:
+ * 1. Supabase (dedicated table + profiles.profile_data.weekly_entries)
+ * 2. Express backend API (/api/weekly-tracker)
  * 3. Local storage & seed data fallback
- * Updates client-side localStorage so subsequent synchronous reads are also fresh.
+ * Merges entries by ID/timestamp so fresh check-ins from any device are never shadowed by stale seed records.
  */
 export async function fetchUserWeeklyEntries(
   userEmail: string,
@@ -507,50 +493,62 @@ export async function fetchUserWeeklyEntries(
   const normCaller = (callerEmail || userEmail).toLowerCase().trim();
   const key = getStorageKey(normUser);
 
-  // 1. Try Backend API
-  try {
-    const res = await fetch(
-      `/api/weekly-tracker?userEmail=${encodeURIComponent(normUser)}&callerEmail=${encodeURIComponent(normCaller)}`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.entries) && data.entries.length > 0) {
-        // Cache to localStorage
-        try {
-          localStorage.setItem(key, JSON.stringify(data.entries));
-        } catch {
-          // ignore
+  const byId = new Map<string, WeeklyTrackerEntry>();
+
+  const mergeEntries = (list: WeeklyTrackerEntry[] | null | undefined) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      if (!item || !item.id) continue;
+      const existing = byId.get(item.id);
+      if (!existing) {
+        byId.set(item.id, item);
+      } else {
+        const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        const incomingTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        if (incomingTime >= existingTime) {
+          byId.set(item.id, { ...existing, ...item });
         }
-        return data.entries;
       }
     }
-  } catch (err) {
-    // Backend fetch failed or network offline
-  }
+  };
 
-  // 2. Try Supabase
-  try {
-    const sbEntries = await loadWeeklyEntriesFromSupabase(normUser);
-    if (Array.isArray(sbEntries) && sbEntries.length > 0) {
-      try {
-        localStorage.setItem(key, JSON.stringify(sbEntries));
-      } catch {
-        // ignore
-      }
-      return sbEntries.sort(
-        (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
-      );
+  // Start with current local/seeded baseline
+  mergeEntries(loadUserWeeklyEntries(normUser));
+
+  // Fetch Backend API and Supabase in parallel so neither blocks or shadows the other
+  const authHeaders = await getSupabaseAuthHeaders();
+  const [apiEntries, sbEntries] = await Promise.all([
+    fetch(
+      `/api/weekly-tracker?userEmail=${encodeURIComponent(normUser)}&callerEmail=${encodeURIComponent(normCaller)}`,
+      { headers: authHeaders }
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => (Array.isArray(data?.entries) ? (data.entries as WeeklyTrackerEntry[]) : null))
+      .catch(() => null),
+    loadWeeklyEntriesFromSupabase(normUser).catch(() => null),
+  ]);
+
+  mergeEntries(apiEntries);
+  mergeEntries(sbEntries);
+
+  const merged = Array.from(byId.values()).sort(
+    (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+  );
+
+  if (merged.length > 0) {
+    safeLocalStorageSet(key, merged);
+    try {
+      updateMemberWeeklyEntries(normUser, merged);
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
 
-  // 3. Fallback to localStorage & seed data
-  return loadUserWeeklyEntries(normUser);
+  return merged;
 }
 
 /**
- * Deletes a weekly check-in entry.
+ * Deletes a weekly check-in entry across localStorage, Supabase, and backend API.
  */
 export async function deleteWeeklyEntry(
   entryId: string,
@@ -571,22 +569,27 @@ export async function deleteWeeklyEntry(
   const currentEntries = loadUserWeeklyEntries(normUser);
   const filtered = currentEntries.filter((e) => e.id !== entryId);
 
-  try {
-    localStorage.setItem(key, JSON.stringify(filtered));
-  } catch (err) {
-    console.error('Error deleting weekly entry:', err);
-  }
+  safeLocalStorageSet(key, filtered);
 
   try {
-    saveWeeklyEntriesToSupabase(normUser, filtered).catch(() => {});
+    updateMemberWeeklyEntries(normUser, filtered);
   } catch {
     // ignore
   }
 
   try {
-    fetch(`/api/weekly-tracker/${encodeURIComponent(entryId)}?callerEmail=${encodeURIComponent(callerEmail)}&userEmail=${encodeURIComponent(normUser)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    deleteWeeklyEntryFromSupabase(entryId, normUser, filtered).catch(() => {});
+  } catch {
+    // ignore
+  }
+
+  try {
+    getSupabaseAuthHeaders().then((authHeaders) => {
+      fetch(`/api/weekly-tracker/${encodeURIComponent(entryId)}?callerEmail=${encodeURIComponent(callerEmail)}&userEmail=${encodeURIComponent(normUser)}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      }).catch(() => {});
+    });
   } catch {
     // ignore
   }
@@ -595,7 +598,7 @@ export async function deleteWeeklyEntry(
 }
 
 /**
- * Fetches all weekly check-ins across all members.
+ * Fetches all weekly check-ins across all members (local + Express server + Supabase).
  * PRIVACY RESTRICTION: Only Super Admin Chinmay (or admin role) can call this.
  */
 export async function loadAllWeeklyEntriesForAdmin(
@@ -605,17 +608,45 @@ export async function loadAllWeeklyEntriesForAdmin(
     throw new Error('Access Denied: Only Super Admin Chinmay can inspect other members weekly tracker data.');
   }
 
-  // Assemble from local storage keys and seed data first
   const result: Record<string, WeeklyTrackerEntry[]> = {};
 
-  // Group seed entries
+  const mergeForEmail = (email: string, entries: WeeklyTrackerEntry[]) => {
+    const norm = email.toLowerCase().trim();
+    if (!norm || !Array.isArray(entries) || entries.length === 0) return;
+    const existing = result[norm] || [];
+    const byId = new Map<string, WeeklyTrackerEntry>();
+    for (const item of existing) {
+      if (item?.id) byId.set(item.id, item);
+    }
+    for (const item of entries) {
+      if (!item?.id) continue;
+      const prev = byId.get(item.id);
+      if (!prev) {
+        byId.set(item.id, item);
+      } else {
+        const prevTime = new Date(prev.updatedAt || prev.createdAt || 0).getTime();
+        const nextTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        if (nextTime >= prevTime) {
+          byId.set(item.id, { ...prev, ...item });
+        }
+      }
+    }
+    const mergedList = Array.from(byId.values()).sort(
+      (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
+    );
+    result[norm] = mergedList;
+    if (typeof window !== 'undefined') {
+      safeLocalStorageSet(getStorageKey(norm), mergedList);
+    }
+  };
+
+  // 1. Group seed entries
   SEED_WEEKLY_ENTRIES.forEach((e) => {
     const email = e.userEmail.toLowerCase().trim();
-    if (!result[email]) result[email] = [];
-    result[email].push(e);
+    mergeForEmail(email, [e]);
   });
 
-  // Check localStorage keys
+  // 2. Check localStorage keys
   if (typeof window !== 'undefined') {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -626,9 +657,7 @@ export async function loadAllWeeklyEntriesForAdmin(
           if (raw) {
             const list = JSON.parse(raw);
             if (Array.isArray(list) && list.length > 0) {
-              result[email] = list.sort(
-                (a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime()
-              );
+              mergeForEmail(email, list);
             }
           }
         } catch {
@@ -638,50 +667,66 @@ export async function loadAllWeeklyEntriesForAdmin(
     }
   }
 
-  // Query server API for live entries across all members
-  try {
-    const res = await fetch(`/api/weekly-tracker/all?callerEmail=${encodeURIComponent(callerEmail)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.entriesByEmail && typeof data.entriesByEmail === 'object') {
-        Object.entries(data.entriesByEmail).forEach(([email, entries]) => {
-          const norm = email.toLowerCase().trim();
-          if (Array.isArray(entries) && entries.length > 0) {
-            result[norm] = entries;
-            // Also cache to localStorage for fast local access
-            try {
-              localStorage.setItem(getStorageKey(norm), JSON.stringify(entries));
-            } catch {
-              // ignore
-            }
-          }
-        });
+  // 3. Query server API & Supabase in parallel for live entries across all members
+  const authHeaders = await getSupabaseAuthHeaders();
+  const [serverData, sbData] = await Promise.all([
+    fetch(`/api/weekly-tracker/all?callerEmail=${encodeURIComponent(callerEmail)}`, {
+      headers: authHeaders,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null),
+    loadAllWeeklyEntriesFromSupabaseForAdmin().catch(() => ({})),
+  ]);
+
+  if (serverData?.entriesByEmail && typeof serverData.entriesByEmail === 'object') {
+    Object.entries(serverData.entriesByEmail).forEach(([email, entries]) => {
+      if (Array.isArray(entries)) {
+        mergeForEmail(email, entries as WeeklyTrackerEntry[]);
       }
-    }
-  } catch {
-    // fallback
+    });
+  }
+
+  if (sbData && typeof sbData === 'object') {
+    Object.entries(sbData).forEach(([email, entries]) => {
+      if (Array.isArray(entries)) {
+        mergeForEmail(email, entries as WeeklyTrackerEntry[]);
+      }
+    });
   }
 
   return result;
 }
 
 /**
- * Compresses an uploaded image file into a base64 data URL for fast preview and storage.
+ * Compresses an uploaded image file into a compact JPEG (bounding both width & height <= maxDimension,
+ * and stepping down quality if needed so fallback data URLs stay under ~100KB), then attempts to upload
+ * to Supabase Storage (`progress-photos` bucket) with automatic fallback to the compact data URL.
  */
-export function compressImageFile(file: File, maxWidth = 900, quality = 0.75): Promise<string> {
+export function compressImageFile(
+  file: File,
+  maxDimension = 1000,
+  quality = 0.72,
+  userEmail?: string,
+  pose?: string
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
-      img.onload = () => {
+      img.onload = async () => {
         const canvas = document.createElement('canvas');
         let { width, height } = img;
 
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+        if (width > maxDimension || height > maxDimension) {
+          if (width >= height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
         }
 
         canvas.width = width;
@@ -694,7 +739,25 @@ export function compressImageFile(file: File, maxWidth = 900, quality = 0.75): P
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        let currentQuality = quality;
+        let dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+
+        // Keep dataUrl compact (< ~110KB base64) so JSONB fallback never bloats Postgres rows
+        while (dataUrl.length > 150000 && currentQuality > 0.42) {
+          currentQuality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+        }
+
+        if (userEmail && pose) {
+          try {
+            const uploadedUrl = await uploadProgressPhotoToSupabase(dataUrl, userEmail, pose);
+            resolve(uploadedUrl);
+            return;
+          } catch {
+            // Fall through to compact dataUrl
+          }
+        }
+
         resolve(dataUrl);
       };
       img.onerror = () => reject(new Error('Failed to load image for compression'));

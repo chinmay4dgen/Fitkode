@@ -7,9 +7,11 @@ import {
   Info,
   Calendar,
   Camera,
+  RotateCcw,
 } from 'lucide-react';
 import { WeeklyTrackerEntry } from '../types';
 import { compressImageFile, loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
+import { safeLocalStorageSet } from '../lib/storageGuard';
 
 interface WeeklyTrackerModalProps {
   existingEntry?: WeeklyTrackerEntry | null;
@@ -42,6 +44,9 @@ export default function WeeklyTrackerModal({
       return true;
     }
   });
+
+  const draftStorageKey = `fk_weekly_checkin_draft_${(defaultEmail || 'member').toLowerCase().trim()}`;
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const handleDismissGuideline = () => {
     try {
@@ -122,34 +127,72 @@ export default function WeeklyTrackerModal({
     }
   }
 
-  // Form State initialized to existingEntry or clean defaults
+  const getCleanDefaults = (): Partial<WeeklyTrackerEntry> => ({
+    id: `chk_${Date.now()}`,
+    userEmail: defaultEmail,
+    firstName: defaultFirstName,
+    lastName: defaultLastName,
+    checkInDate: new Date().toISOString().split('T')[0],
+    weekNumber: suggestedWeekNumber,
+    avgStepsPerDay: latestPastEntry?.avgStepsPerDay || 8000,
+    weightKg: latestPastEntry?.weightKg || 70.0,
+    waistInches: latestPastEntry?.waistInches || 32.0,
+    hipsInches: latestPastEntry?.hipsInches || 38.0,
+    neckInches: latestPastEntry?.neckInches || 14.0,
+    quadsInches: latestPastEntry?.quadsInches || 22.0,
+    chestInches: latestPastEntry?.chestInches || 38.0,
+    upperRightArmInches: latestPastEntry?.upperRightArmInches || 13.0,
+    resistanceWorkoutDays: latestPastEntry?.resistanceWorkoutDays ?? 3,
+    hiitCardioDays: latestPastEntry?.hiitCardioDays ?? 2,
+    avgCaloriesPerDay: latestPastEntry?.avgCaloriesPerDay || 2000,
+    frontPicUrl: '',
+    leftPicUrl: '',
+    rightPicUrl: '',
+    backPicUrl: '',
+    challengesFaced: '',
+  });
+
+  // Form State initialized to existingEntry, saved auto-draft, or smart defaults
   const [formData, setFormData] = useState<Partial<WeeklyTrackerEntry>>(() => {
     if (existingEntry) return { ...existingEntry };
-    return {
-      id: `chk_${Date.now()}`,
-      userEmail: defaultEmail,
-      firstName: defaultFirstName,
-      lastName: defaultLastName,
-      checkInDate: new Date().toISOString().split('T')[0],
-      weekNumber: suggestedWeekNumber,
-      avgStepsPerDay: 8000,
-      weightKg: 70.0,
-      waistInches: 32.0,
-      hipsInches: 38.0,
-      neckInches: 14.0,
-      quadsInches: 22.0,
-      chestInches: 38.0,
-      upperRightArmInches: 13.0,
-      resistanceWorkoutDays: 3,
-      hiitCardioDays: 2,
-      avgCaloriesPerDay: 2000,
-      frontPicUrl: '',
-      leftPicUrl: '',
-      rightPicUrl: '',
-      backPicUrl: '',
-      challengesFaced: '',
-    };
+    try {
+      const savedDraft = localStorage.getItem(draftStorageKey);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed && typeof parsed === 'object') {
+          setTimeout(() => setDraftRestored(true), 0);
+          return {
+            ...getCleanDefaults(),
+            ...parsed,
+            userEmail: defaultEmail,
+            weekNumber: suggestedWeekNumber,
+          };
+        }
+      }
+    } catch {
+      // ignore corrupted draft
+    }
+    return getCleanDefaults();
   });
+
+  // Auto-save draft to localStorage whenever formData changes for new entries
+  useEffect(() => {
+    if (existingEntry) return;
+    const timer = setTimeout(() => {
+      safeLocalStorageSet(draftStorageKey, JSON.stringify(formData));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [formData, existingEntry, draftStorageKey]);
+
+  const handleResetDraft = () => {
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch {
+      // ignore
+    }
+    setDraftRestored(false);
+    setFormData(getCleanDefaults());
+  };
 
   const [compressingPose, setCompressingPose] = useState<string | null>(null);
 
@@ -170,10 +213,11 @@ export default function WeeklyTrackerModal({
 
     try {
       setCompressingPose(pose);
-      const compressedDataUrl = await compressImageFile(file, 900, 0.75);
+      const targetEmail = (formData.userEmail || defaultEmail || 'member').toLowerCase().trim();
+      const photoUrlOrDataUrl = await compressImageFile(file, 1000, 0.72, targetEmail, pose);
       setFormData((prev) => ({
         ...prev,
-        [pose]: compressedDataUrl,
+        [pose]: photoUrlOrDataUrl,
       }));
     } catch (err) {
       console.error('Photo processing error:', err);
@@ -234,6 +278,7 @@ export default function WeeklyTrackerModal({
 
       await onSave(finalEntry);
       try {
+        localStorage.removeItem(draftStorageKey);
         sessionStorage.setItem('fk_weekly_checkin_dismissed_session', 'true');
       } catch {
         // ignore
@@ -264,9 +309,27 @@ export default function WeeklyTrackerModal({
               <Activity className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900 text-base sm:text-lg tracking-tight">
-                {existingEntry ? 'Edit Weekly Check-in' : 'Weekly Check-in'}
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-bold text-gray-900 text-base sm:text-lg tracking-tight">
+                  {existingEntry ? 'Edit Weekly Check-in' : 'Weekly Check-in'}
+                </h2>
+                {!existingEntry && (
+                  <span className="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100/80 text-emerald-800 border border-emerald-200">
+                    <span>{draftRestored ? '✓ Draft Restored' : 'Auto-Draft Active'}</span>
+                    {draftRestored && (
+                      <button
+                        type="button"
+                        onClick={handleResetDraft}
+                        className="ml-1.5 inline-flex items-center text-emerald-950 underline hover:text-red-700 cursor-pointer"
+                        title="Reset to previous week defaults"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
+                        Reset
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-gray-500 mt-0.5">
                 <span className="flex items-center text-gray-700 font-medium">
                   <Calendar className="w-3.5 h-3.5 mr-1 text-brand-green shrink-0 inline" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -31,17 +31,20 @@ import { isLiveProductionSite, shouldShowTestProfiles } from '../lib/environment
 import {
   saveProfileToSupabase,
   loadProfileFromSupabase,
+  loadOnboardingFromSupabase,
 } from '../lib/supabase';
 import {
   loadUserProfile,
   saveUserProfile,
   loadClientOnboarding,
+  saveClientOnboarding,
   getProfileCompletionRate,
   getOnboardingCompletionRate,
 } from '../lib/profileStorage';
 import { UserProfile, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
 import {
   loadUserWeeklyEntries,
+  fetchUserWeeklyEntries,
   saveWeeklyEntry,
   deleteWeeklyEntry,
 } from '../lib/weeklyTrackerStore';
@@ -59,6 +62,8 @@ import {
   setActiveWorkoutPlan,
   renameWorkoutPlan,
   subscribeToPlannerUpdates,
+  fetchMealPlansFromServer,
+  fetchWorkoutPlansFromServer,
 } from '../lib/plannerStore';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
 import MealPlannerView from './MealPlannerView';
@@ -104,9 +109,48 @@ export default function UserProfilePage() {
   };
 
   // Tabs in Profile
-  const [profileActiveTab, setProfileActiveTab] = useState<
-    'profile' | 'weekly-tracker' | 'meal-plan' | 'workout-plan' | 'privacy'
-  >('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validProfileTabs = ['profile', 'weekly-tracker', 'meal-plan', 'workout-plan', 'privacy'] as const;
+  type ProfileTabType = typeof validProfileTabs[number];
+
+  const getInitialProfileTab = (): ProfileTabType => {
+    const fromUrl = searchParams.get('tab') as ProfileTabType;
+    if (fromUrl && validProfileTabs.includes(fromUrl)) return fromUrl;
+    if (typeof window !== 'undefined') {
+      const fromSession = sessionStorage.getItem('fk_profile_active_tab') as ProfileTabType;
+      if (fromSession && validProfileTabs.includes(fromSession)) return fromSession;
+    }
+    return 'profile';
+  };
+
+  const [profileActiveTab, setProfileActiveTabState] = useState<ProfileTabType>(getInitialProfileTab);
+
+  const setProfileActiveTab = (tab: ProfileTabType) => {
+    setProfileActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('fk_profile_active_tab', tab);
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'profile') {
+        next.delete('tab');
+      } else {
+        next.set('tab', tab);
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  // Sync if URL search params change externally
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') as ProfileTabType;
+    if (urlTab && validProfileTabs.includes(urlTab) && urlTab !== profileActiveTab) {
+      setProfileActiveTabState(urlTab);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('fk_profile_active_tab', urlTab);
+      }
+    }
+  }, [searchParams]);
   const [weeklyEntries, setWeeklyEntries] = useState<WeeklyTrackerEntry[]>([]);
   const [isWeeklyModalOpen, setIsWeeklyModalOpen] = useState(false);
   const [editingWeeklyEntry, setEditingWeeklyEntry] = useState<WeeklyTrackerEntry | null>(null);
@@ -121,6 +165,13 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (user?.email) {
       setWeeklyEntries(loadUserWeeklyEntries(user.email));
+      fetchUserWeeklyEntries(user.email, user.email)
+        .then((freshEntries) => {
+          if (Array.isArray(freshEntries) && freshEntries.length > 0) {
+            setWeeklyEntries(freshEntries);
+          }
+        })
+        .catch(() => {});
 
       const syncPlanners = () => {
         const mPlans = loadUserMealPlans(user.email);
@@ -141,6 +192,36 @@ export default function UserProfilePage() {
       };
 
       syncPlanners();
+
+      // Also async fetch fresh server meal and workout plans for this member
+      fetchMealPlansFromServer(user.email)
+        .then((allPlans) => {
+          const norm = user.email.toLowerCase().trim();
+          const userPlans = allPlans.filter(
+            (p) =>
+              (p.userEmail && p.userEmail.toLowerCase().trim() === norm) ||
+              (p.userId && p.userId.toLowerCase().trim() === norm)
+          );
+          if (userPlans.length > 0) {
+            setUserMealPlans(userPlans);
+          }
+        })
+        .catch(() => {});
+
+      fetchWorkoutPlansFromServer(user.email)
+        .then((allPlans) => {
+          const norm = user.email.toLowerCase().trim();
+          const userPlans = allPlans.filter(
+            (p) =>
+              (p.userEmail && p.userEmail.toLowerCase().trim() === norm) ||
+              (p.userId && p.userId.toLowerCase().trim() === norm)
+          );
+          if (userPlans.length > 0) {
+            setUserWorkoutPlans(userPlans);
+          }
+        })
+        .catch(() => {});
+
       const unsubscribe = subscribeToPlannerUpdates(syncPlanners);
       return () => unsubscribe();
     }
@@ -425,19 +506,31 @@ export default function UserProfilePage() {
     });
     setProfile(loaded);
 
-    // Also fetch latest profile data from Supabase
+    // Also fetch latest profile & onboarding data from Supabase for cross-device consistency
     loadProfileFromSupabase(user.id || user.email).then((remoteProfile) => {
       if (remoteProfile) {
-        setProfile((prev) => ({
-          ...prev,
-          ...remoteProfile,
-          email: remoteProfile.email || prev.email || user.email || '',
-        }));
+        setProfile((prev) => {
+          const merged = {
+            ...prev,
+            ...remoteProfile,
+            email: remoteProfile.email || prev.email || user.email || '',
+          };
+          saveUserProfile(merged, user.id || user.email);
+          return merged;
+        });
       }
     });
 
-    const onboarding = loadClientOnboarding(user.id || user.email);
-    setOnboardingRate(getOnboardingCompletionRate(onboarding));
+    const localOnboarding = loadClientOnboarding(user.id || user.email);
+    setOnboardingRate(getOnboardingCompletionRate(localOnboarding));
+
+    loadOnboardingFromSupabase(user.id || user.email).then((remoteOnboarding) => {
+      if (remoteOnboarding && Object.keys(remoteOnboarding).length > 0) {
+        const mergedOb = { ...localOnboarding, ...remoteOnboarding };
+        saveClientOnboarding(mergedOb, user.id || user.email);
+        setOnboardingRate(getOnboardingCompletionRate(mergedOb));
+      }
+    });
   }, [user, authLoading]);
 
   const handleTestSignIn = async (presetId: string, role?: UserRole) => {

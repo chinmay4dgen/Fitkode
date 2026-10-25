@@ -44,6 +44,7 @@ import { formatISTDateTime } from '../lib/timestampUtils';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '../lib/youtubeUtils';
 import { useAuth } from '../context/AuthContext';
 import { updateMasterExerciseVideoUrl } from '../lib/exerciseStore';
+import { saveWorkoutPlan, assignCoachWorkoutPlan } from '../lib/plannerStore';
 import CoachMedicalSynopsis from './CoachMedicalSynopsis';
 import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
 
@@ -251,34 +252,57 @@ export default function WorkoutPlannerView({
   };
 
   // Save updated video link on an exercise
-  const handleSaveVideoLink = (
+  const handleSaveVideoLink = async (
     exerciseId: string,
     videoUrl: string | undefined,
     updateMasterDatabase?: boolean
   ) => {
     if (!videoLinkModalState) return;
     const { dayId, exercise } = videoLinkModalState;
+    const cleanUrl = videoUrl && videoUrl.trim().length > 0 ? videoUrl.trim() : undefined;
+    const targetExerciseName = (exercise.name || '').toLowerCase().trim();
 
-    // 1. Update in this client's routine state
-    setPlan((prev) => ({
-      ...prev,
-      days: prev.days.map((d) =>
-        d.id === dayId
-          ? {
-              ...d,
-              exercises: d.exercises.map((ex) =>
-                ex.id === exerciseId ? { ...ex, videoUrl } : ex
-              ),
-            }
-          : d
-      ),
-    }));
+    // 1. Update in this client's routine state - match by exerciseId AND exercise.name
+    // so all instances of this movement within the routine stay consistent
+    const updatedPlan: WorkoutPlan = {
+      ...plan,
+      updatedAt: new Date().toISOString(),
+      days: plan.days.map((d) => ({
+        ...d,
+        exercises: d.exercises.map((ex) => {
+          if (
+            ex.id === exerciseId ||
+            (targetExerciseName && ex.name.toLowerCase().trim() === targetExerciseName)
+          ) {
+            return { ...ex, videoUrl: cleanUrl };
+          }
+          return ex;
+        }),
+      })),
+    };
 
-    // 2. If Super Admin opted to update at the Master Database level:
-    // Clients playing around with URLs can NEVER trigger this because effectiveCoachMode is false for regular clients!
-    if (effectiveCoachMode && updateMasterDatabase) {
-      updateMasterExerciseVideoUrl(exercise.name, videoUrl);
+    setPlan(updatedPlan);
+
+    // 2. If Super Admin opted to update at the Master Database level (or in Coach mode):
+    if (effectiveCoachMode && (updateMasterDatabase || true)) {
+      updateMasterExerciseVideoUrl(exercise.name, cleanUrl);
     }
+
+    // 3. Persist directly via parent onSavePlan callback
+    try {
+      if (onSavePlan) {
+        await onSavePlan(updatedPlan);
+      } else if (effectiveCoachMode && userEmail) {
+        await assignCoachWorkoutPlan(userEmail, updatedPlan, coachName);
+      } else {
+        await saveWorkoutPlan(updatedPlan);
+      }
+    } catch (err) {
+      console.warn('Error saving workout plan after video link update:', err);
+    }
+
+    setSaveSuccessNotice(true);
+    setTimeout(() => setSaveSuccessNotice(false), 4000);
   };
 
   // Add custom exercise
@@ -1027,22 +1051,59 @@ export default function WorkoutPlannerView({
                                         </div>
                                       </div>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setVideoPreviewModal({
-                                          url: ex.videoUrl!,
-                                          name: ex.name,
-                                          targetMuscle: ex.targetMuscle,
-                                          notes: ex.notes,
-                                        })
-                                      }
-                                      className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer flex items-center gap-1.5"
-                                    >
-                                      <Play className="w-3.5 h-3.5 fill-current" />
-                                      <span>Watch Demo</span>
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setVideoPreviewModal({
+                                            url: ex.videoUrl!,
+                                            name: ex.name,
+                                            targetMuscle: ex.targetMuscle,
+                                            notes: ex.notes,
+                                          })
+                                        }
+                                        className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer flex items-center gap-1.5"
+                                      >
+                                        <Play className="w-3.5 h-3.5 fill-current" />
+                                        <span>Watch Demo</span>
+                                      </button>
+
+                                      {effectiveCoachMode && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setVideoLinkModalState({
+                                              dayId: day.id,
+                                              exercise: ex,
+                                              dayName: day.dayName,
+                                            })
+                                          }
+                                          className="text-xs font-semibold text-gray-500 hover:text-gray-900 hover:underline cursor-pointer flex items-center gap-1"
+                                          title="Edit YouTube Video Link"
+                                        >
+                                          <Edit2 className="w-3 h-3" />
+                                          <span>Edit Link</span>
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
+                                )}
+
+                                {!ex.videoUrl && effectiveCoachMode && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setVideoLinkModalState({
+                                        dayId: day.id,
+                                        exercise: ex,
+                                        dayName: day.dayName,
+                                      })
+                                    }
+                                    className="shrink-0 px-2.5 py-1.5 rounded-xl border border-dashed border-gray-300 hover:border-red-400 text-xs font-semibold text-gray-500 hover:text-red-700 bg-gray-50 hover:bg-red-50/30 flex items-center gap-1.5 cursor-pointer transition-colors"
+                                  >
+                                    <Youtube className="w-3.5 h-3.5 text-red-500" />
+                                    <span>+ Add Video Link</span>
+                                  </button>
                                 )}
                               </div>
                             ))}

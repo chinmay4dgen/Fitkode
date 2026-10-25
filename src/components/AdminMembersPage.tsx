@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Shield,
   ShieldAlert,
@@ -38,6 +38,8 @@ import {
   Camera,
   Send,
   Plus,
+  Download,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AppMember, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
@@ -48,7 +50,7 @@ import {
   isDefaultAdmin,
   DEFAULT_ADMIN_EMAILS,
 } from '../lib/memberStore';
-import { getSupabase } from '../lib/supabase';
+import { getSupabase, runSupabaseDiagnostics, SupabaseDiagnosticResult } from '../lib/supabase';
 import {
   loadUserWeeklyEntries,
   fetchUserWeeklyEntries,
@@ -71,6 +73,7 @@ import {
   renameWorkoutPlan,
   fetchMealPlansFromServer,
   fetchWorkoutPlansFromServer,
+  subscribeToPlannerUpdates,
 } from '../lib/plannerStore';
 import { formatISTDate, formatISTDateTime } from '../lib/timestampUtils';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from '../lib/plannerLibrary';
@@ -94,12 +97,62 @@ export default function AdminMembersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'paid' | 'unpaid' | 'admin'>('all');
+  const [checkinFilter, setCheckinFilter] = useState<'all' | 'overdue' | 'due-soon' | 'on-track' | 'no-checkins'>('all');
   const [selectedMember, setSelectedMember] = useState<AppMember | null>(null);
   const [showDirectory, setShowDirectory] = useState(true);
   const [quickSwitchOpen, setQuickSwitchOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    'profile' | 'assessment' | 'weekly-tracker' | 'coaching' | 'meal-plan' | 'workout-plan' | 'communication'
-  >('profile');
+
+  // Persistent Active Tab in Member Dossier
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validAdminTabs = [
+    'profile',
+    'assessment',
+    'weekly-tracker',
+    'coaching',
+    'meal-plan',
+    'workout-plan',
+    'communication',
+  ] as const;
+  type AdminTabType = typeof validAdminTabs[number];
+
+  const getInitialAdminTab = (): AdminTabType => {
+    const fromUrl = searchParams.get('tab') as AdminTabType;
+    if (fromUrl && validAdminTabs.includes(fromUrl)) return fromUrl;
+    if (typeof window !== 'undefined') {
+      const fromSession = sessionStorage.getItem('fk_admin_active_tab') as AdminTabType;
+      if (fromSession && validAdminTabs.includes(fromSession)) return fromSession;
+    }
+    return 'profile';
+  };
+
+  const [activeTab, setActiveTabState] = useState<AdminTabType>(getInitialAdminTab);
+
+  const setActiveTab = (tab: AdminTabType) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('fk_admin_active_tab', tab);
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'profile') {
+        next.delete('tab');
+      } else {
+        next.set('tab', tab);
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  // Sync if URL search params change externally
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') as AdminTabType;
+    if (urlTab && validAdminTabs.includes(urlTab) && urlTab !== activeTab) {
+      setActiveTabState(urlTab);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('fk_admin_active_tab', urlTab);
+      }
+    }
+  }, [searchParams]);
   const [showCommunicationCenter, setShowCommunicationCenter] = useState(false);
   const [memberCommLogs, setMemberCommLogs] = useState<CommunicationLogItem[]>([]);
   const [updatingRole, setUpdatingRole] = useState(false);
@@ -107,7 +160,25 @@ export default function AdminMembersPage() {
   const [notesSaved, setNotesSaved] = useState(false);
   const [adminLoggingIn, setAdminLoggingIn] = useState(false);
   const [adminPhotoModalEntryId, setAdminPhotoModalEntryId] = useState<string | null>(null);
+  const [adminPhotoModalCompareMode, setAdminPhotoModalCompareMode] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [showDbDiagnosticsModal, setShowDbDiagnosticsModal] = useState(false);
+  const [dbDiagnostics, setDbDiagnostics] = useState<SupabaseDiagnosticResult | null>(null);
+  const [runningDiagnostics, setRunningDiagnostics] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleOpenDbDiagnostics = async () => {
+    setShowDbDiagnosticsModal(true);
+    setRunningDiagnostics(true);
+    try {
+      const diag = await runSupabaseDiagnostics();
+      setDbDiagnostics(diag);
+    } catch (err) {
+      console.warn('Diagnostics check error:', err);
+    } finally {
+      setRunningDiagnostics(false);
+    }
+  };
 
   // Coach Planner States in Admin Dossier
   const [adminMemberMealPlans, setAdminMemberMealPlans] = useState<MealPlan[]>([]);
@@ -228,6 +299,17 @@ export default function AdminMembersPage() {
           setAdminMemberWorkoutPlans(userPlans);
         }
       }).catch(() => {});
+
+      const syncAdminPlanners = () => {
+        const norm = email.toLowerCase().trim();
+        const currentM = loadUserMealPlans(norm);
+        setAdminMemberMealPlans(currentM);
+        const currentW = loadUserWorkoutPlans(norm);
+        setAdminMemberWorkoutPlans(currentW);
+      };
+
+      const unsubscribe = subscribeToPlannerUpdates(syncAdminPlanners);
+      return () => unsubscribe();
     } else {
       setAdminWeeklyEntries([]);
     }
@@ -449,9 +531,14 @@ export default function AdminMembersPage() {
     try {
       const data = await fetchAllMembersForAdmin(user?.email);
       setMembers(data);
-      // If a member was selected, refresh their data
+      // Warm up all weekly tracker entries in background for accurate Retention Radar badges
+      loadAllWeeklyEntriesForAdmin(user?.email).catch(() => {});
+      // If a member was selected, refresh their data including check-ins & plans
       if (selectedMember) {
-        const refreshed = data.find((m) => m.id === selectedMember.id);
+        const normSelected = selectedMember.email.toLowerCase().trim();
+        const refreshed = data.find(
+          (m) => m.id === selectedMember.id || m.email.toLowerCase().trim() === normSelected
+        );
         if (refreshed) {
           const enrichedProfile = (refreshed.profile && (refreshed.profile.phone || refreshed.profile.age || refreshed.profile.address))
             ? refreshed.profile
@@ -459,19 +546,53 @@ export default function AdminMembersPage() {
           const enrichedOnboarding = (refreshed.onboarding && (refreshed.onboarding.healthGoal || refreshed.onboarding.completedSections?.length))
             ? refreshed.onboarding
             : loadClientOnboarding(refreshed.email);
-          setSelectedMember({
+          const updatedSelected: AppMember = {
             ...refreshed,
             profile: enrichedProfile,
             onboarding: enrichedOnboarding,
-          });
+          };
+          setSelectedMember(updatedSelected);
           setCoachNotes(refreshed.notes || '');
+          refreshMemberWeeklyTracker(refreshed.email, updatedSelected);
+          fetchMealPlansFromServer(refreshed.email)
+            .then((allPlans) => {
+              const userPlans = allPlans.filter(
+                (p) =>
+                  (p.userEmail && p.userEmail.toLowerCase().trim() === normSelected) ||
+                  (p.userId && p.userId.toLowerCase().trim() === normSelected)
+              );
+              if (userPlans.length > 0) setAdminMemberMealPlans(userPlans);
+            })
+            .catch(() => {});
+          fetchWorkoutPlansFromServer(refreshed.email)
+            .then((allPlans) => {
+              const userPlans = allPlans.filter(
+                (p) =>
+                  (p.userEmail && p.userEmail.toLowerCase().trim() === normSelected) ||
+                  (p.userId && p.userId.toLowerCase().trim() === normSelected)
+              );
+              if (userPlans.length > 0) setAdminMemberWorkoutPlans(userPlans);
+            })
+            .catch(() => {});
+        }
+      } else {
+        // If no member is currently loaded in state, check URL and sessionStorage
+        const savedMemberEmail =
+          searchParams.get('member') ||
+          (typeof window !== 'undefined' ? sessionStorage.getItem('fk_admin_selected_member_email') : null);
+        if (savedMemberEmail) {
+          const norm = savedMemberEmail.toLowerCase().trim();
+          const target = data.find((m) => m.email.toLowerCase().trim() === norm);
+          if (target) {
+            handleSelectMember(target, false);
+          }
         }
       }
       if (isManual) {
         addToast({
           type: 'info',
-          title: 'Directory Refreshed',
-          message: `Loaded ${data.length} registered member accounts.`,
+          title: 'Directory & Member Dossier Refreshed',
+          message: `Synced ${data.length} registered member accounts from Supabase.`,
           duration: 4000,
         });
       }
@@ -494,9 +615,25 @@ export default function AdminMembersPage() {
     if (isAdmin) {
       loadData();
 
-      // Listen for instant realtime changes on public.profiles (e.g. new Google signups)
+      // Run a background diagnostic check to alert Coach if RLS recursion is detected
+      runSupabaseDiagnostics()
+        .then((diag) => {
+          setDbDiagnostics(diag);
+        })
+        .catch(() => {});
+
+      // Debounced Realtime listener across profiles, weekly_tracker_entries, meal_plans, workout_plans
       const supabase = getSupabase();
       let channel: any = null;
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const triggerDebouncedReload = () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          loadData(false);
+        }, 1500);
+      };
+
       if (supabase) {
         try {
           channel = supabase
@@ -504,9 +641,22 @@ export default function AdminMembersPage() {
             .on(
               'postgres_changes',
               { event: '*', schema: 'public', table: 'profiles' },
-              () => {
-                loadData();
-              }
+              triggerDebouncedReload
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'weekly_tracker_entries' },
+              triggerDebouncedReload
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'meal_plans' },
+              triggerDebouncedReload
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'workout_plans' },
+              triggerDebouncedReload
             )
             .subscribe();
         } catch {
@@ -515,6 +665,7 @@ export default function AdminMembersPage() {
       }
 
       return () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
         if (supabase && channel) {
           try {
             supabase.removeChannel(channel);
@@ -527,7 +678,7 @@ export default function AdminMembersPage() {
   }, [isAdmin, user?.email]);
 
   // When a member is selected: open full screen width, collapse search list, and scroll upfront
-  const handleSelectMember = (member: AppMember) => {
+  const handleSelectMember = (member: AppMember, shouldResetTab = true) => {
     const enrichedProfile = (member.profile && (member.profile.phone || member.profile.age || member.profile.address))
       ? member.profile
       : loadUserProfile(member.email);
@@ -543,11 +694,25 @@ export default function AdminMembersPage() {
 
     setSelectedMember(enrichedMember);
     setCoachNotes(member.notes || '');
-    setActiveTab('profile');
+    if (shouldResetTab) {
+      setActiveTab('profile');
+    }
     setNotesSaved(false);
     setShowDirectory(false); // Collapses the search list upfront as requested!
     setQuickSwitchOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('fk_admin_selected_member_email', member.email);
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('member', member.email);
+      return next;
+    }, { replace: true });
+
+    if (shouldResetTab) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Change member role with instant feedback toast
@@ -681,12 +846,138 @@ export default function AdminMembersPage() {
   }
 
   // ----------------------------------------------------
+  // RETENTION RADAR & WHATSAPP ACCOUNTABILITY HELPERS
+  // ----------------------------------------------------
+  const getMemberCheckinStatus = (m: AppMember) => {
+    const entries = loadUserWeeklyEntries(m.email, m);
+    const totalEntries = entries.length;
+    const latestEntry = entries[0] || null;
+    const firstName = (m.profile?.firstName || m.name || 'there').split(' ')[0];
+    const trackerUrl =
+      typeof window !== 'undefined' ? `${window.location.origin}/weekly-tracker` : 'https://fitkode.in/weekly-tracker';
+
+    let status: 'on-track' | 'due-soon' | 'overdue' | 'no-checkins' = 'no-checkins';
+    let daysSince: number | null = null;
+    let badgeLabel = 'No Check-ins';
+    let badgeClass = 'bg-gray-100 text-gray-600 border-gray-200';
+    let whatsappMessage = `Hi ${firstName}! Welcome to Fitkode. Please log your Week 1 baseline morning weight, tape measurements, and photos here so I can track your progress: ${trackerUrl} — Coach Chinmay`;
+
+    if (latestEntry && latestEntry.checkInDate) {
+      const nowMidnight = new Date();
+      nowMidnight.setHours(0, 0, 0, 0);
+      const entryDate = new Date(latestEntry.checkInDate);
+      entryDate.setHours(0, 0, 0, 0);
+      daysSince = Math.max(0, Math.floor((nowMidnight.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const nextWeek = (latestEntry.weekNumber || totalEntries) + 1;
+
+      if (daysSince <= 5) {
+        status = 'on-track';
+        badgeLabel = daysSince === 0 ? 'Logged Today' : `On Track • ${daysSince}d ago`;
+        badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        whatsappMessage = `Hi ${firstName}! Great job logging your Week ${latestEntry.weekNumber} check-in (${latestEntry.weightKg} kg, Waist ${latestEntry.waistInches}"). Keep executing your daily plan this week! — Coach Chinmay`;
+      } else if (daysSince <= 7) {
+        status = 'due-soon';
+        badgeLabel = `Due Soon • ${daysSince}d ago`;
+        badgeClass = 'bg-amber-50 text-amber-800 border-amber-200';
+        whatsappMessage = `Hi ${firstName}! Your Fitkode Week ${nextWeek} check-in is due. Tomorrow morning after freshening up (empty stomach), please log your weight and measurements here: ${trackerUrl} — Coach Chinmay`;
+      } else {
+        status = 'overdue';
+        badgeLabel = `Overdue • ${daysSince}d ago`;
+        badgeClass = 'bg-rose-50 text-rose-800 border-rose-200';
+        whatsappMessage = `Hi ${firstName}! Quick accountability check-in from Fitkode — I noticed your Week ${nextWeek} check-in is ${daysSince} days overdue. Please log your morning fasted weight & waist measurements here so I can review and calibrate your plan: ${trackerUrl} — Coach Chinmay`;
+      }
+    }
+
+    const rawPhone = (m.phone || m.profile?.phone || '').replace(/[^0-9]/g, '');
+    const normalizedPhone =
+      rawPhone.length === 10 ? `91${rawPhone}` : rawPhone.length > 10 ? rawPhone : '';
+    const whatsappUrl = normalizedPhone
+      ? `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(whatsappMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+
+    return {
+      status,
+      daysSince,
+      latestEntry,
+      totalEntries,
+      badgeLabel,
+      badgeClass,
+      whatsappUrl,
+      whatsappMessage,
+      hasPhone: Boolean(normalizedPhone),
+    };
+  };
+
+  // 1-Click Coach Vault Full JSON Backup
+  const handleExportCoachVaultBackup = () => {
+    try {
+      const vaultPayload = {
+        exportedAt: new Date().toISOString(),
+        exportedBy: user?.email || 'chinmay4jain@gmail.com',
+        platform: 'Fitkode Performance & Nutrition Coaching Vault',
+        totalMembers: members.length,
+        members: members.map((m) => ({
+          ...m,
+          profile: m.profile || loadUserProfile(m.email),
+          onboarding: m.onboarding || loadClientOnboarding(m.email),
+          weeklyEntries: loadUserWeeklyEntries(m.email, m),
+          mealPlans: loadUserMealPlans(m.email),
+          workoutPlans: loadUserWorkoutPlans(m.email),
+        })),
+      };
+
+      const blob = new Blob([JSON.stringify(vaultPayload, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStamp = new Date().toISOString().split('T')[0];
+      link.href = url;
+      link.download = `fitkode_coach_vault_backup_${dateStamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      addToast({
+        type: 'success',
+        title: 'Coach Vault Backup Downloaded',
+        message: `Exported complete profiles, 70-Q assessments, weekly check-ins, and plans for ${members.length} members.`,
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error('Vault export error:', err);
+      addToast({
+        type: 'error',
+        title: 'Export Failed',
+        message: 'Could not generate JSON backup.',
+        duration: 4000,
+      });
+    }
+  };
+
+  // ----------------------------------------------------
   // FILTERING & STATS
   // ----------------------------------------------------
+  const memberCheckinMap = new Map<string, ReturnType<typeof getMemberCheckinStatus>>();
+  members.forEach((m) => {
+    memberCheckinMap.set(m.id, getMemberCheckinStatus(m));
+  });
+
+  const overdueCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'overdue').length;
+  const dueSoonCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'due-soon').length;
+  const onTrackCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'on-track').length;
+  const noCheckinsCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'no-checkins').length;
+
   const filteredMembers = members.filter((m) => {
     // Role filter
     if (roleFilter !== 'all' && m.role !== roleFilter) {
       return false;
+    }
+    // Check-in Retention Radar filter
+    if (checkinFilter !== 'all') {
+      const st = memberCheckinMap.get(m.id)?.status || 'no-checkins';
+      if (st !== checkinFilter) return false;
     }
     // Search query
     if (searchQuery.trim()) {
@@ -762,6 +1053,30 @@ export default function AdminMembersPage() {
             >
               <Mail className="w-3.5 h-3.5 text-emerald-300" />
               <span>Communication Center</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenDbDiagnostics}
+              className={`inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-xs ${
+                dbDiagnostics?.rlsRecursionDetected
+                  ? 'bg-red-500/30 hover:bg-red-500/40 text-red-200 border-red-400/50 animate-pulse'
+                  : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/30'
+              }`}
+              title="Check Supabase Free Tier Health & Copy $0 Non-Recursive RLS Fix"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-300" />
+              <span>DB Health &amp; $0 SQL Fix</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCoachVaultBackup}
+              className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 text-xs font-bold transition-all cursor-pointer border border-sky-400/30 shadow-xs"
+              title="Download 1-Click Full JSON Backup of all Member Profiles, Assessments, Check-ins & Plans"
+            >
+              <Download className="w-3.5 h-3.5 text-sky-300" />
+              <span>Vault Backup (.json)</span>
             </button>
 
             <button
@@ -2126,6 +2441,21 @@ export default function AdminMembersPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
+                      {adminWeeklyEntries.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdminPhotoModalCompareMode(true);
+                            setAdminPhotoModalEntryId(adminWeeklyEntries[0].id);
+                          }}
+                          className="inline-flex items-center space-x-1.5 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-gray-950 px-3.5 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                          title="Compare Week 1 vs. Latest & Download Branded Fitkode Transformation Card"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>Week 1 vs. Now Share Card</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => {
@@ -2193,7 +2523,10 @@ export default function AdminMembersPage() {
                       {/* Reverse Chronological Log Table */}
                       <WeeklyTrackerTable
                         entries={adminWeeklyEntries}
-                        onViewPhotos={(id) => setAdminPhotoModalEntryId(id)}
+                        onViewPhotos={(id) => {
+                          setAdminPhotoModalCompareMode(false);
+                          setAdminPhotoModalEntryId(id);
+                        }}
                         onEdit={(entry) => {
                           setAdminEditingCheckin(entry);
                           setShowAdminAddCheckinModal(true);
@@ -2532,6 +2865,71 @@ export default function AdminMembersPage() {
                 </button>
               </div>
             </div>
+
+            {/* Coach Retention & Check-in Radar Bar */}
+            <div className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-center space-x-2 text-gray-600 font-bold">
+                <Activity className="w-3.5 h-3.5 text-brand-green shrink-0" />
+                <span>Coach Retention Radar (Weekly Check-in Status):</span>
+              </div>
+              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setCheckinFilter('all')}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    checkinFilter === 'all'
+                      ? 'bg-gray-900 text-white shadow-2xs'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All Status
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckinFilter('overdue')}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    checkinFilter === 'overdue'
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
+                  }`}
+                >
+                  Overdue &gt;7d ({overdueCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckinFilter('due-soon')}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    checkinFilter === 'due-soon'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+                  }`}
+                >
+                  Due Soon 6-7d ({dueSoonCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckinFilter('on-track')}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    checkinFilter === 'on-track'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+                  }`}
+                >
+                  On Track ({onTrackCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckinFilter('no-checkins')}
+                  className={`px-3 py-1 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    checkinFilter === 'no-checkins'
+                      ? 'bg-gray-700 text-white shadow-2xs'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  No Check-ins ({noCheckinsCount})
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Member Cards Grid */}
@@ -2540,7 +2938,7 @@ export default function AdminMembersPage() {
               <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <h3 className="text-base font-bold text-gray-800">No members match your criteria</h3>
               <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                Try clearing your search query or switching the role filter to view all registered users.
+                Try clearing your search query or switching the role/retention filter to view all registered users.
               </p>
             </div>
           ) : (
@@ -2548,6 +2946,7 @@ export default function AdminMembersPage() {
               {filteredMembers.map((member) => {
                 const isSelected = selectedMember?.id === member.id;
                 const isMemberAdmin = member.role === 'admin' || isDefaultAdmin(member.email);
+                const retention = memberCheckinMap.get(member.id) || getMemberCheckinStatus(member);
 
                 return (
                   <div
@@ -2612,9 +3011,44 @@ export default function AdminMembersPage() {
                         </div>
                       </div>
 
+                      {/* Retention Check-in Status + 1-Click WhatsApp Accountability Row */}
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-wider border ${retention.badgeClass}`}
+                        >
+                          <Clock className="w-3 h-3 mr-1 shrink-0" />
+                          <span>{retention.badgeLabel}</span>
+                        </span>
+
+                        <a
+                          href={retention.whatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard?.writeText(retention.whatsappMessage).catch(() => {});
+                          }}
+                          className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all border ${
+                            retention.status === 'overdue'
+                              ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-2xs'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                          }`}
+                          title="Send 1-Click Personalized WhatsApp Check-in Nudge"
+                        >
+                          <MessageCircle className="w-3 h-3 shrink-0" />
+                          <span>
+                            {retention.status === 'overdue'
+                              ? 'Nudge on WhatsApp'
+                              : retention.status === 'due-soon'
+                              ? 'Remind Check-in'
+                              : 'WhatsApp'}
+                          </span>
+                        </a>
+                      </div>
+
                       {/* Coaching Plan */}
                       {member.planName && (
-                        <div className="mt-3 py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-[11px] font-bold flex items-center space-x-1.5">
+                        <div className="mt-2.5 py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-[11px] font-bold flex items-center space-x-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           <span className="truncate">{member.planName}</span>
                         </div>
@@ -2663,8 +3097,10 @@ export default function AdminMembersPage() {
       {/* Admin Progression Photo Modal */}
       {adminPhotoModalEntryId && selectedMember && (
         <PhotoCompareModal
-          entries={loadUserWeeklyEntries(selectedMember.email)}
+          entries={adminWeeklyEntries.length > 0 ? adminWeeklyEntries : loadUserWeeklyEntries(selectedMember.email)}
           initialEntryId={adminPhotoModalEntryId}
+          initialCompareMode={adminPhotoModalCompareMode}
+          memberName={selectedMember.name}
           onClose={() => setAdminPhotoModalEntryId(null)}
         />
       )}
@@ -2675,6 +3111,133 @@ export default function AdminMembersPage() {
         onClose={() => setShowCommunicationCenter(false)}
         adminEmail={user?.email || 'myfitkode@gmail.com'}
       />
+
+      {/* Supabase Free Tier Health & $0 Non-Recursive SQL Patch Modal */}
+      {showDbDiagnosticsModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowDbDiagnosticsModal(false);
+          }}
+        >
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 space-y-5 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-emerald-100 text-emerald-800">
+                  $0 Free Tier Optimization &amp; Sync Diagnostics
+                </span>
+                <h2 className="text-lg sm:text-xl font-black text-gray-900 mt-1">
+                  Supabase Database Health &amp; Non-Recursive RLS Patch
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Eliminates the 7-minute CPU freeze (infinite RLS recursion) and enables cross-device sync for check-ins, photos, meal plans, and workout plans on the $0 Free Tier.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDbDiagnosticsModal(false)}
+                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="overflow-y-auto space-y-4 flex-1 pr-1 text-xs">
+              {runningDiagnostics ? (
+                <div className="p-6 text-center text-gray-500 font-medium">
+                  Running live Supabase diagnostics...
+                </div>
+              ) : dbDiagnostics ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.profilesReadable ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-red-50 border-red-200 text-red-900'}`}>
+                    <p className="font-bold">1. Profiles &amp; RLS Recursion Check</p>
+                    <p className="mt-1 text-[11px]">
+                      {dbDiagnostics.rlsRecursionDetected
+                        ? '⚠️ Infinite RLS Recursion (42P17) detected! Run the SQL patch below in Supabase SQL Editor.'
+                        : dbDiagnostics.profilesReadable
+                        ? '✅ Healthy — Non-recursive public.profiles access is working.'
+                        : `⚠️ Status: ${dbDiagnostics.errorMessage || 'Not connected'}`}
+                    </p>
+                  </div>
+                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.weeklyTableExists ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+                    <p className="font-bold">2. Weekly Check-ins Sync</p>
+                    <p className="mt-1 text-[11px]">
+                      {dbDiagnostics.weeklyTableExists
+                        ? '✅ Dedicated weekly_tracker_entries table + profiles.profile_data mirror active.'
+                        : 'ℹ️ Using profiles.profile_data.weekly_entries fallback. Run SQL below to also create weekly_tracker_entries.'}
+                    </p>
+                  </div>
+                  <div className={`p-3.5 rounded-2xl border ${dbDiagnostics.mealPlansTableExists && dbDiagnostics.workoutPlansTableExists ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+                    <p className="font-bold">3. Meal &amp; Workout Plans Sync</p>
+                    <p className="mt-1 text-[11px]">
+                      {dbDiagnostics.mealPlansTableExists && dbDiagnostics.workoutPlansTableExists
+                        ? '✅ Dedicated meal_plans & workout_plans tables + profile_data mirror active.'
+                        : 'ℹ️ Using profiles.profile_data mirror. Run SQL below to enable dedicated plan tables.'}
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl border bg-blue-50 border-blue-200 text-blue-900">
+                    <p className="font-bold">4. JWT &amp; Photo Storage Protection</p>
+                    <p className="mt-1 text-[11px]">
+                      ✅ Base64 photos removed from auth.users JWT metadata. Photos compress &lt;100KB and upload to progress-photos bucket.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="bg-gray-900 text-gray-100 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-400">
+                    One-Time $0 SQL Fix (Paste in Supabase Dashboard &rarr; SQL Editor &rarr; Run)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sqlText = `-- FITKODE $0 NON-RECURSIVE RLS & CROSS-DEVICE SYNC PATCH
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    (auth.jwt() ->> 'email') IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com'),
+    false
+  ) OR EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$;
+
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can update all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can insert all profiles" ON public.profiles;
+
+CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id OR lower(email) = lower(auth.jwt() ->> 'email') OR public.is_admin());
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR lower(email) = lower(auth.jwt() ->> 'email') OR public.is_admin());
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id OR lower(email) = lower(auth.jwt() ->> 'email') OR public.is_admin());
+
+INSERT INTO storage.buckets (id, name, public) VALUES ('progress-photos', 'progress-photos', true) ON CONFLICT (id) DO NOTHING;`;
+                      navigator.clipboard.writeText(sqlText);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 3000);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    {copiedSql ? '✓ Copied SQL!' : 'Copy SQL Patch'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Full schema including dedicated <code className="text-amber-300">weekly_tracker_entries</code>, <code className="text-amber-300">meal_plans</code>, and <code className="text-amber-300">workout_plans</code> tables is also saved in <code className="text-emerald-300">/supabase_profiles_trigger.sql</code> in your project root.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1107,108 +1107,116 @@ function ensureDataDir() {
   }
 }
 
-function persistWeeklyEntries() {
+/**
+ * Atomically writes JSON data to disk via a `.tmp` file and `.bak` backup
+ * so concurrent requests or unexpected process restarts never corrupt data files.
+ */
+function atomicWriteJsonFile(filePath: string, data: any) {
   try {
     ensureDataDir();
-    fs.writeFileSync(WEEKLY_ENTRIES_FILE, JSON.stringify(serverWeeklyEntries, null, 2), 'utf-8');
+    const serialized = JSON.stringify(data, null, 2);
+    const tmpPath = `${filePath}.tmp`;
+    const bakPath = `${filePath}.bak`;
+
+    fs.writeFileSync(tmpPath, serialized, 'utf-8');
+    if (fs.existsSync(filePath)) {
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.size > 2) {
+          fs.copyFileSync(filePath, bakPath);
+        }
+      } catch {
+        // ignore backup copy warning
+      }
+    }
+    fs.renameSync(tmpPath, filePath);
   } catch (err) {
-    console.error('Failed to write weekly entries to file:', err);
+    console.error(`Failed atomic write for ${filePath}:`, err);
   }
 }
 
-function loadPersistedWeeklyEntries() {
-  try {
-    if (fs.existsSync(WEEKLY_ENTRIES_FILE)) {
-      const raw = fs.readFileSync(WEEKLY_ENTRIES_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const existingIds = new Set(serverWeeklyEntries.map((e) => e.id));
-        parsed.forEach((item: any) => {
-          if (!existingIds.has(item.id)) {
-            serverWeeklyEntries.push(item);
-            existingIds.add(item.id);
+/**
+ * Safely reads and parses a JSON file, automatically recovering from `${filePath}.bak`
+ * if the primary file was truncated or corrupted.
+ */
+function safeReadJsonFile<T>(filePath: string, fallback: T): T {
+  const candidates = [filePath, `${filePath}.bak`];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        const raw = fs.readFileSync(candidate, 'utf-8').trim();
+        if (raw.length > 0) {
+          const parsed = JSON.parse(raw);
+          if (candidate.endsWith('.bak')) {
+            console.warn(`[Storage Recovery] Restored ${filePath} from backup ${candidate}`);
+            try {
+              fs.copyFileSync(candidate, filePath);
+            } catch {}
           }
-        });
+          return parsed as T;
+        }
       }
+    } catch (err) {
+      console.warn(`Warning reading ${candidate}:`, err);
     }
-  } catch (err) {
-    console.warn('Failed to load persisted weekly entries:', err);
+  }
+  return fallback;
+}
+
+function persistWeeklyEntries() {
+  atomicWriteJsonFile(WEEKLY_ENTRIES_FILE, serverWeeklyEntries);
+}
+
+function loadPersistedWeeklyEntries() {
+  const parsed = safeReadJsonFile<any[]>(WEEKLY_ENTRIES_FILE, []);
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    const existingIds = new Set(serverWeeklyEntries.map((e) => e.id));
+    parsed.forEach((item: any) => {
+      if (item && item.id && !existingIds.has(item.id)) {
+        serverWeeklyEntries.push(item);
+        existingIds.add(item.id);
+      }
+    });
   }
 }
 
 function persistMembers() {
-  try {
-    ensureDataDir();
-    fs.writeFileSync(MEMBERS_FILE, JSON.stringify(serverMembers, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write members to file:', err);
-  }
+  atomicWriteJsonFile(MEMBERS_FILE, serverMembers);
 }
 
 function loadPersistedMembers() {
-  try {
-    if (fs.existsSync(MEMBERS_FILE)) {
-      const raw = fs.readFileSync(MEMBERS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const existingEmails = new Set(serverMembers.map((m) => m.email.toLowerCase().trim()));
-        parsed.forEach((item: any) => {
-          const email = (item.email || '').toLowerCase().trim();
-          if (email && !existingEmails.has(email)) {
-            serverMembers.push(item);
-            existingEmails.add(email);
-          }
-        });
+  const parsed = safeReadJsonFile<any[]>(MEMBERS_FILE, []);
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    const existingEmails = new Set(serverMembers.map((m) => m.email.toLowerCase().trim()));
+    parsed.forEach((item: any) => {
+      const email = (item?.email || '').toLowerCase().trim();
+      if (email && !existingEmails.has(email)) {
+        serverMembers.push(item);
+        existingEmails.add(email);
       }
-    }
-  } catch (err) {
-    console.warn('Failed to load persisted members:', err);
+    });
   }
 }
 
 function persistMealPlans() {
-  try {
-    ensureDataDir();
-    fs.writeFileSync(MEAL_PLANS_FILE, JSON.stringify(serverMealPlans, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write meal plans to file:', err);
-  }
+  atomicWriteJsonFile(MEAL_PLANS_FILE, serverMealPlans);
 }
 
 function loadPersistedMealPlans() {
-  try {
-    if (fs.existsSync(MEAL_PLANS_FILE)) {
-      const raw = fs.readFileSync(MEAL_PLANS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        serverMealPlans = parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to load persisted meal plans:', err);
+  const parsed = safeReadJsonFile<any[] | null>(MEAL_PLANS_FILE, null);
+  if (Array.isArray(parsed)) {
+    serverMealPlans = parsed;
   }
 }
 
 function persistWorkoutPlans() {
-  try {
-    ensureDataDir();
-    fs.writeFileSync(WORKOUT_PLANS_FILE, JSON.stringify(serverWorkoutPlans, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write workout plans to file:', err);
-  }
+  atomicWriteJsonFile(WORKOUT_PLANS_FILE, serverWorkoutPlans);
 }
 
 function loadPersistedWorkoutPlans() {
-  try {
-    if (fs.existsSync(WORKOUT_PLANS_FILE)) {
-      const raw = fs.readFileSync(WORKOUT_PLANS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        serverWorkoutPlans = parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to load persisted workout plans:', err);
+  const parsed = safeReadJsonFile<any[] | null>(WORKOUT_PLANS_FILE, null);
+  if (Array.isArray(parsed)) {
+    serverWorkoutPlans = parsed;
   }
 }
 
@@ -1218,6 +1226,95 @@ function isUserAdmin(email?: string): boolean {
   if (DEFAULT_ADMIN_EMAILS.includes(norm)) return true;
   const member = serverMembers.find((m) => m.email.toLowerCase() === norm);
   return member?.role === 'admin';
+}
+
+// Short-lived cache of verified Supabase JWT tokens -> email (5 min TTL)
+const verifiedJwtCache = new Map<string, { email: string; expiresAt: number }>();
+
+/**
+ * Extracts and verifies the caller's email from the `Authorization: Bearer <jwt>` header
+ * when present, falling back to the explicit query/body caller parameter for dev/test sessions.
+ */
+async function resolveCallerEmail(req: express.Request, fallbackParam?: string): Promise<string> {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    if (token) {
+      const cached = verifiedJwtCache.get(token);
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.email;
+      }
+
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+      if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
+        try {
+          const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            headers: {
+              apikey: supabaseAnonKey,
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            const verifiedEmail = (userData?.email || '').toLowerCase().trim();
+            if (verifiedEmail) {
+              verifiedJwtCache.set(token, {
+                email: verifiedEmail,
+                expiresAt: Date.now() + 5 * 60 * 1000,
+              });
+              return verifiedEmail;
+            }
+          }
+        } catch {
+          // Fall through to JWT payload decode if network call fails
+        }
+      }
+
+      // Decode JWT payload as secondary check if offline/unconfigured
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+          if (payload?.email && (!payload.exp || payload.exp * 1000 > Date.now())) {
+            return String(payload.email).toLowerCase().trim();
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return (fallbackParam || '').toLowerCase().trim();
+}
+
+/**
+ * Zero-dependency in-memory sliding-window rate limiter to protect AI & SMTP endpoints.
+ */
+function createRateLimiter(maxRequests: number, windowMs: number) {
+  const hits = new Map<string, number[]>();
+
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      'local';
+    const key = `${ip}:${req.path}`;
+    const now = Date.now();
+    const timestamps = (hits.get(key) || []).filter((t) => now - t < windowMs);
+
+    if (timestamps.length >= maxRequests) {
+      return res.status(429).json({
+        error: 'Too many requests in a short window. Please wait a moment and try again.',
+      });
+    }
+
+    timestamps.push(now);
+    hits.set(key, timestamps);
+    next();
+  };
 }
 
 async function startServer() {
@@ -1364,12 +1461,28 @@ async function startServer() {
     });
   });
 
+  // Rate limiters for AI and Communication endpoints ($0 quota protection)
+  const aiRateLimiter = createRateLimiter(15, 60 * 1000);
+  const emailRateLimiter = createRateLimiter(12, 60 * 1000);
+  app.use(
+    [
+      '/api/generate-meal-plan',
+      '/api/swap-meal',
+      '/api/extract-pdf-meal-plan',
+      '/api/restructure-pdf-meal-plan',
+      '/api/generate-workout-plan',
+    ],
+    aiRateLimiter
+  );
+  app.use(['/api/contact', '/api/communication'], emailRateLimiter);
+
   // --- MEMBER DIRECTORY & ROLES APIS ---
 
   // GET /api/members: Admin only! Retrieves all registered members
-  app.get('/api/members', (req, res) => {
-    const callerEmail = (req.query.caller as string) || (req.headers['x-user-email'] as string) || '';
-    
+  app.get('/api/members', async (req, res) => {
+    const rawCaller = (req.query.caller as string) || (req.headers['x-user-email'] as string) || '';
+    const callerEmail = await resolveCallerEmail(req, rawCaller);
+
     if (!isUserAdmin(callerEmail)) {
       return res.status(403).json({
         error: 'Forbidden. Access restricted to Fitkode Super Admins.',
@@ -1396,10 +1509,11 @@ async function startServer() {
 
   // GET /api/members/:id: Returns full profile and assessment for a single member
   // Accessible to Admin OR the member themselves
-  app.get('/api/members/:id', (req, res) => {
+  app.get('/api/members/:id', async (req, res) => {
     const { id } = req.params;
-    const callerEmail = (req.query.caller as string) || (req.headers['x-user-email'] as string) || '';
-    
+    const rawCaller = (req.query.caller as string) || (req.headers['x-user-email'] as string) || '';
+    const callerEmail = await resolveCallerEmail(req, rawCaller);
+
     const member = serverMembers.find(
       (m) => m.id === id || m.email.toLowerCase() === id.toLowerCase().trim()
     );
@@ -1528,9 +1642,10 @@ async function startServer() {
   });
 
   // PATCH /api/members/:id/role: Super Admin action to update a member's role
-  app.patch('/api/members/:id/role', (req, res) => {
+  app.patch('/api/members/:id/role', async (req, res) => {
     const { id } = req.params;
-    const { role, callerEmail } = req.body;
+    const { role, callerEmail: rawCaller } = req.body;
+    const callerEmail = await resolveCallerEmail(req, rawCaller);
 
     if (!isUserAdmin(callerEmail)) {
       return res.status(403).json({ error: 'Forbidden: Admin access required.' });
@@ -1554,9 +1669,10 @@ async function startServer() {
   });
 
   // PATCH /api/members/:id/notes: Super Admin action to update clinical/coach notes
-  app.patch('/api/members/:id/notes', (req, res) => {
+  app.patch('/api/members/:id/notes', async (req, res) => {
     const { id } = req.params;
-    const { notes, callerEmail } = req.body;
+    const { notes, callerEmail: rawCaller } = req.body;
+    const callerEmail = await resolveCallerEmail(req, rawCaller);
 
     if (!isUserAdmin(callerEmail)) {
       return res.status(403).json({ error: 'Forbidden: Admin access required.' });
@@ -1781,9 +1897,10 @@ async function startServer() {
 
   // GET /api/weekly-tracker: Returns check-ins for a specific user
   // STRICT PRIVACY: Caller can ONLY fetch their own records, unless caller is Super Admin Chinmay!
-  app.get('/api/weekly-tracker', (req, res) => {
+  app.get('/api/weekly-tracker', async (req, res) => {
     const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
-    const callerEmail = (req.query.callerEmail as string || '').toLowerCase().trim();
+    const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    const callerEmail = await resolveCallerEmail(req, rawCaller);
 
     if (!userEmail) {
       return res.status(400).json({ error: 'userEmail parameter is required.' });
@@ -1807,8 +1924,9 @@ async function startServer() {
 
   // GET /api/weekly-tracker/all: Returns all check-ins across all members
   // STRICT PRIVACY: Super Admin Chinmay ONLY!
-  app.get('/api/weekly-tracker/all', (req, res) => {
-    const callerEmail = (req.query.callerEmail as string || '').toLowerCase().trim();
+  app.get('/api/weekly-tracker/all', async (req, res) => {
+    const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    const callerEmail = await resolveCallerEmail(req, rawCaller);
 
     if (!isUserAdmin(callerEmail)) {
       return res.status(403).json({
@@ -1834,7 +1952,7 @@ async function startServer() {
   });
 
   // POST /api/weekly-tracker: Add or update a weekly check-in
-  app.post('/api/weekly-tracker', (req, res) => {
+  app.post('/api/weekly-tracker', async (req, res) => {
     const { entry, callerEmail } = req.body;
 
     if (!entry || !entry.userEmail) {
@@ -1842,7 +1960,7 @@ async function startServer() {
     }
 
     const entryEmail = entry.userEmail.toLowerCase().trim();
-    const caller = (callerEmail || '').toLowerCase().trim();
+    const caller = await resolveCallerEmail(req, callerEmail);
 
     const isSelf = caller === entryEmail;
     const isAdmin = isUserAdmin(caller);
@@ -1968,9 +2086,9 @@ async function startServer() {
         if (!plan || !plan.id) return;
         const idx = serverMealPlans.findIndex((p) => p.id === plan.id);
         if (idx >= 0) {
-          serverMealPlans[idx] = { ...serverMealPlans[idx], ...plan, updatedAt: new Date().toISOString() };
+          serverMealPlans[idx] = { ...serverMealPlans[idx], ...plan, updatedAt: plan.updatedAt || new Date().toISOString() };
         } else {
-          serverMealPlans.unshift({ ...plan, updatedAt: new Date().toISOString() });
+          serverMealPlans.unshift({ ...plan, updatedAt: plan.updatedAt || new Date().toISOString() });
         }
       });
       persistMealPlans();
@@ -2678,9 +2796,9 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
         if (!plan || !plan.id) return;
         const idx = serverWorkoutPlans.findIndex((p) => p.id === plan.id);
         if (idx >= 0) {
-          serverWorkoutPlans[idx] = { ...serverWorkoutPlans[idx], ...plan, updatedAt: new Date().toISOString() };
+          serverWorkoutPlans[idx] = { ...serverWorkoutPlans[idx], ...plan, updatedAt: plan.updatedAt || new Date().toISOString() };
         } else {
-          serverWorkoutPlans.unshift({ ...plan, updatedAt: new Date().toISOString() });
+          serverWorkoutPlans.unshift({ ...plan, updatedAt: plan.updatedAt || new Date().toISOString() });
         }
       });
       persistWorkoutPlans();
@@ -2830,8 +2948,8 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
     try {
       const { type, targetEmail, clientName, plan, coachName = 'Chinmay Jain' } = req.body;
 
-      if (!targetEmail || !plan) {
-        return res.status(400).json({ error: 'targetEmail and plan are required.' });
+      if (!targetEmail || typeof targetEmail !== 'string' || !targetEmail.trim() || !targetEmail.includes('@') || !plan) {
+        return res.status(400).json({ error: 'A valid targetEmail (with @) and plan are required.' });
       }
 
       const normTarget = targetEmail.toLowerCase().trim();
@@ -2889,8 +3007,8 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   app.post('/api/communication/notify-welcome', async (req, res) => {
     try {
       const { email, name, force = false } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: 'Email is required to dispatch welcome notification.' });
+      if (!email || typeof email !== 'string' || !email.trim() || !email.includes('@')) {
+        return res.status(400).json({ error: 'A valid email address is required to dispatch welcome notification.' });
       }
 
       const normalizedEmail = email.toLowerCase().trim();
@@ -3106,6 +3224,7 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
               onboardingCompletion: 0,
             });
           }
+          persistMembers();
         }
 
         return res.json({

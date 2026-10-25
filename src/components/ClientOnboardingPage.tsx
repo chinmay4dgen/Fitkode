@@ -93,6 +93,8 @@ export default function ClientOnboardingPage() {
     }
   };
 
+  const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
+
   const handleFieldChange = (field: keyof ClientOnboarding, value: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -110,6 +112,22 @@ export default function ClientOnboardingPage() {
       return { ...prev, [field]: updated };
     });
   };
+
+  // Silent debounced localStorage auto-save so mobile tab refreshes never lose typed answers
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const timer = setTimeout(() => {
+      try {
+        saveClientOnboarding(formData, user.id || user.email);
+        setAutoSavedAt(
+          new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        );
+      } catch {
+        // ignore
+      }
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [formData, user, authLoading]);
 
   const handleSaveDraft = async () => {
     if (!user) return;
@@ -385,7 +403,13 @@ export default function ClientOnboardingPage() {
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {autoSavedAt && (
+              <span className="inline-flex items-center space-x-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                <span>Auto-saved {autoSavedAt}</span>
+              </span>
+            )}
             {isAdmin && (
               <Link
                 to="/admin"
@@ -401,7 +425,7 @@ export default function ClientOnboardingPage() {
               className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 shadow-xs transition-colors cursor-pointer"
             >
               <Save className="w-3.5 h-3.5 mr-1.5" />
-              Save Draft
+              Save to Cloud
             </button>
             <span className="text-xs font-semibold px-3 py-2 rounded-xl bg-brand-light-green text-brand-dark-green border border-brand-green/30">
               Section {activeTab} of 7

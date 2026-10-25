@@ -95,7 +95,10 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
       await signInWithTestAccount(presetId, roleOverride);
       setShowSignInModal(false);
       if (onActionComplete) onActionComplete();
-      navigate('/profile');
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '/coaching-plans' || currentPath === '/coaching-plan') {
+        navigate('/profile');
+      }
     } catch (err) {
       console.error('Test sign-in error:', err);
     } finally {
@@ -111,7 +114,10 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
       await signInWithTestAccount(customEmail.trim(), customRole);
       setShowSignInModal(false);
       if (onActionComplete) onActionComplete();
-      navigate('/profile');
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '/coaching-plans' || currentPath === '/coaching-plan') {
+        navigate('/profile');
+      }
     } catch (err) {
       console.error('Custom sign-in error:', err);
     } finally {
@@ -125,7 +131,10 @@ export default function AuthButton({ className = '', mobile = false, onActionCom
       await signIn();
       setShowSignInModal(false);
       if (onActionComplete) onActionComplete();
-      navigate('/profile');
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '/coaching-plans' || currentPath === '/coaching-plan') {
+        navigate('/profile');
+      }
     } catch (err) {
       console.error('Live Google sign-in error:', err);
     } finally {

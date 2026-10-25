@@ -23,6 +23,9 @@ import {
   BookmarkPlus,
   Scale,
   FileText,
+  ShoppingBag,
+  X,
+  Share2,
 } from 'lucide-react';
 import { MealPlan, MealSlot, MealItem, DietType, MeasurementSystem } from '../types';
 import { FOOD_LIBRARY } from '../lib/plannerLibrary';
@@ -152,6 +155,10 @@ export default function MealPlannerView({
   const [isAIGeneratorModalOpen, setIsAIGeneratorModalOpen] = useState(false);
   const [isPDFRestructureModalOpen, setIsPDFRestructureModalOpen] = useState(false);
   const [swapModalSlot, setSwapModalSlot] = useState<MealSlot | null>(null);
+  const [isGroceryModalOpen, setIsGroceryModalOpen] = useState(false);
+  const [groceryDays, setGroceryDays] = useState<1 | 3 | 7>(7);
+  const [checkedGroceryKeys, setCheckedGroceryKeys] = useState<Record<string, boolean>>({});
+  const [copiedGroceryList, setCopiedGroceryList] = useState(false);
 
   // Coach-Only Medical Synopsis extracted from onboarding disclosures
   const memberMedicalSynopsis = useMemo(() => {
@@ -200,6 +207,159 @@ export default function MealPlannerView({
       fats: Math.round(fats * 10) / 10,
     };
   }, [plan.meals]);
+
+  // Smart Grocery List Aggregation across all daily meals multiplied by groceryDays (1, 3, or 7)
+  const groceryCategories = useMemo(() => {
+    interface AggregatedGroceryItem {
+      key: string;
+      name: string;
+      category: MealItem['category'];
+      unit: string;
+      dailyQty: number;
+      dailyGrams: number;
+      isLiquid: boolean;
+      mealsUsedIn: string[];
+    }
+
+    const map = new Map<string, AggregatedGroceryItem>();
+
+    for (const slot of plan.meals) {
+      for (const item of slot.items) {
+        const parsed = parsePortion(item.servingSize || '100g');
+        const qty = item.quantity ?? parsed.quantity ?? 100;
+        const rawUnit = (item.unit || parsed.unit || 'g').toLowerCase().trim();
+        const normName = item.name.trim();
+        const key = `${normName.toLowerCase()}__${rawUnit}`;
+
+        const isSiGram = rawUnit === 'g' || rawUnit === 'gm' || rawUnit === 'grams';
+        const isSiMl = rawUnit === 'ml';
+        let itemGrams = 0;
+        if (isSiGram || isSiMl) {
+          itemGrams = qty;
+        } else if (item.unitWeight && item.unitWeight > 0) {
+          itemGrams = qty * item.unitWeight;
+        } else {
+          // Check if servingSize has (XXg) in parentheses
+          const parenMatch = (item.servingSize || '').match(/\((\d+(?:\.\d+)?)\s*(?:g|gm|ml)\)/i);
+          if (parenMatch) {
+            itemGrams = parseFloat(parenMatch[1]);
+          }
+        }
+
+        const existing = map.get(key);
+        if (existing) {
+          existing.dailyQty += qty;
+          existing.dailyGrams += itemGrams;
+          if (!existing.mealsUsedIn.includes(slot.name)) {
+            existing.mealsUsedIn.push(slot.name);
+          }
+        } else {
+          map.set(key, {
+            key,
+            name: normName,
+            category: item.category || 'protein',
+            unit: isSiGram ? 'g' : isSiMl ? 'ml' : rawUnit,
+            dailyQty: qty,
+            dailyGrams: itemGrams,
+            isLiquid: isSiMl,
+            mealsUsedIn: [slot.name],
+          });
+        }
+      }
+    }
+
+    const categoryMeta: Record<string, { label: string; badgeClass: string }> = {
+      protein: { label: 'Proteins & Legumes', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+      veggies: { label: 'Vegetables, Greens & Fruits', badgeClass: 'bg-green-100 text-green-800 border-green-200' },
+      dairy: { label: 'Dairy & Plant Milks', badgeClass: 'bg-sky-100 text-sky-800 border-sky-200' },
+      carbs: { label: 'Grains, Oats & Carbohydrates', badgeClass: 'bg-amber-100 text-amber-800 border-amber-200' },
+      fats: { label: 'Healthy Fats, Nuts & Seeds', badgeClass: 'bg-purple-100 text-purple-800 border-purple-200' },
+      snack: { label: 'Smart Snacks & Extras', badgeClass: 'bg-orange-100 text-orange-800 border-orange-200' },
+      beverage: { label: 'Beverages & Infusions', badgeClass: 'bg-teal-100 text-teal-800 border-teal-200' },
+    };
+
+    const grouped: Array<{
+      category: string;
+      label: string;
+      badgeClass: string;
+      items: Array<AggregatedGroceryItem & { formattedTotal: string }>;
+    }> = [];
+
+    const order = ['protein', 'veggies', 'dairy', 'carbs', 'fats', 'snack', 'beverage'];
+
+    for (const cat of order) {
+      const catItems = Array.from(map.values())
+        .filter((i) => (i.category || 'protein') === cat)
+        .map((i) => {
+          const totalQty = Math.round(i.dailyQty * groceryDays * 10) / 10;
+          const totalGrams = Math.round(i.dailyGrams * groceryDays);
+          let formattedTotal = '';
+
+          if (i.unit === 'g') {
+            formattedTotal =
+              totalQty >= 1000
+                ? `${(totalQty / 1000).toFixed(2).replace(/\.00$/, '')} kg (${Math.round(totalQty)}g)`
+                : `${Math.round(totalQty)} g`;
+          } else if (i.unit === 'ml') {
+            formattedTotal =
+              totalQty >= 1000
+                ? `${(totalQty / 1000).toFixed(2).replace(/\.00$/, '')} L (${Math.round(totalQty)}ml)`
+                : `${Math.round(totalQty)} ml`;
+          } else {
+            const gramSuffix =
+              totalGrams > 0
+                ? totalGrams >= 1000
+                  ? ` (~${(totalGrams / 1000).toFixed(1)} kg)`
+                  : ` (~${totalGrams}g)`
+                : '';
+            formattedTotal = `${totalQty} ${i.unit}${gramSuffix}`;
+          }
+
+          return {
+            ...i,
+            formattedTotal,
+          };
+        });
+
+      if (catItems.length > 0) {
+        grouped.push({
+          category: cat,
+          label: categoryMeta[cat]?.label || 'Other Items',
+          badgeClass: categoryMeta[cat]?.badgeClass || 'bg-gray-100 text-gray-800 border-gray-200',
+          items: catItems,
+        });
+      }
+    }
+
+    return grouped;
+  }, [plan.meals, groceryDays]);
+
+  const buildGroceryShareText = () => {
+    const lines: string[] = [
+      `🛒 *FITKODE ${groceryDays}-DAY GROCERY LIST*`,
+      `Plan: ${plan.name} (${plan.targetCalories} kcal | ${plan.targetProtein}g Protein)`,
+      `----------------------------------`,
+    ];
+
+    for (const group of groceryCategories) {
+      const pendingItems = group.items.filter((it) => !checkedGroceryKeys[it.key]);
+      if (pendingItems.length === 0) continue;
+      lines.push(`\n*${group.label.toUpperCase()}*`);
+      for (const it of pendingItems) {
+        lines.push(`⬜ ${it.name}: *${it.formattedTotal}*`);
+      }
+    }
+
+    lines.push(`\n_Generated via Fitkode Nutrition Planner_`);
+    return lines.join('\n');
+  };
+
+  const handleCopyGroceryList = () => {
+    const text = buildGroceryShareText();
+    navigator.clipboard.writeText(text);
+    setCopiedGroceryList(true);
+    setTimeout(() => setCopiedGroceryList(false), 3000);
+  };
 
   const handleSave = () => {
     const updatedPlan = {
@@ -779,6 +939,16 @@ export default function MealPlannerView({
             >
               <FileText className="w-3.5 h-3.5 text-indigo-200" />
               <span>Restructure PDF Plan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsGroceryModalOpen(true)}
+              className="py-2.5 px-3.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+              title="Generate 1-click weekly grocery shopping list for WhatsApp or Blinkit"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
+              <span>Grocery List</span>
             </button>
 
             <button
@@ -2054,6 +2224,168 @@ export default function MealPlannerView({
             setSwapModalSlot(null);
           }}
         />
+      )}
+
+      {/* 1-Click Smart Grocery List Modal */}
+      {isGroceryModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsGroceryModalOpen(false);
+          }}
+        >
+          <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl border border-brand-light-green overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="px-5 sm:px-6 py-4 bg-gradient-to-r from-emerald-950 to-teal-900 text-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center shrink-0">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base sm:text-lg text-white">
+                    Smart Grocery Shopping List
+                  </h3>
+                  <p className="text-xs text-emerald-200/80">
+                    Auto-aggregated quantities from &ldquo;{plan.name}&rdquo; • Tick items you already have at home
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsGroceryModalOpen(false)}
+                className="p-2 rounded-xl text-emerald-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Duration Multiplier & Export Action Bar */}
+            <div className="px-5 sm:px-6 py-3.5 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center space-x-1.5 bg-white p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                {([1, 3, 7] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setGroceryDays(d)}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      groceryDays === d
+                        ? 'bg-brand-green text-white shadow-2xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {d === 1 ? '1 Day' : d === 3 ? '3 Days' : '7 Days (Weekly)'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyGroceryList}
+                  className="py-2 px-3.5 rounded-xl bg-white border border-gray-300 hover:border-brand-green text-gray-800 text-xs font-bold flex items-center space-x-1.5 cursor-pointer shadow-2xs transition-all"
+                >
+                  {copiedGroceryList ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Copied for Blinkit / Notes!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-gray-600" />
+                      <span>Copy List</span>
+                    </>
+                  )}
+                </button>
+
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(buildGroceryShareText())}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center space-x-1.5 cursor-pointer shadow-xs transition-all"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Send on WhatsApp</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Category Grouped Items */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+              {groceryCategories.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                  No food items in this plan yet. Add meals first to generate your grocery list.
+                </div>
+              ) : (
+                groceryCategories.map((group) => (
+                  <div key={group.category} className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wider border ${group.badgeClass}`}
+                      >
+                        {group.label} ({group.items.length})
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {group.items.map((it) => {
+                        const isChecked = Boolean(checkedGroceryKeys[it.key]);
+                        return (
+                          <label
+                            key={it.key}
+                            className={`p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
+                              isChecked
+                                ? 'bg-gray-50 border-gray-200 opacity-55 line-through'
+                                : 'bg-white border-gray-200 hover:border-brand-green shadow-2xs'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() =>
+                                  setCheckedGroceryKeys((prev) => ({
+                                    ...prev,
+                                    [it.key]: !prev[it.key],
+                                  }))
+                                }
+                                className="w-4 h-4 rounded text-brand-green focus:ring-brand-green shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <p className="font-bold text-gray-900 truncate">{it.name}</p>
+                                <p className="text-[10px] text-gray-400 truncate">
+                                  Used in: {it.mealsUsedIn.join(', ')}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-900 font-black text-xs whitespace-nowrap border border-emerald-200/70 shrink-0">
+                              {it.formattedTotal}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 sm:px-6 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-[11px] text-gray-500 shrink-0">
+              <span>
+                Tip: Uncheck items you need to buy, then click &ldquo;Send on WhatsApp&rdquo; to share with family or house help.
+              </span>
+              {Object.values(checkedGroceryKeys).some(Boolean) && (
+                <button
+                  type="button"
+                  onClick={() => setCheckedGroceryKeys({})}
+                  className="font-bold text-brand-green hover:underline cursor-pointer"
+                >
+                  Uncheck All
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

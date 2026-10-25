@@ -1,5 +1,6 @@
 import { UserProfile, ClientOnboarding } from '../types';
-import { saveProfileToSupabase, saveOnboardingToSupabase } from './supabase';
+import { saveProfileToSupabase, saveOnboardingToSupabase, getSupabaseAuthHeaders } from './supabase';
+import { safeLocalStorageSet } from './storageGuard';
 
 export const defaultUserProfile: UserProfile = {
   email: '',
@@ -250,9 +251,7 @@ export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserP
       return profile;
     } else if (isAtul) {
       // Cache baseline in localStorage so it is immediately accessible
-      try {
-        localStorage.setItem(key, JSON.stringify(baseline));
-      } catch {}
+      safeLocalStorageSet(key, baseline);
       return baseline;
     }
   } catch (err) {
@@ -264,12 +263,8 @@ export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserP
 export function saveUserProfile(profile: UserProfile, userIdOrEmail?: string): void {
   if (typeof window === 'undefined') return;
   const key = getStorageKey('profile', userIdOrEmail);
-  try {
-    const payload = { ...profile, updatedAt: new Date().toISOString() };
-    localStorage.setItem(key, JSON.stringify(payload));
-  } catch (err) {
-    console.error('Error saving user profile to localStorage:', err);
-  }
+  const payload = { ...profile, updatedAt: new Date().toISOString() };
+  safeLocalStorageSet(key, payload);
 
   // Also automatically persist to Supabase
   try {
@@ -285,19 +280,21 @@ export function saveUserProfile(profile: UserProfile, userIdOrEmail?: string): v
     const userEmail = profile.email || (userIdOrEmail && userIdOrEmail.includes('@') ? userIdOrEmail : '');
     const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
     if (userEmail || userIdOrEmail) {
-      fetch('/api/members/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: userIdOrEmail,
-          email: userEmail || userIdOrEmail,
-          name: fullName || undefined,
-          phone: profile.phone,
-          profile: profile,
-          profileCompletion: getProfileCompletionRate(profile),
-        }),
-      }).catch((err) => {
-        console.warn('Backend sync profile notice:', err);
+      getSupabaseAuthHeaders().then((authHeaders) => {
+        fetch('/api/members/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            id: userIdOrEmail,
+            email: userEmail || userIdOrEmail,
+            name: fullName || undefined,
+            phone: profile.phone,
+            profile: profile,
+            profileCompletion: getProfileCompletionRate(profile),
+          }),
+        }).catch((err) => {
+          console.warn('Backend sync profile notice:', err);
+        });
       });
     }
   } catch {
@@ -331,9 +328,7 @@ export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
       }
       return onboarding;
     } else if (isAtul) {
-      try {
-        localStorage.setItem(key, JSON.stringify(baseline));
-      } catch {}
+      safeLocalStorageSet(key, baseline);
       return baseline;
     }
   } catch (err) {
@@ -345,12 +340,8 @@ export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
 export function saveClientOnboarding(onboarding: ClientOnboarding, userIdOrEmail?: string): void {
   if (typeof window === 'undefined') return;
   const key = getStorageKey('onboarding', userIdOrEmail);
-  try {
-    const payload = { ...onboarding, updatedAt: new Date().toISOString() };
-    localStorage.setItem(key, JSON.stringify(payload));
-  } catch (err) {
-    console.error('Error saving onboarding to localStorage:', err);
-  }
+  const payload = { ...onboarding, updatedAt: new Date().toISOString() };
+  safeLocalStorageSet(key, payload);
 
   // Also automatically persist to Supabase
   try {
@@ -365,17 +356,19 @@ export function saveClientOnboarding(onboarding: ClientOnboarding, userIdOrEmail
   try {
     const userEmail = (userIdOrEmail && userIdOrEmail.includes('@')) ? userIdOrEmail : '';
     if (userEmail || userIdOrEmail) {
-      fetch('/api/members/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: userIdOrEmail,
-          email: userEmail || userIdOrEmail,
-          onboarding: onboarding,
-          onboardingCompletion: getOnboardingCompletionRate(onboarding),
-        }),
-      }).catch((err) => {
-        console.warn('Backend sync onboarding notice:', err);
+      getSupabaseAuthHeaders().then((authHeaders) => {
+        fetch('/api/members/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            id: userIdOrEmail,
+            email: userEmail || userIdOrEmail,
+            onboarding: onboarding,
+            onboardingCompletion: getOnboardingCompletionRate(onboarding),
+          }),
+        }).catch((err) => {
+          console.warn('Backend sync onboarding notice:', err);
+        });
       });
     }
   } catch {

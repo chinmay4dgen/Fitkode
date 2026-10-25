@@ -1010,10 +1010,16 @@ export async function sendEmailNotification(params: {
   const now = new Date().toISOString();
   const id = `comm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+  // Trim recipient and validate
+  let cleanTo = typeof to === 'string' ? to.trim() : '';
+  if ((!cleanTo || !cleanTo.includes('@')) && (type === 'weekly_tracker_submission' || type === 'consultation_inquiry')) {
+    cleanTo = COACH_EMAIL;
+  }
+
   const log: CommunicationLog = {
     id,
     type,
-    to,
+    to: cleanTo || 'unspecified@fitkode.ai',
     from: FROM_EMAIL,
     subject,
     previewText,
@@ -1027,12 +1033,13 @@ export async function sendEmailNotification(params: {
 
   const transporter = getMailTransporter();
 
-  if (transporter) {
+  // Only attempt live SMTP delivery if a valid recipient email with '@' is defined
+  if (transporter && cleanTo && cleanTo.includes('@')) {
     try {
-      console.log(`[CommunicationService] Sending live email via SMTP to: ${to} (Subject: "${subject}")`);
+      console.log(`[CommunicationService] Sending live email via SMTP to: ${cleanTo} (Subject: "${subject}")`);
       const info = await transporter.sendMail({
         from: FROM_EMAIL,
-        to,
+        to: cleanTo,
         subject,
         text,
         html,
@@ -1048,8 +1055,12 @@ export async function sendEmailNotification(params: {
       log.status = 'failed';
       log.error = err?.message || 'SMTP delivery failure';
     }
+  } else if (transporter && (!cleanTo || !cleanTo.includes('@'))) {
+    console.warn(`[CommunicationService] Skipping SMTP delivery: No valid recipient defined for notification (${type}). Recorded in communication center.`);
+    log.status = 'failed';
+    log.error = 'No recipients defined';
   } else {
-    console.log(`[CommunicationService] (Sandbox/Simulated) Email prepared for ${to}:`);
+    console.log(`[CommunicationService] (Sandbox/Simulated) Email prepared for ${cleanTo || 'unspecified recipient'}:`);
     console.log(`  Subject: ${subject}`);
     console.log(`  Preview: ${previewText}`);
     log.status = 'simulated';

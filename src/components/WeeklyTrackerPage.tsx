@@ -51,6 +51,7 @@ export default function WeeklyTrackerPage() {
   
   // Photo modal state
   const [photoModalEntryId, setPhotoModalEntryId] = useState<string | null>(null);
+  const [photoModalCompareMode, setPhotoModalCompareMode] = useState<boolean>(false);
 
   const userEmail = user?.email || '';
   const userName =
@@ -135,7 +136,8 @@ export default function WeeklyTrackerPage() {
     setIsModalOpen(true);
   };
 
-  const handleViewPhotos = (entryId: string) => {
+  const handleViewPhotos = (entryId: string, startCompare = false) => {
+    setPhotoModalCompareMode(startCompare);
     setPhotoModalEntryId(entryId);
   };
 
@@ -278,7 +280,18 @@ export default function WeeklyTrackerPage() {
           </div>
 
           {/* Action CTA: Add Check-in */}
-          <div className="flex items-center space-x-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {entries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleViewPhotos(entries[0].id, true)}
+                className="px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+              >
+                <Camera className="w-4 h-4 text-emerald-700" />
+                <span>Week 1 vs. Now Card</span>
+              </button>
+            )}
+
             <Link
               to="/profile"
               className="px-4 py-2.5 rounded-xl border border-gray-200 hover:border-brand-green text-gray-700 hover:text-brand-green text-xs font-bold transition-all flex items-center space-x-1.5"
@@ -298,6 +311,62 @@ export default function WeeklyTrackerPage() {
           </div>
         </div>
 
+        {/* Week 1 vs. Now Transformation Studio Banner */}
+        {entries.length > 1 && (() => {
+          const latest = entries[0];
+          const baseline = entries[entries.length - 1];
+          const weightDelta = Number((latest.weightKg - baseline.weightKg).toFixed(1));
+          const waistDelta = Number((latest.waistInches - baseline.waistInches).toFixed(1));
+          const weeksSpan = Math.max(1, Math.abs((latest.weekNumber || entries.length) - (baseline.weekNumber || 1)));
+
+          return (
+            <div className="bg-gradient-to-r from-gray-900 via-emerald-950 to-gray-900 text-white rounded-3xl p-5 sm:p-6 shadow-lg border border-emerald-800/40 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div className="space-y-1.5">
+                <div className="flex items-center space-x-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    <Sparkles className="w-3 h-3 mr-1 text-amber-300" />
+                    Transformation Studio
+                  </span>
+                  <span className="text-xs text-emerald-200/80 font-medium">
+                    Week {baseline.weekNumber} ({baseline.checkInDate}) → Week {latest.weekNumber} ({latest.checkInDate})
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-white">
+                  Your {weeksSpan}-Week Transformation Snapshot
+                </h3>
+                <p className="text-xs text-gray-300">
+                  Compare your side-by-side progression photos and download a branded Fitkode Transformation Card for WhatsApp or Instagram.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div className="bg-white/10 border border-white/10 rounded-2xl px-4 py-2.5 text-center">
+                  <span className="text-[10px] uppercase font-bold text-gray-300 block">Weight Delta</span>
+                  <span className={`text-base sm:text-lg font-black ${weightDelta <= 0 ? 'text-emerald-400' : 'text-amber-300'}`}>
+                    {weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg
+                  </span>
+                </div>
+
+                <div className="bg-white/10 border border-white/10 rounded-2xl px-4 py-2.5 text-center">
+                  <span className="text-[10px] uppercase font-bold text-gray-300 block">Waist Delta</span>
+                  <span className={`text-base sm:text-lg font-black ${waistDelta <= 0 ? 'text-emerald-400' : 'text-amber-300'}`}>
+                    {waistDelta > 0 ? `+${waistDelta}` : waistDelta}&quot;
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleViewPhotos(latest.id, true)}
+                  className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md transition-all flex items-center space-x-2 cursor-pointer"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Compare &amp; Download Card</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Graphical Section */}
         <WeeklyTrackerCharts entries={entries} />
 
@@ -306,7 +375,7 @@ export default function WeeklyTrackerPage() {
           entries={entries}
           onEdit={handleOpenEditModal}
           onDelete={handleDeleteEntry}
-          onViewPhotos={handleViewPhotos}
+          onViewPhotos={(id) => handleViewPhotos(id, false)}
         />
 
         {/* Input/Edit Modal */}
@@ -331,6 +400,8 @@ export default function WeeklyTrackerPage() {
           <PhotoCompareModal
             entries={entries}
             initialEntryId={photoModalEntryId}
+            initialCompareMode={photoModalCompareMode}
+            memberName={userName}
             onClose={() => setPhotoModalEntryId(null)}
           />
         )}

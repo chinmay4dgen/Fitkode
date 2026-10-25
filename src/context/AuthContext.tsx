@@ -6,6 +6,9 @@ import {
   isSupabaseConfigured,
   signInWithGoogle,
   signOut,
+  loadProfileFromSupabase,
+  loadOnboardingFromSupabase,
+  flushOfflineSyncQueue,
 } from '../lib/supabase';
 import { UserRole, AppMember } from '../types';
 import {
@@ -13,7 +16,12 @@ import {
   isDefaultAdmin,
   syncMemberToStore,
 } from '../lib/memberStore';
-import { loadUserProfile, loadClientOnboarding } from '../lib/profileStorage';
+import {
+  loadUserProfile,
+  saveUserProfile,
+  loadClientOnboarding,
+  saveClientOnboarding,
+} from '../lib/profileStorage';
 import { ensureDefaultConsentsOnLogin } from '../lib/privacyService';
 import { notifyWelcomeUser } from '../lib/communicationService';
 
@@ -194,7 +202,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } = client.auth.onAuthStateChange((_event, currentSession) => {
         if (!mounted) return;
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        if (currentSession?.user) {
+          setUser(currentSession.user);
+        } else if (typeof window !== 'undefined') {
+          // If no active live Supabase session, check if a dev/test account is saved before wiping user
+          const savedDev = localStorage.getItem(DEV_SESSION_STORAGE_KEY);
+          if (savedDev) {
+            try {
+              const parsed = JSON.parse(savedDev);
+              if (parsed?.user) {
+                setUser(parsed.user);
+                if (parsed.role) setRoleOverride(parsed.role);
+              } else {
+                setUser(null);
+              }
+            } catch {
+              setUser(null);
+            }
+          } else {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
         setLoading(false);
 
         // Clean up OAuth tokens from URL to leave a clean address bar
@@ -207,20 +237,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ) {
           const cleanUrl = window.location.pathname;
           window.history.replaceState(null, '', cleanUrl);
-        }
-
-        // Auto-navigate to User Profile screen upon login if not already on profile/onboarding
-        if (
-          _event === 'SIGNED_IN' &&
-          currentSession &&
-          typeof window !== 'undefined' &&
-          window.location.pathname !== '/profile' &&
-          window.location.pathname !== '/onboarding'
-        ) {
-          // If not in a popup, redirect to profile
-          if (!window.opener || window.opener === window) {
-            window.location.assign('/profile');
-          }
         }
 
         // If this is a popup window that finished auth, notify opener and close
@@ -247,13 +263,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mounted) return;
           setSession(refreshedSession);
           setUser(refreshedSession?.user ?? null);
-          if (
-            typeof window !== 'undefined' &&
-            window.location.pathname !== '/profile' &&
-            window.location.pathname !== '/onboarding'
-          ) {
-            window.location.assign('/profile');
-          }
         });
       }
     };
@@ -277,24 +286,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email = user.email || '';
     const userIdOrEmail = user.id || email;
     // DPDP Act Default Consent: All consents marked Yes by default on login unless user chose to turn them off
-    const { profile, onboarding } = ensureDefaultConsentsOnLogin(userIdOrEmail);
+    const { profile: localProfile, onboarding: localOnboarding } = ensureDefaultConsentsOnLogin(userIdOrEmail);
     const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0] || 'Member';
     const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
 
-    syncMemberToStore({
-      id: user.id,
-      email,
-      name,
-      avatarUrl,
-      profile,
-      onboarding,
-    })
-      .then((synced) => {
-        setAppMember(synced);
-      })
-      .catch((err) => {
+    let cancelled = false;
+
+    const hydrateAndSyncUser = async () => {
+      try {
+        // Flush any queued offline mutations before reading remote state
+        await flushOfflineSyncQueue().catch(() => 0);
+
+        // Hydrate from Supabase first so logging in on a new device pulls existing remote profile & onboarding
+        const [remoteProfile, remoteOnboarding] = await Promise.all([
+          loadProfileFromSupabase(userIdOrEmail).catch(() => null),
+          loadOnboardingFromSupabase(userIdOrEmail).catch(() => null),
+        ]);
+
+        const mergedProfile = {
+          ...localProfile,
+          ...(remoteProfile || {}),
+          email: remoteProfile?.email || localProfile?.email || email,
+        };
+        const mergedOnboarding = {
+          ...localOnboarding,
+          ...(remoteOnboarding || {}),
+        };
+
+        if (remoteProfile && Object.keys(remoteProfile).length > 0) {
+          saveUserProfile(mergedProfile, userIdOrEmail);
+          if (email) saveUserProfile(mergedProfile, email);
+        }
+        if (remoteOnboarding && Object.keys(remoteOnboarding).length > 0) {
+          saveClientOnboarding(mergedOnboarding, userIdOrEmail);
+          if (email) saveClientOnboarding(mergedOnboarding, email);
+        }
+
+        const synced = await syncMemberToStore({
+          id: user.id,
+          email,
+          name,
+          avatarUrl,
+          profile: mergedProfile,
+          onboarding: mergedOnboarding,
+        });
+        if (!cancelled) {
+          setAppMember(synced);
+        }
+      } catch (err) {
         console.warn('Member sync failed:', err);
-      });
+      }
+    };
+
+    hydrateAndSyncUser();
+
+    // Stale Tab / Background Wake-Up Re-Sync Hook (throttled to once every 3 minutes)
+    let lastWakeUpSync = Date.now();
+    const handleTabWakeUp = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastWakeUpSync < 3 * 60 * 1000) return;
+      lastWakeUpSync = now;
+
+      const client = getSupabase();
+      if (client) {
+        client.auth.getSession().catch(() => {});
+      }
+      hydrateAndSyncUser();
+    };
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', handleTabWakeUp);
+      window.addEventListener('focus', handleTabWakeUp);
+    }
 
     // Dispatch energetic "Welcome to Fitkode" onboarding email upon user login (Gmail/Google auth)
     if (email) {
@@ -318,6 +382,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
       }
     }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleTabWakeUp);
+        window.removeEventListener('focus', handleTabWakeUp);
+      }
+    };
   }, [user]);
 
   const userEmail = user?.email || '';
@@ -354,6 +426,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setTestingRole = (newRole: UserRole) => {
     setRoleOverride(newRole);
+    if (typeof window !== 'undefined') {
+      try {
+        const savedDev = localStorage.getItem(DEV_SESSION_STORAGE_KEY);
+        if (savedDev) {
+          const parsed = JSON.parse(savedDev);
+          parsed.role = newRole;
+          localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify(parsed));
+        }
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const signIn = async () => {
@@ -380,7 +464,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let role: UserRole = customRole || 'unpaid';
     let userId = `usr_test_${Date.now()}`;
 
-    const foundPreset = TEST_USER_PRESETS.find((p) => p.role === presetOrEmail || p.email.toLowerCase() === presetOrEmail.toLowerCase());
+    const foundPreset = TEST_USER_PRESETS.find(
+      (p) =>
+        p.id === presetOrEmail ||
+        p.role === presetOrEmail ||
+        p.email.toLowerCase() === presetOrEmail.toLowerCase()
+    );
 
     if (foundPreset) {
       email = foundPreset.email;

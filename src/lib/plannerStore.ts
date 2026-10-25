@@ -1,6 +1,14 @@
 import { MealPlan, WorkoutPlan } from '../types';
 import { createDefaultVegDietPlan, createDefaultWorkoutPlan } from './plannerLibrary';
 import { notifyPlanAssigned } from './communicationService';
+import {
+  syncMealPlansToSupabase,
+  loadMealPlansFromSupabase,
+  syncWorkoutPlansToSupabase,
+  loadWorkoutPlansFromSupabase,
+  getSupabaseAuthHeaders,
+} from './supabase';
+import { safeLocalStorageSet } from './storageGuard';
 
 const MEAL_PLANS_KEY = 'fk_meal_plans_v1';
 const WORKOUT_PLANS_KEY = 'fk_workout_plans_v1';
@@ -783,7 +791,7 @@ export function getAllStoredMealPlans(): MealPlan[] {
   try {
     const raw = localStorage.getItem(MEAL_PLANS_KEY);
     if (!raw) {
-      localStorage.setItem(MEAL_PLANS_KEY, JSON.stringify(SEED_MEAL_PLANS));
+      safeLocalStorageSet(MEAL_PLANS_KEY, SEED_MEAL_PLANS);
       return SEED_MEAL_PLANS;
     }
     const parsed = JSON.parse(raw);
@@ -794,21 +802,39 @@ export function getAllStoredMealPlans(): MealPlan[] {
   }
 }
 
-export function saveAllMealPlans(plans: MealPlan[]) {
-  try {
-    localStorage.setItem(MEAL_PLANS_KEY, JSON.stringify(plans));
-  } catch (err) {
-    console.error('Error saving meal plans to storage:', err);
+export function saveAllMealPlans(plans: MealPlan[], targetUserEmail?: string) {
+  safeLocalStorageSet(MEAL_PLANS_KEY, plans);
+
+  // Sync user's meal plans to Supabase (both meal_plans table and profiles.profile_data.meal_plans)
+  if (targetUserEmail) {
+    const norm = targetUserEmail.toLowerCase().trim();
+    const userPlans = plans.filter(
+      (p) =>
+        (p.userEmail && p.userEmail.toLowerCase().trim() === norm) ||
+        (p.userId && p.userId.toLowerCase().trim() === norm)
+    );
+    syncMealPlansToSupabase(norm, userPlans).catch((err) => {
+      console.warn('Supabase sync meal plans notice:', err);
+    });
   }
 
-  // Also sync asynchronously to server
+  // Also sync asynchronously to server and update local cache with confirmed server records
   try {
-    fetch('/api/meal-plans', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(plans),
-    }).catch((err) => {
-      console.warn('Backend sync meal plans notice:', err);
+    getSupabaseAuthHeaders().then((authHeaders) => {
+      fetch('/api/meal-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(plans),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.plans && Array.isArray(data.plans)) {
+            safeLocalStorageSet(MEAL_PLANS_KEY, data.plans);
+          }
+        })
+        .catch((err) => {
+          console.warn('Backend sync meal plans notice:', err);
+        });
     });
   } catch {
     // ignore
@@ -816,44 +842,61 @@ export function saveAllMealPlans(plans: MealPlan[]) {
 }
 
 /**
- * Fetches latest meal plans from Express server and merges into local cache
+ * Fetches latest meal plans from Express server AND Supabase and merges into local cache
  */
 export async function fetchMealPlansFromServer(userEmail?: string): Promise<MealPlan[]> {
-  try {
-    const url = userEmail
-      ? `/api/meal-plans?userEmail=${encodeURIComponent(userEmail.toLowerCase().trim())}`
-      : '/api/meal-plans';
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.plans) && data.plans.length > 0) {
-        const current = getAllStoredMealPlans();
-        const merged = [...current];
-        data.plans.forEach((p: MealPlan) => {
-          const idx = merged.findIndex((m) => m.id === p.id);
-          if (idx >= 0) {
-            merged[idx] = { ...merged[idx], ...p };
-          } else {
-            merged.unshift(p);
-          }
-        });
-        try {
-          localStorage.setItem(MEAL_PLANS_KEY, JSON.stringify(merged));
-        } catch {}
-        return merged;
+  const current = getAllStoredMealPlans();
+  const merged = [...current];
+  let hasUpdates = false;
+
+  const mergeIncoming = (incomingPlans: MealPlan[] | null | undefined) => {
+    if (!Array.isArray(incomingPlans) || incomingPlans.length === 0) return;
+    incomingPlans.forEach((p: MealPlan) => {
+      if (!p || !p.id) return;
+      const idx = merged.findIndex((m) => m.id === p.id);
+      if (idx >= 0) {
+        const localTime = new Date(merged[idx].updatedAt || merged[idx].createdAt || 0).getTime();
+        const remoteTime = new Date(p.updatedAt || p.createdAt || 0).getTime();
+        if (remoteTime >= localTime) {
+          merged[idx] = { ...merged[idx], ...p };
+          hasUpdates = true;
+        }
+      } else {
+        merged.unshift(p);
+        hasUpdates = true;
       }
-    }
-  } catch (err) {
-    console.warn('Failed to fetch meal plans from server:', err);
+    });
+  };
+
+  const normEmail = userEmail ? userEmail.toLowerCase().trim() : '';
+  const url = normEmail
+    ? `/api/meal-plans?userEmail=${encodeURIComponent(normEmail)}`
+    : '/api/meal-plans';
+
+  const authHeaders = await getSupabaseAuthHeaders();
+  const [serverPlans, sbPlans] = await Promise.all([
+    fetch(url, { headers: authHeaders })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => (Array.isArray(data?.plans) ? (data.plans as MealPlan[]) : null))
+      .catch(() => null),
+    normEmail ? loadMealPlansFromSupabase(normEmail).catch(() => null) : Promise.resolve(null),
+  ]);
+
+  mergeIncoming(serverPlans);
+  mergeIncoming(sbPlans as MealPlan[] | null);
+
+  if (hasUpdates) {
+    safeLocalStorageSet(MEAL_PLANS_KEY, merged);
   }
-  return getAllStoredMealPlans();
+
+  return merged;
 }
 
 export function getAllStoredWorkoutPlans(): WorkoutPlan[] {
   try {
     const raw = localStorage.getItem(WORKOUT_PLANS_KEY);
     if (!raw) {
-      localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(SEED_WORKOUT_PLANS));
+      safeLocalStorageSet(WORKOUT_PLANS_KEY, SEED_WORKOUT_PLANS);
       return SEED_WORKOUT_PLANS;
     }
     const parsed = JSON.parse(raw);
@@ -873,9 +916,7 @@ export function getAllStoredWorkoutPlans(): WorkoutPlan[] {
         }
       }
       if (changed) {
-        try {
-          localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(parsed));
-        } catch {}
+        safeLocalStorageSet(WORKOUT_PLANS_KEY, parsed);
       }
       return parsed;
     }
@@ -886,21 +927,39 @@ export function getAllStoredWorkoutPlans(): WorkoutPlan[] {
   }
 }
 
-export function saveAllWorkoutPlans(plans: WorkoutPlan[]) {
-  try {
-    localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(plans));
-  } catch (err) {
-    console.error('Error saving workout plans to storage:', err);
+export function saveAllWorkoutPlans(plans: WorkoutPlan[], targetUserEmail?: string) {
+  safeLocalStorageSet(WORKOUT_PLANS_KEY, plans);
+
+  // Sync user's workout plans to Supabase (both workout_plans table and profiles.profile_data.workout_plans)
+  if (targetUserEmail) {
+    const norm = targetUserEmail.toLowerCase().trim();
+    const userPlans = plans.filter(
+      (p) =>
+        (p.userEmail && p.userEmail.toLowerCase().trim() === norm) ||
+        (p.userId && p.userId.toLowerCase().trim() === norm)
+    );
+    syncWorkoutPlansToSupabase(norm, userPlans).catch((err) => {
+      console.warn('Supabase sync workout plans notice:', err);
+    });
   }
 
-  // Also sync asynchronously to server
+  // Also sync asynchronously to server and update local cache with confirmed server records
   try {
-    fetch('/api/workout-plans', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(plans),
-    }).catch((err) => {
-      console.warn('Backend sync workout plans notice:', err);
+    getSupabaseAuthHeaders().then((authHeaders) => {
+      fetch('/api/workout-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(plans),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.plans && Array.isArray(data.plans)) {
+            safeLocalStorageSet(WORKOUT_PLANS_KEY, data.plans);
+          }
+        })
+        .catch((err) => {
+          console.warn('Backend sync workout plans notice:', err);
+        });
     });
   } catch {
     // ignore
@@ -908,37 +967,54 @@ export function saveAllWorkoutPlans(plans: WorkoutPlan[]) {
 }
 
 /**
- * Fetches latest workout plans from Express server and merges into local cache
+ * Fetches latest workout plans from Express server AND Supabase and merges into local cache
  */
 export async function fetchWorkoutPlansFromServer(userEmail?: string): Promise<WorkoutPlan[]> {
-  try {
-    const url = userEmail
-      ? `/api/workout-plans?userEmail=${encodeURIComponent(userEmail.toLowerCase().trim())}`
-      : '/api/workout-plans';
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.plans) && data.plans.length > 0) {
-        const current = getAllStoredWorkoutPlans();
-        const merged = [...current];
-        data.plans.forEach((p: WorkoutPlan) => {
-          const idx = merged.findIndex((m) => m.id === p.id);
-          if (idx >= 0) {
-            merged[idx] = { ...merged[idx], ...p };
-          } else {
-            merged.unshift(p);
-          }
-        });
-        try {
-          localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(merged));
-        } catch {}
-        return merged;
+  const current = getAllStoredWorkoutPlans();
+  const merged = [...current];
+  let hasUpdates = false;
+
+  const mergeIncoming = (incomingPlans: WorkoutPlan[] | null | undefined) => {
+    if (!Array.isArray(incomingPlans) || incomingPlans.length === 0) return;
+    incomingPlans.forEach((p: WorkoutPlan) => {
+      if (!p || !p.id) return;
+      const idx = merged.findIndex((m) => m.id === p.id);
+      if (idx >= 0) {
+        const localTime = new Date(merged[idx].updatedAt || merged[idx].createdAt || 0).getTime();
+        const remoteTime = new Date(p.updatedAt || p.createdAt || 0).getTime();
+        if (remoteTime >= localTime) {
+          merged[idx] = { ...merged[idx], ...p };
+          hasUpdates = true;
+        }
+      } else {
+        merged.unshift(p);
+        hasUpdates = true;
       }
-    }
-  } catch (err) {
-    console.warn('Failed to fetch workout plans from server:', err);
+    });
+  };
+
+  const normEmail = userEmail ? userEmail.toLowerCase().trim() : '';
+  const url = normEmail
+    ? `/api/workout-plans?userEmail=${encodeURIComponent(normEmail)}`
+    : '/api/workout-plans';
+
+  const authHeaders = await getSupabaseAuthHeaders();
+  const [serverPlans, sbPlans] = await Promise.all([
+    fetch(url, { headers: authHeaders })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => (Array.isArray(data?.plans) ? (data.plans as WorkoutPlan[]) : null))
+      .catch(() => null),
+    normEmail ? loadWorkoutPlansFromSupabase(normEmail).catch(() => null) : Promise.resolve(null),
+  ]);
+
+  mergeIncoming(serverPlans);
+  mergeIncoming(sbPlans as WorkoutPlan[] | null);
+
+  if (hasUpdates) {
+    safeLocalStorageSet(WORKOUT_PLANS_KEY, merged);
   }
-  return getAllStoredWorkoutPlans();
+
+  return merged;
 }
 
 // =========================================================================
@@ -1038,7 +1114,7 @@ export async function saveMealPlan(plan: MealPlan): Promise<MealPlan[]> {
     }
   }
 
-  saveAllMealPlans(all);
+  saveAllMealPlans(all, planEmail);
   notifyPlannerChange();
   return loadUserMealPlans(planEmail);
 }
@@ -1046,7 +1122,7 @@ export async function saveMealPlan(plan: MealPlan): Promise<MealPlan[]> {
 export async function deleteMealPlan(planId: string, userEmail: string): Promise<MealPlan[]> {
   const all = getAllStoredMealPlans();
   const filtered = all.filter((p) => p.id !== planId);
-  saveAllMealPlans(filtered);
+  saveAllMealPlans(filtered, userEmail);
   notifyPlannerChange();
   return loadUserMealPlans(userEmail);
 }
@@ -1098,7 +1174,7 @@ export async function renameMealPlan(
     if (!targetUserEmail) {
       targetUserEmail = target.userEmail || target.userId || '';
     }
-    saveAllMealPlans(all);
+    saveAllMealPlans(all, targetUserEmail);
     notifyPlannerChange();
   } else {
     console.warn(`[renameMealPlan] Could not find meal plan with ID: "${targetPlanId}"`);
@@ -1120,7 +1196,7 @@ export async function setActiveMealPlan(planId: string, userEmail: string): Prom
     }
   }
 
-  saveAllMealPlans(all);
+  saveAllMealPlans(all, normalizedEmail);
   notifyPlannerChange();
   return loadUserMealPlans(userEmail);
 }
@@ -1173,18 +1249,20 @@ export async function assignCoachMealPlan(
     all.unshift(newPlan);
   }
 
-  saveAllMealPlans(all);
+  saveAllMealPlans(all, normalizedEmail);
   notifyPlannerChange();
 
-  // Asynchronously dispatch email notification to the member
-  notifyPlanAssigned({
-    type: 'diet',
-    targetEmail: normalizedEmail,
-    plan: newPlan,
-    coachName,
-  }).catch((err) => {
-    console.warn('[assignCoachMealPlan] Failed to dispatch email notification:', err);
-  });
+  // Asynchronously dispatch email notification to the member if valid email
+  if (normalizedEmail && normalizedEmail.includes('@')) {
+    notifyPlanAssigned({
+      type: 'diet',
+      targetEmail: normalizedEmail,
+      plan: newPlan,
+      coachName,
+    }).catch((err) => {
+      console.warn('[assignCoachMealPlan] Failed to dispatch email notification:', err);
+    });
+  }
 
   return newPlan;
 }
@@ -1263,7 +1341,7 @@ export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<WorkoutPlan[]>
     }
   }
 
-  saveAllWorkoutPlans(all);
+  saveAllWorkoutPlans(all, planEmail);
   notifyPlannerChange();
   return loadUserWorkoutPlans(planEmail);
 }
@@ -1271,7 +1349,7 @@ export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<WorkoutPlan[]>
 export async function deleteWorkoutPlan(planId: string, userEmail: string): Promise<WorkoutPlan[]> {
   const all = getAllStoredWorkoutPlans();
   const filtered = all.filter((p) => p.id !== planId);
-  saveAllWorkoutPlans(filtered);
+  saveAllWorkoutPlans(filtered, userEmail);
   notifyPlannerChange();
   return loadUserWorkoutPlans(userEmail);
 }
@@ -1323,7 +1401,7 @@ export async function renameWorkoutPlan(
     if (!targetUserEmail) {
       targetUserEmail = target.userEmail || target.userId || '';
     }
-    saveAllWorkoutPlans(all);
+    saveAllWorkoutPlans(all, targetUserEmail);
     notifyPlannerChange();
   } else {
     console.warn(`[renameWorkoutPlan] Could not find workout routine with ID: "${targetPlanId}"`);
@@ -1345,7 +1423,7 @@ export async function setActiveWorkoutPlan(planId: string, userEmail: string): P
     }
   }
 
-  saveAllWorkoutPlans(all);
+  saveAllWorkoutPlans(all, normalizedEmail);
   notifyPlannerChange();
   return loadUserWorkoutPlans(userEmail);
 }
@@ -1396,18 +1474,20 @@ export async function assignCoachWorkoutPlan(
     all.unshift(newPlan);
   }
 
-  saveAllWorkoutPlans(all);
+  saveAllWorkoutPlans(all, normalizedEmail);
   notifyPlannerChange();
 
-  // Asynchronously dispatch email notification to the member
-  notifyPlanAssigned({
-    type: 'workout',
-    targetEmail: normalizedEmail,
-    plan: newPlan,
-    coachName,
-  }).catch((err) => {
-    console.warn('[assignCoachWorkoutPlan] Failed to dispatch email notification:', err);
-  });
+  // Asynchronously dispatch email notification to the member if valid email
+  if (normalizedEmail && normalizedEmail.includes('@')) {
+    notifyPlanAssigned({
+      type: 'workout',
+      targetEmail: normalizedEmail,
+      plan: newPlan,
+      coachName,
+    }).catch((err) => {
+      console.warn('[assignCoachWorkoutPlan] Failed to dispatch email notification:', err);
+    });
+  }
 
   return newPlan;
 }
