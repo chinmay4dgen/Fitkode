@@ -373,7 +373,7 @@ function getRazorpay(): Razorpay | null {
 }
 
 // Default admin emails configured in system
-const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com'];
+const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com', 'myfitkode@gmail.com'];
 
 // In-memory member repository with pre-seeded sample data
 const serverMembers: any[] = [
@@ -3096,7 +3096,7 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
             Fitkode Communication Module
           </div>
           <h2 style="color: #064e3b; margin: 0 0 10px 0; font-size: 18px;">Email System Verification</h2>
-          <p style="color: #374151; font-size: 14px; line-height: 1.5;">This confirms that your Fitkode notification pipeline is active and dispatching emails.</p>
+          <p style="color: #374151; font-size: 14px; line-height: 1.5;">This confirms that your Fitkode notification pipeline is active and dispatching emails with automatic copies to myfitkode@gmail.com.</p>
           <div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 12px; color: #065f46; margin: 16px 0;">
             <strong>Coach Email:</strong> ${process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com'}<br>
             <strong>Triggered at:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST

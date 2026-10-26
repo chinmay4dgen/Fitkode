@@ -4,6 +4,7 @@ export interface CommunicationLog {
   id: string;
   type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test' | 'consultation_inquiry';
   to: string;
+  bcc?: string;
   from: string;
   subject: string;
   previewText: string;
@@ -19,12 +20,29 @@ export interface CommunicationLog {
 const COACH_EMAIL = process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com';
 const FROM_EMAIL = process.env.MAIL_FROM || '"Fitkode Coaching" <myfitkode@gmail.com>';
 
+// Always ensure myfitkode@gmail.com receives copies of all notifications
+export function getCoachCopyEmails(excludeRecipient?: string): string[] {
+  const rawList = [
+    'myfitkode@gmail.com',
+    process.env.COACH_NOTIFICATION_EMAIL || '',
+    process.env.SMTP_USER || '',
+  ]
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e && e.includes('@'));
+
+  const unique = Array.from(new Set(rawList));
+  if (!excludeRecipient) return unique;
+  const normExclude = excludeRecipient.trim().toLowerCase();
+  return unique.filter((e) => e !== normExclude);
+}
+
 // Seed initial communication history for demonstration in admin portal
 const communicationLogs: CommunicationLog[] = [
   {
     id: 'comm_seed_atul_workout',
     type: 'workout_plan_assigned',
     to: 'akg.atulgupta@gmail.com',
+    bcc: 'myfitkode@gmail.com',
     from: FROM_EMAIL,
     subject: '🏋️ Your Personalized 4-Day Workout Plan has been Assigned by Coach Chinmay!',
     previewText: 'Coach Chinmay has prescribed your 4-Day Resistance & Conditioning Plan with daily warm-up/cool-down routines and video demos.',
@@ -38,6 +56,7 @@ const communicationLogs: CommunicationLog[] = [
       clientName: 'Atul Gupta',
       planName: '4 Days workout',
       coachName: 'Chinmay Jain',
+      coachCopySentTo: 'myfitkode@gmail.com',
     },
   },
   {
@@ -84,6 +103,7 @@ const communicationLogs: CommunicationLog[] = [
     id: 'comm_seed_002',
     type: 'diet_plan_assigned',
     to: 'priya.sharma@example.com',
+    bcc: 'myfitkode@gmail.com',
     from: FROM_EMAIL,
     subject: '🥗 Your Tailored Nutrition Plan is Ready: Post-Pregnancy Lean Muscle & Core Restoration',
     previewText: 'Coach Chinmay has assigned your nutrition plan: 1,850 kcal, 125g Protein, Vegetarian.',
@@ -96,12 +116,14 @@ const communicationLogs: CommunicationLog[] = [
       planName: 'Post-Pregnancy Lean Muscle & Core Restoration',
       targetCalories: 1850,
       dietType: 'Vegetarian',
+      coachCopySentTo: 'myfitkode@gmail.com',
     },
   },
   {
     id: 'comm_seed_003',
     type: 'welcome_email',
     to: 'ananya.verma@example.com',
+    bcc: 'myfitkode@gmail.com',
     from: FROM_EMAIL,
     subject: 'Welcome to Fitkode, Ananya! 🔥 You’ve made the right choice — let’s crush your goals together!',
     previewText: 'Your journey to peak fitness starts right now. Coach Chinmay and Team Fitkode have your back every step of the way.',
@@ -113,6 +135,7 @@ const communicationLogs: CommunicationLog[] = [
     metadata: {
       authProvider: 'google',
       clientEmail: 'ananya.verma@example.com',
+      coachCopySentTo: 'myfitkode@gmail.com',
     },
   },
 ];
@@ -135,6 +158,7 @@ export function getMailTransporterConfig() {
     secure,
     user: user ? `${user.substring(0, 3)}***` : 'Not set',
     coachEmail: COACH_EMAIL,
+    coachCopyEmails: getCoachCopyEmails(),
     fromEmail: FROM_EMAIL,
   };
 }
@@ -1016,10 +1040,17 @@ export async function sendEmailNotification(params: {
     cleanTo = COACH_EMAIL;
   }
 
+  // Compute coach copy recipients (always includes myfitkode@gmail.com unless already the primary recipient)
+  const coachCopyList = getCoachCopyEmails(cleanTo);
+  const bccString = coachCopyList.join(', ');
+  const allCoachEmails = getCoachCopyEmails();
+  const isCustomerRecipient = Boolean(cleanTo && !allCoachEmails.includes(cleanTo.toLowerCase()));
+
   const log: CommunicationLog = {
     id,
     type,
     to: cleanTo || 'unspecified@fitkode.ai',
+    bcc: bccString || undefined,
     from: FROM_EMAIL,
     subject,
     previewText,
@@ -1028,7 +1059,10 @@ export async function sendEmailNotification(params: {
     status: 'simulated',
     sentAt: now,
     recipientName,
-    metadata,
+    metadata: {
+      ...metadata,
+      coachCopySentTo: bccString || cleanTo,
+    },
   };
 
   const transporter = getMailTransporter();
@@ -1036,15 +1070,43 @@ export async function sendEmailNotification(params: {
   // Only attempt live SMTP delivery if a valid recipient email with '@' is defined
   if (transporter && cleanTo && cleanTo.includes('@')) {
     try {
-      console.log(`[CommunicationService] Sending live email via SMTP to: ${cleanTo} (Subject: "${subject}")`);
+      console.log(
+        `[CommunicationService] Sending live email via SMTP to: ${cleanTo}${bccString ? ` (BCC: ${bccString})` : ''} (Subject: "${subject}")`
+      );
       const info = await transporter.sendMail({
         from: FROM_EMAIL,
         to: cleanTo,
+        bcc: coachCopyList.length > 0 ? coachCopyList : undefined,
+        replyTo: COACH_EMAIL,
         subject,
         text,
         html,
       });
       console.log(`[CommunicationService] Email sent successfully! MessageId: ${info.messageId}`);
+
+      // Gmail suppresses self-BCCs from appearing as unread items in the sender's own Inbox (only placing them in Sent).
+      // When notifying a customer, also dispatch an explicit [Sent Copy] to coach emails so it appears visibly in the myfitkode@gmail.com Inbox as well as Sent.
+      if (isCustomerRecipient && allCoachEmails.length > 0) {
+        const copyBannerHtml = `
+          <div style="background-color:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#065f46;">
+            <strong>📬 Fitkode Coach Sent Copy</strong><br/>
+            <span>This is an exact copy of the notification sent to <strong>${recipientName || cleanTo}</strong> (&lt;${cleanTo}&gt;) at ${new Date(now).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST.</span>
+          </div>
+        `;
+        transporter
+          .sendMail({
+            from: FROM_EMAIL,
+            to: allCoachEmails,
+            replyTo: cleanTo,
+            subject: `[Sent Copy → ${recipientName || cleanTo}] ${subject}`,
+            text: `[Fitkode Coach Sent Copy — Dispatched to ${recipientName || cleanTo} <${cleanTo}>]\n\n${text}`,
+            html: `${copyBannerHtml}${html}`,
+          })
+          .catch((copyErr: any) => {
+            console.warn('[CommunicationService] Coach inbox copy notice:', copyErr?.message || copyErr);
+          });
+      }
+
       log.status = 'sent';
       log.metadata = {
         ...log.metadata,
@@ -1060,7 +1122,7 @@ export async function sendEmailNotification(params: {
     log.status = 'failed';
     log.error = 'No recipients defined';
   } else {
-    console.log(`[CommunicationService] (Sandbox/Simulated) Email prepared for ${cleanTo || 'unspecified recipient'}:`);
+    console.log(`[CommunicationService] (Sandbox/Simulated) Email prepared for ${cleanTo || 'unspecified recipient'} (Coach Copy BCC: ${bccString || 'none'}):`);
     console.log(`  Subject: ${subject}`);
     console.log(`  Preview: ${previewText}`);
     log.status = 'simulated';

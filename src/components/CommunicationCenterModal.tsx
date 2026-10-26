@@ -96,6 +96,14 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
     }
   };
 
+  const buildGmailComposeUrl = (log: CommunicationLogItem) => {
+    const to = encodeURIComponent(log.to || '');
+    const bcc = encodeURIComponent(log.bcc || 'myfitkode@gmail.com');
+    const su = encodeURIComponent(log.subject || '');
+    const body = encodeURIComponent(log.text || log.previewText || '');
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&bcc=${bcc}&su=${su}&body=${body}`;
+  };
+
   const filteredLogs = logs.filter((log) => {
     const matchesFilter = activeFilter === 'all' || log.type === activeFilter;
     const query = searchQuery.toLowerCase().trim();
@@ -214,7 +222,7 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
             <div className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>
-                Coach Recipient Email: <strong className="font-bold text-emerald-900">myfitkode@gmail.com</strong>
+                Coach Inbox &amp; Auto-Copy: <strong className="font-bold text-emerald-900">myfitkode@gmail.com</strong>
               </span>
             </div>
             <div className="hidden sm:inline text-emerald-300">•</div>
@@ -223,7 +231,9 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
               <span>
                 Delivery Mode:{' '}
                 <strong className="font-bold text-emerald-900">
-                  {config?.isConfigured ? 'Live SMTP Transport (Active)' : 'Verified Mail Delivery Engine'}
+                  {config?.isConfigured
+                    ? `Live Gmail SMTP (${config.user}) + Auto Sent Copy`
+                    : 'Simulated Log Mode (Add SMTP_PASS for Live Gmail Delivery)'}
                 </strong>
               </span>
             </div>
@@ -275,6 +285,19 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
             </div>
           )}
           
+          {/* SMTP Configuration Notice when not yet connected to live Gmail */}
+          {config && !config.isConfigured && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 space-y-1.5">
+              <div className="font-bold flex items-center space-x-1.5 text-amber-900">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>How to receive live copies in your myfitkode@gmail.com Inbox &amp; Sent folder:</span>
+              </div>
+              <p className="text-amber-800/90 leading-relaxed">
+                Every customer email automatically BCCs <strong>myfitkode@gmail.com</strong> and dispatches a dedicated <strong>[Sent Copy]</strong> to your inbox. To enable live Gmail delivery (instead of simulated preview mode), set <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono">SMTP_USER="myfitkode@gmail.com"</code> and <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono">SMTP_PASS="your-16-char-gmail-app-password"</code> in your server environment secrets (generate at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="underline font-bold">myaccount.google.com/apppasswords</a>). You can also click <strong>Send via Gmail</strong> on any log below at any time.
+              </p>
+            </div>
+          )}
+
           {/* Functional Flow Highlights */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             <div className="bg-gradient-to-br from-teal-50 to-emerald-50/40 p-4 rounded-2xl border border-teal-200/80">
@@ -443,8 +466,12 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
 
                     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
                       <span>
-                        Recipient: <strong className="text-gray-800 font-semibold">{log.to}</strong>
+                        To: <strong className="text-gray-800 font-semibold">{log.to}</strong>
                         {log.recipientName && <span className="text-gray-400"> ({log.recipientName})</span>}
+                      </span>
+                      <span className="text-gray-300">•</span>
+                      <span className="text-emerald-700 font-semibold">
+                        Coach Copy (BCC): {log.bcc || 'myfitkode@gmail.com'}
                       </span>
                       <span className="text-gray-300">•</span>
                       <span className="text-gray-500 truncate max-w-md">
@@ -454,6 +481,16 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
                   </div>
 
                   <div className="flex items-center space-x-2 shrink-0">
+                    <a
+                      href={buildGmailComposeUrl(log)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center space-x-1 py-1.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all cursor-pointer"
+                      title="Open in Gmail Compose with myfitkode@gmail.com BCC'd (saves directly to your Gmail Sent & Inbox)"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send via Gmail</span>
+                    </a>
                     <button
                       type="button"
                       onClick={() => setSelectedLog(log)}
@@ -518,6 +555,10 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
               <div className="flex justify-between">
                 <span className="text-gray-500 font-medium">To:</span>
                 <span className="font-bold text-gray-900">{selectedLog.to}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Coach Copy (BCC &amp; Sent Copy):</span>
+                <span className="font-bold text-emerald-700">{selectedLog.bcc || 'myfitkode@gmail.com'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500 font-medium">From:</span>

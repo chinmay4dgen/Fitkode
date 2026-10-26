@@ -3,7 +3,7 @@ import { defaultUserProfile, defaultClientOnboarding, getProfileCompletionRate, 
 import { getSupabase, getSupabaseAuthHeaders, loadAllWeeklyEntriesFromSupabaseForAdmin } from './supabase';
 import { safeLocalStorageSet } from './storageGuard';
 
-export const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com'];
+export const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com', 'myfitkode@gmail.com'];
 
 export function isDefaultAdmin(email?: string | null): boolean {
   if (!email) return false;

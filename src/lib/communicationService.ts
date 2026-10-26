@@ -2,8 +2,9 @@ import { WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
 
 export interface CommunicationLogItem {
   id: string;
-  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test';
+  type: 'weekly_tracker_submission' | 'diet_plan_assigned' | 'workout_plan_assigned' | 'welcome_email' | 'test' | 'consultation_inquiry';
   to: string;
+  bcc?: string;
   from: string;
   subject: string;
   previewText: string;
@@ -23,6 +24,7 @@ export interface CommunicationConfig {
   secure: boolean;
   user: string;
   coachEmail: string;
+  coachCopyEmails?: string[];
   fromEmail: string;
 }
 
