@@ -20,6 +20,7 @@ import {
   deleteMealPlan,
   setActiveMealPlan,
   renameMealPlan,
+  fetchMealPlansFromServer,
   subscribeToPlannerUpdates,
 } from '../lib/plannerStore';
 import { createDefaultVegDietPlan } from '../lib/plannerLibrary';
@@ -50,7 +51,7 @@ export default function MealPlannerPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Load plans on mount / user change & subscribe to updates
+  // Load plans on mount / user change, fetch remote Coach-assigned plans, & subscribe to updates
   useEffect(() => {
     const sync = () => {
       const loaded = loadUserMealPlans(userEmail);
@@ -62,6 +63,11 @@ export default function MealPlannerPage() {
       });
     };
     sync();
+    fetchMealPlansFromServer(userEmail)
+      .then(() => {
+        sync();
+      })
+      .catch(() => {});
     const unsubscribe = subscribeToPlannerUpdates(sync);
     return () => unsubscribe();
   }, [userEmail]);

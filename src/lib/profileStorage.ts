@@ -148,13 +148,82 @@ export const defaultClientOnboarding: ClientOnboarding = {
   notificationsConsentWithdrawnAt: '',
 };
 
+export const ATUL_GUPTA_PROFILE: UserProfile = {
+  ...defaultUserProfile,
+  email: 'akg.atulgupta@gmail.com',
+  firstName: 'Atul',
+  lastName: 'Gupta',
+  dateOfBirth: '1985-11-20',
+  age: '40',
+  gender: 'Male',
+  phone: '+91 98114 00612',
+  address: 'Pocket B, Sarita Vihar',
+  city: 'New Delhi',
+  state: 'Delhi',
+  zipcode: '110076',
+  preferredContact: 'Whatsapp Audio/Video/Message',
+  maritalStatus: 'Married',
+  children: 'Yes',
+  isPregnant: 'Not applicable',
+  bloodGroup: 'B+',
+  livingWith: 'Family',
+  primaryCareProvider: 'Max Healthcare Delhi',
+  lastCheckupDate: '2026-05-10',
+  healthDataConsent: true,
+  notificationsConsent: true,
+  isConsentWithdrawn: false,
+};
+
+export const ATUL_GUPTA_ONBOARDING: ClientOnboarding = {
+  ...defaultClientOnboarding,
+  healthGoal: 'Weight Loss',
+  coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
+  pastDietsAndTechniques: 'Intermittent fasting',
+  biggestNutritionChallenges: 'Managing evening cravings after work',
+  desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength workouts.',
+  currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
+  physicalActivityDaysPerWeek: '4',
+  physicalActivityDurationMinutes: '45',
+  gymAccess: 'yes',
+  foodAllergies: 'None',
+  dislikedFoods: 'Bitter gourd',
+  dietPreferences: ['Vegetarian', 'High Protein'],
+  mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
+  dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
+  currentWeightKg: '71.9',
+  heightCm: '174',
+  waistInches: '35.4',
+  hipInches: '38.6',
+  neckInches: '15.4',
+  chestInches: '39.2',
+  upperArmInches: '13.4',
+  quadricepsInches: '21.8',
+  headachesScore: 1,
+  insomniaScore: 1,
+  digestiveIssuesScore: 1,
+  dizzinessScore: 1,
+  faintnessScore: 1,
+  emotionalIssuesScore: 1,
+  completedSections: [1, 2, 3, 4, 5],
+  isSubmitted: true,
+  healthDataConsent: true,
+  notificationsConsent: true,
+  isConsentWithdrawn: false,
+};
+
 function getStorageKey(type: 'profile' | 'onboarding', userIdOrEmail?: string): string {
   const identifier = (userIdOrEmail || 'anonymous').toLowerCase().trim();
   return `fitkode_${type}_${identifier}`;
 }
 
 export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserProfile>): UserProfile {
-  const baseline = { ...defaultUserProfile, ...defaults };
+  const isAtul =
+    userIdOrEmail &&
+    (userIdOrEmail.toLowerCase().trim() === 'akg.atulgupta@gmail.com' ||
+      userIdOrEmail.toLowerCase().trim() === 'usr_atul_gupta');
+  const baseline = isAtul
+    ? { ...ATUL_GUPTA_PROFILE, ...defaults }
+    : { ...defaultUserProfile, ...defaults };
 
   if (typeof window === 'undefined') return baseline;
   const key = getStorageKey('profile', userIdOrEmail);
@@ -163,9 +232,6 @@ export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserP
     if (raw) {
       const parsed = JSON.parse(raw);
       const profile: UserProfile = { ...baseline, ...parsed };
-      // As per DPDP Act: By default whenever a person logs in or accesses the site,
-      // all their consents must be marked Yes (true) in respect to their willingness to share data,
-      // and turned off ONLY if they explicitly chose to turn it off.
       if (!profile.isConsentWithdrawn) {
         profile.healthDataConsent = true;
         if (!profile.healthDataConsentGivenAt) {
@@ -229,7 +295,11 @@ export function saveUserProfile(profile: UserProfile, userIdOrEmail?: string): v
 }
 
 export function loadClientOnboarding(userIdOrEmail?: string): ClientOnboarding {
-  const baseline = defaultClientOnboarding;
+  const isAtul =
+    userIdOrEmail &&
+    (userIdOrEmail.toLowerCase().trim() === 'akg.atulgupta@gmail.com' ||
+      userIdOrEmail.toLowerCase().trim() === 'usr_atul_gupta');
+  const baseline = isAtul ? ATUL_GUPTA_ONBOARDING : defaultClientOnboarding;
 
   if (typeof window === 'undefined') return baseline;
   const key = getStorageKey('onboarding', userIdOrEmail);

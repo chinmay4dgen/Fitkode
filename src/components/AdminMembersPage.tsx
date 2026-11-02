@@ -1103,20 +1103,6 @@ export default function AdminMembersPage() {
 
             <button
               type="button"
-              onClick={handleOpenDbDiagnostics}
-              className={`inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-xs ${
-                dbDiagnostics?.rlsRecursionDetected
-                  ? 'bg-red-500/30 hover:bg-red-500/40 text-red-200 border-red-400/50 animate-pulse'
-                  : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/30'
-              }`}
-              title="Check Supabase Free Tier Health & Copy $0 Non-Recursive RLS Fix"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-300" />
-              <span>DB Health &amp; $0 SQL Fix</span>
-            </button>
-
-            <button
-              type="button"
               onClick={handleExportCoachVaultBackup}
               className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 text-xs font-bold transition-all cursor-pointer border border-sky-400/30 shadow-xs"
               title="Download 1-Click Full JSON Backup of all Member Profiles, Assessments, Check-ins & Plans"
@@ -1142,38 +1128,49 @@ export default function AdminMembersPage() {
               <span>My Profile</span>
             </Link>
 
-            {/* Admin Role Test Switcher */}
+            {/* Admin Role Preview & System Utilities Dropdown */}
             <div className="relative group">
               <button
                 type="button"
                 className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-purple-500/30 hover:bg-purple-500/40 text-purple-200 text-xs font-bold border border-purple-400/30 transition-all cursor-pointer"
               >
-                <span>Role Preview</span>
+                <span>Role Preview &amp; System</span>
                 <ChevronDown className="w-3.5 h-3.5 text-purple-300" />
               </button>
-              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 hidden group-hover:block z-30 text-gray-800">
+              <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 hidden group-hover:block z-30 text-gray-800">
                 <p className="text-[10px] uppercase font-bold text-gray-400 px-3 py-1">Test Non-Admin Views</p>
                 <button
                   type="button"
                   onClick={() => setTestingRole('paid')}
-                  className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-emerald-50 hover:text-emerald-800 font-semibold transition-colors"
+                  className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-emerald-50 hover:text-emerald-800 font-semibold transition-colors cursor-pointer"
                 >
                   Switch to Paid User
                 </button>
                 <button
                   type="button"
                   onClick={() => setTestingRole('unpaid')}
-                  className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-blue-50 hover:text-blue-800 font-semibold transition-colors"
+                  className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-blue-50 hover:text-blue-800 font-semibold transition-colors cursor-pointer"
                 >
                   Switch to Unpaid User
                 </button>
                 <button
                   type="button"
                   onClick={() => setTestingRole('admin')}
-                  className="w-full text-left px-3 py-1.5 text-xs rounded-lg bg-purple-50 text-purple-800 font-bold mt-1"
+                  className="w-full text-left px-3 py-1.5 text-xs rounded-lg bg-purple-50 text-purple-800 font-bold mt-1 cursor-pointer"
                 >
                   Super Admin (Active)
                 </button>
+                <div className="border-t border-gray-100 my-1.5 pt-1.5">
+                  <p className="text-[10px] uppercase font-bold text-gray-400 px-3 py-1">System Diagnostics</p>
+                  <button
+                    type="button"
+                    onClick={handleOpenDbDiagnostics}
+                    className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-amber-50 text-amber-800 font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>DB Health &amp; SQL Setup</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3284,7 +3281,7 @@ export default function AdminMembersPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const sqlText = `-- FITKODE $0 NON-RECURSIVE RLS & CROSS-DEVICE SYNC PATCH
+                      const sqlText = `-- FITKODE COMPLETE $0 SUPABASE SYNC & SECURITY PATCH
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql
@@ -3293,13 +3290,46 @@ STABLE
 SET search_path = public
 AS $$
   SELECT COALESCE(
-    (auth.jwt() ->> 'email') IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com'),
+    lower(auth.jwt() ->> 'email') IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com'),
     false
   ) OR EXISTS (
     SELECT 1 FROM public.profiles
     WHERE id = auth.uid() AND role = 'admin'
   );
 $$;
+
+CREATE OR REPLACE FUNCTION public.protect_profile_privileged_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_setting('role', true) = 'service_role' OR public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'INSERT' THEN
+    NEW.role := CASE
+      WHEN lower(NEW.email) IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com') THEN 'admin'
+      ELSE 'unpaid'
+    END;
+  ELSIF TG_OP = 'UPDATE' THEN
+    NEW.role := OLD.role;
+    NEW.plan_id := OLD.plan_id;
+    NEW.plan_name := OLD.plan_name;
+    NEW.plan_start_date := OLD.plan_start_date;
+    NEW.plan_expiry_date := OLD.plan_expiry_date;
+    NEW.plan_status := OLD.plan_status;
+    NEW.notes := OLD.notes;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_privileged_columns ON public.profiles;
+CREATE TRIGGER trg_protect_profile_privileged_columns
+  BEFORE INSERT OR UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.protect_profile_privileged_columns();
 
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
@@ -3312,7 +3342,100 @@ CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR lower(email) = lower(auth.jwt() ->> 'email') OR public.is_admin());
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id OR lower(email) = lower(auth.jwt() ->> 'email') OR public.is_admin());
 
-INSERT INTO storage.buckets (id, name, public) VALUES ('progress-photos', 'progress-photos', true) ON CONFLICT (id) DO NOTHING;`;
+-- Backfill any existing auth.users into public.profiles
+INSERT INTO public.profiles (id, email, full_name, avatar_url, role, joined_at, last_login_at)
+SELECT
+  u.id,
+  u.email,
+  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)),
+  COALESCE(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture', ''),
+  CASE WHEN lower(u.email) IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com') THEN 'admin' ELSE 'unpaid' END,
+  u.created_at,
+  COALESCE(u.last_sign_in_at, u.created_at)
+FROM auth.users u
+ON CONFLICT (id) DO NOTHING;
+
+-- Dedicated Weekly Tracker, Meal Plans & Workout Plans tables (fixes offline queue sync)
+CREATE TABLE IF NOT EXISTS public.weekly_tracker_entries (
+  id text PRIMARY KEY,
+  user_id text,
+  user_email text NOT NULL,
+  first_name text DEFAULT '',
+  last_name text DEFAULT '',
+  check_in_date text NOT NULL,
+  week_number integer DEFAULT 1,
+  avg_steps_per_day numeric DEFAULT 0,
+  weight_kg numeric DEFAULT 0,
+  waist_inches numeric DEFAULT 0,
+  hips_inches numeric DEFAULT 0,
+  neck_inches numeric DEFAULT 0,
+  quads_inches numeric DEFAULT 0,
+  chest_inches numeric DEFAULT 0,
+  upper_right_arm_inches numeric DEFAULT 0,
+  resistance_workout_days numeric DEFAULT 0,
+  hiit_cardio_days numeric DEFAULT 0,
+  avg_calories_per_day numeric DEFAULT 0,
+  front_pic_url text DEFAULT '',
+  left_pic_url text DEFAULT '',
+  right_pic_url text DEFAULT '',
+  back_pic_url text DEFAULT '',
+  challenges_faced text DEFAULT '',
+  coach_feedback text DEFAULT '',
+  entry_data jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.weekly_tracker_entries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users and admins can view weekly entries" ON public.weekly_tracker_entries;
+DROP POLICY IF EXISTS "Users and admins can insert weekly entries" ON public.weekly_tracker_entries;
+DROP POLICY IF EXISTS "Users and admins can update weekly entries" ON public.weekly_tracker_entries;
+DROP POLICY IF EXISTS "Users and admins can delete weekly entries" ON public.weekly_tracker_entries;
+CREATE POLICY "Users and admins can view weekly entries" ON public.weekly_tracker_entries FOR SELECT USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can insert weekly entries" ON public.weekly_tracker_entries FOR INSERT WITH CHECK (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can update weekly entries" ON public.weekly_tracker_entries FOR UPDATE USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can delete weekly entries" ON public.weekly_tracker_entries FOR DELETE USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.meal_plans (
+  id text PRIMARY KEY,
+  user_id text,
+  user_email text NOT NULL,
+  name text NOT NULL,
+  plan_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_active boolean DEFAULT true,
+  created_by text DEFAULT 'user',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.meal_plans ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users and admins can view meal plans" ON public.meal_plans;
+DROP POLICY IF EXISTS "Users and admins can insert meal plans" ON public.meal_plans;
+DROP POLICY IF EXISTS "Users and admins can update meal plans" ON public.meal_plans;
+DROP POLICY IF EXISTS "Users and admins can delete meal plans" ON public.meal_plans;
+CREATE POLICY "Users and admins can view meal plans" ON public.meal_plans FOR SELECT USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can insert meal plans" ON public.meal_plans FOR INSERT WITH CHECK (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can update meal plans" ON public.meal_plans FOR UPDATE USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can delete meal plans" ON public.meal_plans FOR DELETE USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.workout_plans (
+  id text PRIMARY KEY,
+  user_id text,
+  user_email text NOT NULL,
+  name text NOT NULL,
+  plan_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_active boolean DEFAULT true,
+  created_by text DEFAULT 'user',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.workout_plans ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users and admins can view workout plans" ON public.workout_plans;
+DROP POLICY IF EXISTS "Users and admins can insert workout plans" ON public.workout_plans;
+DROP POLICY IF EXISTS "Users and admins can update workout plans" ON public.workout_plans;
+DROP POLICY IF EXISTS "Users and admins can delete workout plans" ON public.workout_plans;
+CREATE POLICY "Users and admins can view workout plans" ON public.workout_plans FOR SELECT USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can insert workout plans" ON public.workout_plans FOR INSERT WITH CHECK (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can update workout plans" ON public.workout_plans FOR UPDATE USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());
+CREATE POLICY "Users and admins can delete workout plans" ON public.workout_plans FOR DELETE USING (lower(user_email) = lower(auth.jwt() ->> 'email') OR user_id = auth.uid()::text OR public.is_admin());`;
                       navigator.clipboard.writeText(sqlText);
                       setCopiedSql(true);
                       setTimeout(() => setCopiedSql(false), 3000);

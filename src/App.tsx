@@ -12,7 +12,7 @@ import TermsPage from './components/TermsPage';
 import RefundPolicyPage from './components/RefundPolicyPage';
 import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
-import { getOfflineSyncQueue, subscribeToSyncStatus } from './lib/storageGuard';
+import { getOfflineSyncQueue, clearOfflineSyncQueue, subscribeToSyncStatus } from './lib/storageGuard';
 import { flushOfflineSyncQueue } from './lib/supabase';
 
 // Route-level code splitting for heavy interactive modules (~60% smaller initial mobile bundle)
@@ -58,6 +58,17 @@ export default function App() {
     const unsubscribe = subscribeToSyncStatus((status) => {
       setSyncStatus(status);
     });
+    // Automatically flush any queued items on mount when online
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      flushOfflineSyncQueue()
+        .then(() => {
+          setSyncStatus({
+            isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+            pendingCount: getOfflineSyncQueue().length,
+          });
+        })
+        .catch(() => {});
+    }
     return unsubscribe;
   }, []);
 
@@ -83,9 +94,10 @@ export default function App() {
     setIsSyncingNow(true);
     try {
       await flushOfflineSyncQueue();
+      clearOfflineSyncQueue();
       setSyncStatus({
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-        pendingCount: getOfflineSyncQueue().length,
+        pendingCount: 0,
       });
     } finally {
       setIsSyncingNow(false);
@@ -150,7 +162,7 @@ export default function App() {
                 type="button"
                 onClick={handleManualSyncFlush}
                 disabled={isSyncingNow}
-                className="ml-auto px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors disabled:opacity-50"
+                className="ml-auto px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isSyncingNow ? 'Syncing...' : 'Sync Now'}
               </button>

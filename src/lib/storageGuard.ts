@@ -178,6 +178,14 @@ export function removeOfflineSyncItem(id: string): void {
 }
 
 /**
+ * Clears the entire Pending Offline Sync Queue.
+ */
+export function clearOfflineSyncQueue(): void {
+  if (typeof window === 'undefined') return;
+  saveOfflineSyncQueue([]);
+}
+
+/**
  * Subscribes to changes in the offline sync queue and browser online/offline state.
  */
 export function subscribeToSyncStatus(

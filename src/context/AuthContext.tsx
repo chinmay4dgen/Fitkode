@@ -279,26 +279,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email = user.email || '';
     const userIdOrEmail = user.id || email;
 
-    // One-time cleanup on the live production site to purge any pre-seeded records
-    // written to visitor localStorage by older bundles while keeping the active user's own keys
-    if (typeof window !== 'undefined' && isLiveProductionSite() && !localStorage.getItem('fk_seed_purged_v1')) {
-      const myEmail = (user?.email || '').toLowerCase().trim();
-      const myId = (user?.id || '').toLowerCase().trim();
-      for (const k of Object.keys(localStorage)) {
-        if (k === 'fitkode_members_registry_v1') {
-          localStorage.removeItem(k);
-        } else if (
-          (k.startsWith('fitkode_profile_') ||
-            k.startsWith('fitkode_onboarding_') ||
-            k.startsWith('fitkode_weekly_entries_')) &&
-          (!myEmail || (!k.endsWith(myEmail) && (!myId || !k.endsWith(myId))))
-        ) {
-          localStorage.removeItem(k);
-        }
-      }
-      localStorage.setItem('fk_seed_purged_v1', '1');
-    }
-
     // DPDP Act Default Consent: All consents marked Yes by default on login unless user chose to turn them off
     const { profile: localProfile, onboarding: localOnboarding } = ensureDefaultConsentsOnLogin(userIdOrEmail);
     const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0] || 'Member';

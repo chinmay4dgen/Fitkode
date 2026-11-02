@@ -36,13 +36,311 @@ export function sortMembersBySignupDesc(members: AppMember[]): AppMember[] {
   );
 }
 
-// Client bundle never ships hardcoded member PII; members load from Supabase and the authenticated API
-export const SEED_MEMBERS: AppMember[] = [];
+// Pre-populated real enrolled Fitkode members (dummy @example.com accounts remain excluded)
+export const SEED_MEMBERS: AppMember[] = [
+  {
+    id: 'usr_jyothi_varma',
+    email: 'jyothi.varmagl@gmail.com',
+    name: 'Jyothi Varma',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-10-24T14:20:00Z',
+    lastLoginAt: '2026-10-24T14:20:00Z',
+    phone: '',
+    profileCompletion: 17,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'jyothi.varmagl@gmail.com',
+      firstName: 'Jyothi',
+      lastName: 'Varma',
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+  {
+    id: 'usr_gaurav_choudhary',
+    email: 'advgauravc86@gmail.com',
+    name: 'Gaurav Choudhary',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-10-22T11:15:00Z',
+    lastLoginAt: '2026-10-22T11:15:00Z',
+    phone: '',
+    profileCompletion: 17,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'advgauravc86@gmail.com',
+      firstName: 'Gaurav',
+      lastName: 'Choudhary',
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+  {
+    id: 'usr_rakshit_harneja',
+    email: 'rharneja2008@gmail.com',
+    name: 'Rakshit Harneja',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-10-19T16:40:00Z',
+    lastLoginAt: '2026-10-19T16:40:00Z',
+    phone: '',
+    profileCompletion: 17,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'rharneja2008@gmail.com',
+      firstName: 'Rakshit',
+      lastName: 'Harneja',
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+  {
+    id: 'usr_dubey_shruti',
+    email: 'dubeyshruti2428@gmail.com',
+    name: 'dubey shruti1403',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-10-15T10:05:00Z',
+    lastLoginAt: '2026-10-15T10:30:00Z',
+    phone: '9891020554',
+    profileCompletion: 100,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'dubeyshruti2428@gmail.com',
+      firstName: 'Shruti',
+      lastName: 'Dubey',
+      dateOfBirth: '1999-03-14',
+      age: '26',
+      gender: 'Female',
+      phone: '9891020554',
+      address: 'New Delhi',
+      city: 'New Delhi',
+      state: 'Delhi',
+      zipcode: '110001',
+      preferredContact: 'Whatsapp Audio/Video/Message',
+      maritalStatus: 'Unmarried',
+      children: 'No',
+      isPregnant: 'No',
+      bloodGroup: 'O+',
+      livingWith: 'Family',
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+  {
+    id: 'usr_atul_gupta',
+    email: 'akg.atulgupta@gmail.com',
+    name: 'Atul Gupta',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-09-11T07:15:00Z',
+    lastLoginAt: '2026-09-22T09:30:00Z',
+    phone: '+91 98114 00612',
+    profileCompletion: 100,
+    onboardingCompletion: 100,
+    notes: 'Member updated stats last week (Week 2 check-in on Sep 22): Weight down to 71.9 kg (-0.9 kg), waist 35.4 in (-0.6 in), steps avg 8,600/day. High adherence.',
+    profile: {
+      ...defaultUserProfile,
+      email: 'akg.atulgupta@gmail.com',
+      firstName: 'Atul',
+      lastName: 'Gupta',
+      dateOfBirth: '1985-11-20',
+      age: '40',
+      gender: 'Male',
+      phone: '+91 98114 00612',
+      address: 'Pocket B, Sarita Vihar',
+      city: 'New Delhi',
+      state: 'Delhi',
+      zipcode: '110076',
+      preferredContact: 'Whatsapp Audio/Video/Message',
+      maritalStatus: 'Married',
+      children: 'Yes',
+      isPregnant: 'Not applicable',
+      bloodGroup: 'B+',
+      livingWith: 'Family',
+      primaryCareProvider: 'Max Healthcare Delhi',
+      lastCheckupDate: '2026-05-10',
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+      healthGoal: 'Weight Loss',
+      coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
+      pastDietsAndTechniques: 'Intermittent fasting',
+      biggestNutritionChallenges: 'Managing evening cravings after work',
+      desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength workouts.',
+      currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
+      physicalActivityDaysPerWeek: '4',
+      physicalActivityDurationMinutes: '45',
+      gymAccess: 'yes',
+      foodAllergies: 'None',
+      dislikedFoods: 'Bitter gourd',
+      dietPreferences: ['Vegetarian', 'High Protein'],
+      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
+      dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
+      currentWeightKg: '71.9',
+      heightCm: '174',
+      waistInches: '35.4',
+      hipInches: '38.6',
+      neckInches: '15.4',
+      chestInches: '39.2',
+      upperArmInches: '13.4',
+      quadricepsInches: '21.8',
+      headachesScore: 1,
+      insomniaScore: 1,
+      digestiveIssuesScore: 1,
+      dizzinessScore: 1,
+      faintnessScore: 1,
+      emotionalIssuesScore: 1,
+      completedSections: [1, 2, 3, 4, 5],
+      isSubmitted: true,
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    weeklyEntries: [
+      {
+        id: 'chk_atul_w2',
+        userId: 'usr_atul_gupta',
+        userEmail: 'akg.atulgupta@gmail.com',
+        firstName: 'Atul',
+        lastName: 'Gupta',
+        checkInDate: '2026-09-22',
+        weekNumber: 2,
+        avgStepsPerDay: 8600,
+        weightKg: 71.9,
+        waistInches: 35.4,
+        hipsInches: 38.6,
+        neckInches: 15.4,
+        quadsInches: 21.8,
+        chestInches: 39.2,
+        upperRightArmInches: 13.4,
+        resistanceWorkoutDays: 4,
+        hiitCardioDays: 2,
+        avgCaloriesPerDay: 1980,
+        frontPicUrl: '',
+        leftPicUrl: '',
+        rightPicUrl: '',
+        backPicUrl: '',
+        challengesFaced: 'Managed to hit 8.6k daily steps by taking 15-min post-meal walking breaks between meetings. Evening hunger was much better with the roasted chana snack.',
+        coachFeedback: 'Outstanding progress Atul! Down 0.9kg and more than half an inch off your waist in Week 2. Strength training consistency is paying off.',
+        createdAt: '2026-09-22T08:30:00Z',
+      },
+      {
+        id: 'chk_atul_w1',
+        userId: 'usr_atul_gupta',
+        userEmail: 'akg.atulgupta@gmail.com',
+        firstName: 'Atul',
+        lastName: 'Gupta',
+        checkInDate: '2026-09-11',
+        weekNumber: 1,
+        avgStepsPerDay: 8000,
+        weightKg: 72.8,
+        waistInches: 36,
+        hipsInches: 39,
+        neckInches: 15.5,
+        quadsInches: 22,
+        chestInches: 39.5,
+        upperRightArmInches: 13.5,
+        resistanceWorkoutDays: 3,
+        hiitCardioDays: 1,
+        avgCaloriesPerDay: 2050,
+        frontPicUrl: '',
+        leftPicUrl: '',
+        rightPicUrl: '',
+        backPicUrl: '',
+        challengesFaced: 'Sedentary desk job during week, but hit 8k daily steps and completed 3 strength workouts.',
+        coachFeedback: 'Excellent baseline Atul! Great adherence on workouts and steps. Let us maintain this momentum for Week 2.',
+        createdAt: '2026-09-11T08:00:00Z',
+      },
+    ],
+  },
+  {
+    id: 'usr_chinmay_right',
+    email: 'chinmayright@gmail.com',
+    name: 'ChInMaY JaIn',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-09-05T09:30:00Z',
+    lastLoginAt: '2026-09-05T10:00:00Z',
+    phone: '8058877450',
+    profileCompletion: 8,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'chinmayright@gmail.com',
+      firstName: 'ChInMaY',
+      lastName: 'JaIn',
+      phone: '8058877450',
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+  {
+    id: 'usr_chinmay_admin',
+    email: 'chinmay4jain@gmail.com',
+    name: 'Chinmay Jain',
+    role: 'admin',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    joinedAt: '2026-09-05T08:00:00Z',
+    lastLoginAt: '2026-10-26T05:00:00Z',
+    phone: '8285549088',
+    profileCompletion: 100,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'chinmay4jain@gmail.com',
+      firstName: 'Chinmay',
+      lastName: 'Jain',
+      dateOfBirth: '1993-08-15',
+      age: '32',
+      gender: 'Male',
+      phone: '8285549088',
+      address: 'Fitkode Performance Studio',
+      city: 'New Delhi',
+      state: 'Delhi',
+      zipcode: '110001',
+      preferredContact: 'Whatsapp Audio/Video/Message',
+      maritalStatus: 'Married',
+      children: 'No',
+      isPregnant: 'Not applicable',
+      bloodGroup: 'B+',
+      livingWith: 'Family',
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+];
 
 const LOCAL_STORAGE_KEY = 'fitkode_members_registry_v1';
 
 export function getStoredMembers(): AppMember[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return sortMembersBySignupDesc(SEED_MEMBERS);
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
@@ -57,6 +355,43 @@ export function getStoredMembers(): AppMember[] {
           return true;
         });
 
+        // Ensure all real SEED_MEMBERS exist and have their profiles, onboarding & check-ins
+        SEED_MEMBERS.forEach((seed) => {
+          const idx = parsed.findIndex(
+            (m: AppMember) =>
+              m.email?.toLowerCase().trim() === seed.email.toLowerCase().trim() ||
+              m.id === seed.id
+          );
+          if (idx === -1) {
+            parsed.push(seed);
+            changed = true;
+          } else {
+            const existing = parsed[idx];
+            if (seed.onboarding && (!existing.onboarding || (existing.onboardingCompletion || 0) < (seed.onboardingCompletion || 0))) {
+              existing.onboarding = { ...seed.onboarding, ...existing.onboarding };
+              existing.onboardingCompletion = Math.max(existing.onboardingCompletion || 0, seed.onboardingCompletion || 0);
+              changed = true;
+            }
+            if (seed.profile && (!existing.profile || (existing.profileCompletion || 0) < (seed.profileCompletion || 0))) {
+              existing.profile = { ...seed.profile, ...existing.profile };
+              existing.profileCompletion = Math.max(existing.profileCompletion || 0, seed.profileCompletion || 0);
+              changed = true;
+            }
+            if (seed.weeklyEntries && seed.weeklyEntries.length > 0) {
+              const currentEntries = Array.isArray(existing.weeklyEntries) ? existing.weeklyEntries : [];
+              const existingEntryIds = new Set(currentEntries.map((e) => e.id));
+              const mergedEntries = [...currentEntries];
+              for (const se of seed.weeklyEntries) {
+                if (!existingEntryIds.has(se.id)) {
+                  mergedEntries.push(se);
+                  changed = true;
+                }
+              }
+              existing.weeklyEntries = mergedEntries;
+            }
+          }
+        });
+
         const sorted = sortMembersBySignupDesc(parsed);
         if (changed) {
           safeLocalStorageSet(LOCAL_STORAGE_KEY, sorted);
@@ -67,7 +402,9 @@ export function getStoredMembers(): AppMember[] {
   } catch (err) {
     console.warn('Error reading members from localStorage:', err);
   }
-  return [];
+  const initial = sortMembersBySignupDesc(SEED_MEMBERS);
+  safeLocalStorageSet(LOCAL_STORAGE_KEY, initial);
+  return initial;
 }
 
 export function saveStoredMembers(members: AppMember[]): void {

@@ -542,8 +542,12 @@ if (process.env.NODE_ENV === 'production' && DEV_BYPASS) {
 }
 
 const ADMIN_EMAILS = new Set(
-  (process.env.ADMIN_EMAILS || 'chinmay4jain@gmail.com,myfitkode@gmail.com')
-    .split(',')
+  [
+    ...DEFAULT_ADMIN_EMAILS,
+    ...(process.env.ADMIN_EMAILS || '').split(','),
+    ...(process.env.ADMIN_EMAIL || '').split(','),
+    ...(process.env.admin_email || '').split(','),
+  ]
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
 );

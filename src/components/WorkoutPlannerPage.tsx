@@ -15,6 +15,7 @@ import {
   deleteWorkoutPlan,
   setActiveWorkoutPlan,
   renameWorkoutPlan,
+  fetchWorkoutPlansFromServer,
   subscribeToPlannerUpdates,
 } from '../lib/plannerStore';
 import { createDefaultWorkoutPlan } from '../lib/plannerLibrary';
@@ -45,7 +46,7 @@ export default function WorkoutPlannerPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Load plans on mount / user change & subscribe to updates
+  // Load plans on mount / user change, fetch remote Coach-assigned plans, & subscribe to updates
   useEffect(() => {
     const sync = () => {
       const loaded = loadUserWorkoutPlans(userEmail);
@@ -57,6 +58,11 @@ export default function WorkoutPlannerPage() {
       });
     };
     sync();
+    fetchWorkoutPlansFromServer(userEmail)
+      .then(() => {
+        sync();
+      })
+      .catch(() => {});
     const unsubscribe = subscribeToPlannerUpdates(sync);
     return () => unsubscribe();
   }, [userEmail]);

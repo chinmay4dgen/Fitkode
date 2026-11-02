@@ -372,14 +372,14 @@ export async function saveProfileToSupabase(
       }
     }
 
-    if (savedChannel === 'local_fallback' && !options?.isRetry) {
+    if (savedChannel === 'local_fallback' && !options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineSync('profile', rawEmail || fallbackKey, { profile, userIdOrEmail });
     }
 
     return { success: savedChannel !== 'local_fallback', channel: savedChannel };
   } catch (err: any) {
     console.warn('Supabase profile save notice:', err?.message);
-    if (!options?.isRetry) {
+    if (!options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineSync('profile', fallbackKey, { profile, userIdOrEmail });
     }
     return { success: false, channel: savedChannel, error: err?.message };
@@ -480,14 +480,14 @@ export async function saveOnboardingToSupabase(
       }
     }
 
-    if (savedChannel === 'local_fallback' && !options?.isRetry) {
+    if (savedChannel === 'local_fallback' && !options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineSync('onboarding', rawEmail || fallbackKey, { onboarding, userIdOrEmail });
     }
 
     return { success: savedChannel !== 'local_fallback', channel: savedChannel };
   } catch (err: any) {
     console.warn('Supabase onboarding save notice:', err?.message);
-    if (!options?.isRetry) {
+    if (!options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineSync('onboarding', fallbackKey, { onboarding, userIdOrEmail });
     }
     return { success: false, channel: savedChannel, error: err?.message };
@@ -709,14 +709,14 @@ export async function saveWeeklyEntriesToSupabase(
       // ignore
     }
 
-    if (savedChannel === 'local_fallback' && !options?.isRetry) {
+    if (savedChannel === 'local_fallback' && !options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineSync('weekly_entries', normEmail, { userEmail: normEmail, entries });
     }
 
     return { success: savedChannel !== 'local_fallback', channel: savedChannel };
   } catch (err: any) {
     console.warn('Supabase weekly tracker save notice:', err?.message);
-    if (!options?.isRetry) {
+    if (!options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineSync('weekly_entries', normEmail, { userEmail: normEmail, entries });
     }
     return { success: false, channel: savedChannel, error: err?.message };
@@ -911,7 +911,7 @@ export async function syncMealPlansToSupabase(
     console.warn('Supabase meal plans sync warning:', err);
   }
 
-  if (!saved && !options?.isRetry) {
+  if (!saved && !options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
     enqueueOfflineSync('meal_plans', normEmail, { userEmail: normEmail, userPlans });
   }
 
@@ -1079,7 +1079,7 @@ export async function syncWorkoutPlansToSupabase(
     console.warn('Supabase workout plans sync warning:', err);
   }
 
-  if (!saved && !options?.isRetry) {
+  if (!saved && !options?.isRetry && typeof navigator !== 'undefined' && !navigator.onLine) {
     enqueueOfflineSync('workout_plans', normEmail, { userEmail: normEmail, userPlans });
   }
 
@@ -1228,7 +1228,7 @@ let isFlushingQueue = false;
  * when network connectivity returns or when a backgrounded tab wakes up.
  */
 export async function flushOfflineSyncQueue(): Promise<number> {
-  if (isFlushingQueue || !client || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+  if (isFlushingQueue || (typeof navigator !== 'undefined' && !navigator.onLine)) {
     return 0;
   }
 
@@ -1239,49 +1239,95 @@ export async function flushOfflineSyncQueue(): Promise<number> {
   let flushedCount = 0;
 
   try {
+    const authHeaders = await getSupabaseAuthHeaders();
+
     for (const item of queue) {
-      let ok = false;
       try {
         if (item.type === 'profile' && item.payload?.profile) {
-          const res = await saveProfileToSupabase(item.payload.profile, item.payload.userIdOrEmail, {
-            isRetry: true,
-          });
-          ok = res.success;
+          if (client) {
+            await saveProfileToSupabase(item.payload.profile, item.payload.userIdOrEmail, {
+              isRetry: true,
+            }).catch(() => {});
+          }
+          await fetch('/api/members/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({
+              id: item.payload.userIdOrEmail,
+              email: item.payload.profile?.email || item.payload.userIdOrEmail,
+              profile: item.payload.profile,
+            }),
+          }).catch(() => {});
         } else if (item.type === 'onboarding' && item.payload?.onboarding) {
-          const res = await saveOnboardingToSupabase(
-            item.payload.onboarding,
-            item.payload.userIdOrEmail,
-            { isRetry: true }
-          );
-          ok = res.success;
+          if (client) {
+            await saveOnboardingToSupabase(
+              item.payload.onboarding,
+              item.payload.userIdOrEmail,
+              { isRetry: true }
+            ).catch(() => {});
+          }
+          await fetch('/api/members/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({
+              id: item.payload.userIdOrEmail,
+              email: item.payload.userIdOrEmail,
+              onboarding: item.payload.onboarding,
+            }),
+          }).catch(() => {});
         } else if (item.type === 'weekly_entries' && item.payload?.userEmail) {
-          const res = await saveWeeklyEntriesToSupabase(
-            item.payload.userEmail,
-            item.payload.entries || [],
-            { isRetry: true }
-          );
-          ok = res.success;
+          if (client) {
+            await saveWeeklyEntriesToSupabase(
+              item.payload.userEmail,
+              item.payload.entries || [],
+              { isRetry: true }
+            ).catch(() => {});
+          }
+          const latestEntry = Array.isArray(item.payload.entries) ? item.payload.entries[0] : null;
+          if (latestEntry) {
+            await fetch('/api/weekly-tracker', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify({ entry: latestEntry, callerEmail: item.payload.userEmail }),
+            }).catch(() => {});
+          }
         } else if (item.type === 'meal_plans' && item.payload?.userEmail) {
-          ok = await syncMealPlansToSupabase(
-            item.payload.userEmail,
-            item.payload.userPlans || [],
-            { isRetry: true }
-          );
+          if (client) {
+            await syncMealPlansToSupabase(
+              item.payload.userEmail,
+              item.payload.userPlans || [],
+              { isRetry: true }
+            ).catch(() => {});
+          }
+          if (Array.isArray(item.payload.userPlans) && item.payload.userPlans.length > 0) {
+            await fetch('/api/meal-plans', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify(item.payload.userPlans),
+            }).catch(() => {});
+          }
         } else if (item.type === 'workout_plans' && item.payload?.userEmail) {
-          ok = await syncWorkoutPlansToSupabase(
-            item.payload.userEmail,
-            item.payload.userPlans || [],
-            { isRetry: true }
-          );
+          if (client) {
+            await syncWorkoutPlansToSupabase(
+              item.payload.userEmail,
+              item.payload.userPlans || [],
+              { isRetry: true }
+            ).catch(() => {});
+          }
+          if (Array.isArray(item.payload.userPlans) && item.payload.userPlans.length > 0) {
+            await fetch('/api/workout-plans', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify(item.payload.userPlans),
+            }).catch(() => {});
+          }
         }
       } catch {
-        ok = false;
+        // ignore individual item error when online so stale items don't get stuck forever
       }
 
-      if (ok) {
-        removeOfflineSyncItem(item.id);
-        flushedCount++;
-      }
+      removeOfflineSyncItem(item.id);
+      flushedCount++;
     }
   } finally {
     isFlushingQueue = false;
