@@ -153,22 +153,9 @@ export const ATUL_GUPTA_PROFILE: UserProfile = {
   email: 'akg.atulgupta@gmail.com',
   firstName: 'Atul',
   lastName: 'Gupta',
-  dateOfBirth: '1985-11-20',
-  age: '40',
   gender: 'Male',
-  phone: '+91 98114 00612',
-  address: 'Pocket B, Sarita Vihar',
-  city: 'New Delhi',
-  state: 'Delhi',
-  zipcode: '110076',
+  phone: '7838777741',
   preferredContact: 'Whatsapp Audio/Video/Message',
-  maritalStatus: 'Married',
-  children: 'Yes',
-  isPregnant: 'Not applicable',
-  bloodGroup: 'B+',
-  livingWith: 'Family',
-  primaryCareProvider: 'Max Healthcare Delhi',
-  lastCheckupDate: '2026-05-10',
   healthDataConsent: true,
   notificationsConsent: true,
   isConsentWithdrawn: false,
@@ -231,6 +218,17 @@ export function loadUserProfile(userIdOrEmail?: string, defaults?: Partial<UserP
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (isAtul) {
+        if (parsed.phone === '+91 98114 00612' || !parsed.phone) {
+          parsed.phone = '7838777741';
+        }
+        if (parsed.address === 'Pocket B, Sarita Vihar') {
+          parsed.address = '';
+          parsed.zipcode = '';
+          parsed.primaryCareProvider = '';
+          parsed.dateOfBirth = '';
+        }
+      }
       const profile: UserProfile = { ...baseline, ...parsed };
       if (!profile.isConsentWithdrawn) {
         profile.healthDataConsent = true;

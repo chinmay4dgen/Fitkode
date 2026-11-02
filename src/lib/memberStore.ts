@@ -113,7 +113,7 @@ export const SEED_MEMBERS: AppMember[] = [
     joinedAt: '2026-10-15T10:05:00Z',
     lastLoginAt: '2026-10-15T10:30:00Z',
     phone: '9891020554',
-    profileCompletion: 100,
+    profileCompletion: 42,
     onboardingCompletion: 0,
     notes: '',
     profile: {
@@ -121,20 +121,9 @@ export const SEED_MEMBERS: AppMember[] = [
       email: 'dubeyshruti2428@gmail.com',
       firstName: 'Shruti',
       lastName: 'Dubey',
-      dateOfBirth: '1999-03-14',
-      age: '26',
       gender: 'Female',
       phone: '9891020554',
-      address: 'New Delhi',
-      city: 'New Delhi',
-      state: 'Delhi',
-      zipcode: '110001',
       preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Unmarried',
-      children: 'No',
-      isPregnant: 'No',
-      bloodGroup: 'O+',
-      livingWith: 'Family',
       healthDataConsent: true,
       notificationsConsent: true,
       isConsentWithdrawn: false,
@@ -151,7 +140,7 @@ export const SEED_MEMBERS: AppMember[] = [
     avatarUrl: '',
     joinedAt: '2026-09-11T07:15:00Z',
     lastLoginAt: '2026-09-22T09:30:00Z',
-    phone: '+91 98114 00612',
+    phone: '7838777741',
     profileCompletion: 100,
     onboardingCompletion: 100,
     notes: 'Member updated stats last week (Week 2 check-in on Sep 22): Weight down to 71.9 kg (-0.9 kg), waist 35.4 in (-0.6 in), steps avg 8,600/day. High adherence.',
@@ -160,22 +149,9 @@ export const SEED_MEMBERS: AppMember[] = [
       email: 'akg.atulgupta@gmail.com',
       firstName: 'Atul',
       lastName: 'Gupta',
-      dateOfBirth: '1985-11-20',
-      age: '40',
       gender: 'Male',
-      phone: '+91 98114 00612',
-      address: 'Pocket B, Sarita Vihar',
-      city: 'New Delhi',
-      state: 'Delhi',
-      zipcode: '110076',
+      phone: '7838777741',
       preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'B+',
-      livingWith: 'Family',
-      primaryCareProvider: 'Max Healthcare Delhi',
-      lastCheckupDate: '2026-05-10',
       healthDataConsent: true,
       notificationsConsent: true,
       isConsentWithdrawn: false,
@@ -281,8 +257,8 @@ export const SEED_MEMBERS: AppMember[] = [
     avatarUrl: '',
     joinedAt: '2026-09-05T09:30:00Z',
     lastLoginAt: '2026-09-05T10:00:00Z',
-    phone: '8058877450',
-    profileCompletion: 8,
+    phone: '9654173664',
+    profileCompletion: 17,
     onboardingCompletion: 0,
     notes: '',
     profile: {
@@ -290,7 +266,7 @@ export const SEED_MEMBERS: AppMember[] = [
       email: 'chinmayright@gmail.com',
       firstName: 'ChInMaY',
       lastName: 'JaIn',
-      phone: '8058877450',
+      phone: '9654173664',
     },
     onboarding: {
       ...defaultClientOnboarding,
@@ -304,8 +280,8 @@ export const SEED_MEMBERS: AppMember[] = [
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     joinedAt: '2026-09-05T08:00:00Z',
     lastLoginAt: '2026-10-26T05:00:00Z',
-    phone: '8285549088',
-    profileCompletion: 100,
+    phone: '9654173664',
+    profileCompletion: 25,
     onboardingCompletion: 0,
     notes: '',
     profile: {
@@ -313,20 +289,9 @@ export const SEED_MEMBERS: AppMember[] = [
       email: 'chinmay4jain@gmail.com',
       firstName: 'Chinmay',
       lastName: 'Jain',
-      dateOfBirth: '1993-08-15',
-      age: '32',
       gender: 'Male',
-      phone: '8285549088',
-      address: 'Fitkode Performance Studio',
-      city: 'New Delhi',
-      state: 'Delhi',
-      zipcode: '110001',
+      phone: '9654173664',
       preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'No',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'B+',
-      livingWith: 'Family',
       healthDataConsent: true,
       notificationsConsent: true,
       isConsentWithdrawn: false,
@@ -355,6 +320,29 @@ export function getStoredMembers(): AppMember[] {
           return true;
         });
 
+        // Clean up any legacy synthetic placeholder phone/address for Atul Gupta in cached localStorage
+        parsed.forEach((m) => {
+          if (m.email?.toLowerCase().trim() === 'akg.atulgupta@gmail.com') {
+            if (m.phone === '+91 98114 00612' || !m.phone) {
+              m.phone = '7838777741';
+              changed = true;
+            }
+            if (m.profile) {
+              if (m.profile.phone === '+91 98114 00612' || !m.profile.phone) {
+                m.profile.phone = '7838777741';
+                changed = true;
+              }
+              if (m.profile.address === 'Pocket B, Sarita Vihar') {
+                m.profile.address = '';
+                m.profile.zipcode = '';
+                m.profile.primaryCareProvider = '';
+                m.profile.dateOfBirth = '';
+                changed = true;
+              }
+            }
+          }
+        });
+
         // Ensure all real SEED_MEMBERS exist and have their profiles, onboarding & check-ins
         SEED_MEMBERS.forEach((seed) => {
           const idx = parsed.findIndex(
@@ -372,9 +360,8 @@ export function getStoredMembers(): AppMember[] {
               existing.onboardingCompletion = Math.max(existing.onboardingCompletion || 0, seed.onboardingCompletion || 0);
               changed = true;
             }
-            if (seed.profile && (!existing.profile || (existing.profileCompletion || 0) < (seed.profileCompletion || 0))) {
-              existing.profile = { ...seed.profile, ...existing.profile };
-              existing.profileCompletion = Math.max(existing.profileCompletion || 0, seed.profileCompletion || 0);
+            if (seed.profile && !existing.profile) {
+              existing.profile = { ...seed.profile };
               changed = true;
             }
             if (seed.weeklyEntries && seed.weeklyEntries.length > 0) {
@@ -789,18 +776,24 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
           };
 
           if (existingIndex >= 0 && existingMember) {
-            const hasRemoteProfile = Object.keys(cleanProfileFields).length > 0 && profileRate >= (existingMember.profileCompletion || 0);
+            const nonEmptyRemoteProfile = Object.fromEntries(
+              Object.entries(constructedProfile).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+            );
+            const mergedProfileObj: UserProfile = {
+              ...defaultUserProfile,
+              ...(existingMember.profile || {}),
+              ...nonEmptyRemoteProfile,
+            };
 
             mergedList[existingIndex] = {
               ...existingMember,
               ...memberObj,
-              profileCompletion: Math.max(profileRate, existingMember.profileCompletion || 0),
+              phone: row.phone || cleanProfileFields.phone || existingMember.phone || '',
+              profileCompletion: Math.max(getProfileCompletionRate(mergedProfileObj), existingMember.profileCompletion || 0),
               onboardingCompletion: hasRemoteOnboarding
                 ? onboardingRate
                 : Math.max(onboardingRate, existingMember.onboardingCompletion || 0),
-              profile: hasRemoteProfile
-                ? { ...(existingMember.profile || defaultUserProfile), ...constructedProfile }
-                : existingMember.profile || constructedProfile,
+              profile: mergedProfileObj,
               onboarding: hasRemoteOnboarding
                 ? { ...(existingMember.onboarding || defaultClientOnboarding), ...onboardingData }
                 : existingMember.onboarding || memberObj.onboarding,
