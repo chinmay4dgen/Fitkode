@@ -24,6 +24,7 @@ import {
 } from '../lib/profileStorage';
 import { ensureDefaultConsentsOnLogin } from '../lib/privacyService';
 import { notifyWelcomeUser } from '../lib/communicationService';
+import { isLiveProductionSite } from '../lib/environment';
 
 export interface DevTestUserPreset {
   id: string;
@@ -37,22 +38,13 @@ export interface DevTestUserPreset {
 
 export const TEST_USER_PRESETS: DevTestUserPreset[] = [
   {
-    id: 'usr_chinmay_admin',
-    email: 'chinmay4jain@gmail.com',
-    name: 'Chinmay Jain',
+    id: 'usr_dev_admin',
+    email: 'admin.demo@example.com',
+    name: 'Demo Coach (Admin)',
     role: 'admin',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     badge: 'Super Admin',
     description: 'Full administrative access to member directory, 70-question intake records, and role administration',
-  },
-  {
-    id: 'usr_atul_gupta',
-    email: 'akg.atulgupta@gmail.com',
-    name: 'Atul Gupta',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    badge: 'Member (Atul)',
-    description: 'Member with 4-Day Coach Assigned Workout Plan and Week 2 progress stats',
   },
   {
     id: 'usr_001_priya',
@@ -152,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setConfigured(isReady);
 
       if (!client || !isReady) {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && !isLiveProductionSite()) {
           const savedDev = localStorage.getItem(DEV_SESSION_STORAGE_KEY);
           if (savedDev) {
             try {
@@ -177,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (existingSession) {
           setSession(existingSession);
           setUser(existingSession?.user ?? null);
-        } else if (typeof window !== 'undefined') {
+        } else if (typeof window !== 'undefined' && !isLiveProductionSite()) {
           const savedDev = localStorage.getItem(DEV_SESSION_STORAGE_KEY);
           if (savedDev) {
             try {
@@ -205,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(currentSession);
         if (currentSession?.user) {
           setUser(currentSession.user);
-        } else if (typeof window !== 'undefined') {
+        } else if (typeof window !== 'undefined' && !isLiveProductionSite()) {
           // If no active live Supabase session, check if a dev/test account is saved before wiping user
           const savedDev = localStorage.getItem(DEV_SESSION_STORAGE_KEY);
           if (savedDev) {
@@ -286,6 +278,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const email = user.email || '';
     const userIdOrEmail = user.id || email;
+
+    // One-time cleanup on the live production site to purge any pre-seeded records
+    // written to visitor localStorage by older bundles while keeping the active user's own keys
+    if (typeof window !== 'undefined' && isLiveProductionSite() && !localStorage.getItem('fk_seed_purged_v1')) {
+      const myEmail = (user?.email || '').toLowerCase().trim();
+      const myId = (user?.id || '').toLowerCase().trim();
+      for (const k of Object.keys(localStorage)) {
+        if (k === 'fitkode_members_registry_v1') {
+          localStorage.removeItem(k);
+        } else if (
+          (k.startsWith('fitkode_profile_') ||
+            k.startsWith('fitkode_onboarding_') ||
+            k.startsWith('fitkode_weekly_entries_')) &&
+          (!myEmail || (!k.endsWith(myEmail) && (!myId || !k.endsWith(myId))))
+        ) {
+          localStorage.removeItem(k);
+        }
+      }
+      localStorage.setItem('fk_seed_purged_v1', '1');
+    }
+
     // DPDP Act Default Consent: All consents marked Yes by default on login unless user chose to turn them off
     const { profile: localProfile, onboarding: localOnboarding } = ensureDefaultConsentsOnLogin(userIdOrEmail);
     const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0] || 'Member';
@@ -426,6 +439,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const setTestingRole = (newRole: UserRole) => {
+    if (isLiveProductionSite()) return;
     setRoleOverride(newRole);
     if (typeof window !== 'undefined') {
       try {
@@ -459,6 +473,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     presetOrEmail: 'admin' | 'paid' | 'unpaid' | string,
     customRole?: UserRole
   ): Promise<User> => {
+    if (isLiveProductionSite()) {
+      throw new Error('Test account login is disabled on the live production site.');
+    }
+
     let email = presetOrEmail.trim();
     let name = '';
     let avatarUrl = '';
@@ -479,11 +497,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       avatarUrl = foundPreset.avatarUrl;
       userId = foundPreset.id;
     } else if (presetOrEmail === 'admin' || isDefaultAdmin(presetOrEmail)) {
-      email = 'chinmay4jain@gmail.com';
-      name = 'Chinmay Jain';
+      email = 'admin.demo@example.com';
+      name = 'Demo Coach (Admin)';
       role = 'admin';
       avatarUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
-      userId = 'usr_chinmay_admin';
+      userId = 'usr_dev_admin';
     } else if (presetOrEmail === 'paid') {
       email = 'priya.sharma@example.com';
       name = 'Priya Sharma';
@@ -516,7 +534,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
     } as unknown as User;
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !isLiveProductionSite()) {
       localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify({ user: testUser, role }));
     }
 

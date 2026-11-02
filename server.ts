@@ -15,7 +15,9 @@ import {
   sendEmailNotification,
   getAllCommunicationLogs,
   getMailTransporterConfig,
+  escapeHtml,
 } from './server/communicationService.ts';
+import { PLAN_CATALOG } from './src/shared/plans.ts';
 
 dotenv.config();
 
@@ -373,718 +375,13 @@ function getRazorpay(): Razorpay | null {
 }
 
 // Default admin emails configured in system
-const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com', 'myfitkode@gmail.com'];
+const DEFAULT_ADMIN_EMAILS = ['chinmay4jain@gmail.com', 'myfitkode@gmail.com'];
 
-// In-memory member repository with pre-seeded sample data
-const serverMembers: any[] = [
-  {
-    id: 'usr_001_priya',
-    email: 'priya.sharma@example.com',
-    name: 'Priya Sharma',
-    role: 'paid',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-08-12T09:30:00Z',
-    lastLoginAt: '2026-09-04T18:20:00Z',
-    phone: '+91 98201 45678',
-    planId: '12-weeks-coaching',
-    planName: '12-Week Intensive Coaching',
-    planPurchasedAt: '2026-08-12T10:15:00Z',
-    profileCompletion: 100,
-    onboardingCompletion: 100,
-    notes: 'Focus on post-pregnancy core restoration, fat loss, and vegetarian macro targets. Highly dedicated.',
-    profile: {
-      email: 'priya.sharma@example.com',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      dateOfBirth: '1993-04-14',
-      age: '33',
-      gender: 'Female',
-      phone: '+91 98201 45678',
-      address: 'B-402, Raheja Towers, Bandra West',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      zipcode: '400050',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'No',
-      bloodGroup: 'B+',
-      livingWith: 'Husband, 3-year-old daughter, in-laws',
-      primaryCareProvider: 'Dr. Sunita Kulkarni, Lilavati Hospital',
-      lastCheckupDate: '2026-06-20',
-    },
-    onboarding: {
-      foodAllergies: 'None',
-      dislikedFoods: 'Eggplant, bitter gourd (karela)',
-      whoCooks: 'Maid',
-      cookingDifficulty: 'no',
-      dietPreferences: ['Vegetarian', 'High Protein'],
-      currentSpecificDiet: ['None'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Evening Snack', 'Dinner'],
-      dailyBeverageOfChoice: ['Green Tea', 'Masala Chai'],
-      beverageSnacks: 'Roasted makhana or 2 digestive biscuits',
-      beverageFrequencyQuantity: '2 cups of tea daily with 1/2 tsp jaggery',
-      breakfastDetails: 'Poha or oats cheela with homemade mint chutney (approx 8:30 AM)',
-      lunchDetails: '2 multigrain rotis, 1 katori dal, mixed vegetable subji, bowl of Greek yogurt (1:30 PM)',
-      snackDetails: 'Sprouted moong salad or handful of roasted almonds and walnuts (5:30 PM)',
-      dinnerDetails: 'Tofu stir fry or paneer bhurji with sauteed vegetables and 1 small phulka (8:30 PM)',
-      foodCravings: 'Dark chocolate, baked savory snacks during pre-menstrual cycle',
-      cravingFrequency: '1-2 times a week',
-      specialDietRestrictions: 'No onion and garlic on Tuesdays (religious)',
-      outsideFoodFrequency: 'Once a week',
-      outsideFoodItems: 'South Indian dosas or wood-fired thin crust pizza',
-      artificialSweeteners: 'Not Applicable',
-      heartburnFrequency: 'Rarely',
-      gasFrequency: 'Rarely',
-      bloatingFrequency: 'Sometimes',
-      stomachPainFrequency: 'Never',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Never',
-      constipationFrequency: 'Rarely',
-      missedDetails: 'Bloating occurs after heavy lentils or chickpea dinners.',
-      currentWeightKg: '64.5',
-      heightCm: '162',
-      waistInches: '30.5',
-      hipInches: '38.0',
-      neckInches: '13.0',
-      chestInches: '35.5',
-      upperArmInches: '11.5',
-      quadricepsInches: '21.5',
-      medicalAndSurgicalHistory: 'C-section delivery in 2023. Fully recovered and cleared by obstetrician for weight training.',
-      familyDeathsAndCauses: 'Paternal grandfather passed away at age 82 from natural old age.',
-      knowsBloodPressure: 'yes',
-      bpAbove14090: 'no',
-      knowsCholesterol: 'yes',
-      cholesterolAbove200: 'no',
-      headachesScore: 1,
-      faintnessScore: 1,
-      dizzinessScore: 1,
-      insomniaScore: 2,
-      digestiveIssuesScore: 2,
-      emotionalIssuesScore: 2,
-      currentMedications: 'Multivitamin & Vitamin D3 60,000 IU monthly',
-      medicationAllergies: 'Not applicable',
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-    },
-  },
-  {
-    id: 'usr_002_rahul',
-    email: 'rahul.mehta@example.com',
-    name: 'Rahul Mehta',
-    role: 'paid',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-07-28T14:10:00Z',
-    lastLoginAt: '2026-09-05T08:15:00Z',
-    phone: '+91 99304 88712',
-    planId: '4-weeks-coaching',
-    planName: '4-Week Kickstarter Coaching',
-    planPurchasedAt: '2026-07-28T15:00:00Z',
-    profileCompletion: 92,
-    onboardingCompletion: 100,
-    notes: 'Software engineer with sedentary desk hours. Target: 8kg fat loss, build shoulder mobility, stamina.',
-    profile: {
-      email: 'rahul.mehta@example.com',
-      firstName: 'Rahul',
-      lastName: 'Mehta',
-      dateOfBirth: '1990-11-05',
-      age: '35',
-      gender: 'Male',
-      phone: '+91 99304 88712',
-      address: 'Flat 1004, DLF Cyber City',
-      city: 'Gurugram',
-      state: 'Haryana',
-      zipcode: '122002',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Unmarried',
-      children: 'No',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'O+',
-      livingWith: 'Living alone in rented apartment',
-      primaryCareProvider: 'Dr. Rajesh Bhardwaj, Max Healthcare',
-      lastCheckupDate: '2026-05-10',
-    },
-    onboarding: {
-      foodAllergies: 'Peanuts (mild itching)',
-      dislikedFoods: 'Okra (bhindi), raw onions',
-      whoCooks: 'Myself',
-      cookingDifficulty: 'yes',
-      dietPreferences: ['Eggetarian', 'Non-Vegetarian'],
-      currentSpecificDiet: ['High Protein'],
-      mealsEatenRegularly: ['Lunch', 'Evening Snack', 'Dinner'],
-      dailyBeverageOfChoice: ['Black Coffee', 'Whey Protein Shake'],
-      beverageSnacks: 'Roasted chana',
-      beverageFrequencyQuantity: '2 shots of espresso daily without sugar',
-      breakfastDetails: 'Frequently skip breakfast due to 16:8 intermittent fasting or take 1 black coffee',
-      lunchDetails: '3 boiled eggs, 2 rotis, chicken curry or dal with brown rice (1:00 PM)',
-      snackDetails: '1 scoop whey protein in cold water, 1 apple (5:00 PM)',
-      dinnerDetails: 'Grilled chicken breast (200g) with stir fried broccoli, carrots, and sweet potato (8:00 PM)',
-      foodCravings: 'Late night salty snacks, french fries on weekends',
-      cravingFrequency: '3-4 times a week',
-      specialDietRestrictions: 'None',
-      outsideFoodFrequency: '2-3 times a week',
-      outsideFoodItems: 'Subway roasted chicken sandwich, grilled kebabs, Thai green curry',
-      artificialSweeteners: 'Stevia in occasional homemade protein desserts',
-      heartburnFrequency: 'Sometimes',
-      gasFrequency: 'Sometimes',
-      bloatingFrequency: 'Rarely',
-      stomachPainFrequency: 'Never',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Never',
-      constipationFrequency: 'Rarely',
-      missedDetails: 'Acidity strikes when dinner is eaten past 10 PM before sleeping.',
-      currentWeightKg: '82.4',
-      heightCm: '178',
-      waistInches: '34.5',
-      hipInches: '39.0',
-      neckInches: '15.5',
-      chestInches: '39.0',
-      upperArmInches: '13.5',
-      quadricepsInches: '22.0',
-      medicalAndSurgicalHistory: 'Mild right lower back stiffness from prolonged desk sitting (L4-L5 postural)',
-      familyDeathsAndCauses: 'Maternal grandfather had type 2 diabetes and hypertension.',
-      knowsBloodPressure: 'yes',
-      bpAbove14090: 'no',
-      knowsCholesterol: 'yes',
-      cholesterolAbove200: 'no',
-      headachesScore: 2,
-      faintnessScore: 1,
-      dizzinessScore: 1,
-      insomniaScore: 3,
-      digestiveIssuesScore: 2,
-      emotionalIssuesScore: 2,
-      currentMedications: 'Fish Oil (Omega-3 1000mg) and Zinc + Magnesium at bedtime',
-      medicationAllergies: 'Not applicable',
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-    },
-  },
-  {
-    id: 'usr_003_ananya',
-    email: 'ananya.verma@example.com',
-    name: 'Ananya Verma',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-09-01T11:00:00Z',
-    lastLoginAt: '2026-09-05T09:45:00Z',
-    phone: '+91 97112 34567',
-    profileCompletion: 85,
-    onboardingCompletion: 40,
-    notes: 'Registered user exploring coaching plans. Completed profile & dietary intake. Follow up on consultation.',
-    profile: {
-      email: 'ananya.verma@example.com',
-      firstName: 'Ananya',
-      lastName: 'Verma',
-      dateOfBirth: '1998-02-18',
-      age: '28',
-      gender: 'Female',
-      phone: '+91 97112 34567',
-      address: 'Villa 12, Sobha City, Thanisandra',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      zipcode: '560077',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Unmarried',
-      children: 'No',
-      isPregnant: 'No',
-      bloodGroup: 'A+',
-      livingWith: 'Roommate in 2BHK flat',
-      primaryCareProvider: 'Manipal Hospital Family Clinic',
-      lastCheckupDate: '2026-03-15',
-    },
-    onboarding: {
-      foodAllergies: 'Lactose intolerance (switched to almond / oat milk)',
-      dislikedFoods: 'Mushrooms, raw tomatoes',
-      whoCooks: 'Myself',
-      cookingDifficulty: 'yes',
-      dietPreferences: ['Vegetarian', 'Lactose Free'],
-      currentSpecificDiet: ['None'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
-      dailyBeverageOfChoice: ['Herbal Infusion', 'Black Coffee'],
-      beverageSnacks: 'Makhana, fruit bowl',
-      beverageFrequencyQuantity: '1 cup herbal tea, 1 black coffee with stevia',
-      breakfastDetails: 'Chia seed pudding with almond milk and blueberries',
-      lunchDetails: 'Quinoa bowl with paneer cubes, cucumber, grated carrot, olive oil dressing',
-      snackDetails: 'Handful of walnuts',
-      dinnerDetails: 'Moong dal soup with stir-fried zucchini and bell peppers',
-      foodCravings: 'Ice cream, bakery pastries',
-      cravingFrequency: '1-2 times a week',
-      specialDietRestrictions: 'Strictly avoid dairy milk and heavy cream',
-      outsideFoodFrequency: 'Once a week',
-      outsideFoodItems: 'Italian pasta (arrabbiata) or avocado toast',
-      artificialSweeteners: 'Stevia drops',
-      heartburnFrequency: 'Never',
-      gasFrequency: 'Sometimes',
-      bloatingFrequency: 'Often',
-      stomachPainFrequency: 'Rarely',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Rarely',
-      constipationFrequency: 'Rarely',
-      missedDetails: 'Experienced bloating after consuming whey concentrate in the past.',
-      currentWeightKg: '58.0',
-      heightCm: '165',
-      waistInches: '28.0',
-      hipInches: '36.5',
-      neckInches: '12.5',
-      chestInches: '34.0',
-      upperArmInches: '10.5',
-      quadricepsInches: '20.0',
-      completedSections: [1, 2],
-      isSubmitted: false,
-    },
-  },
-  {
-    id: 'usr_004_david',
-    email: 'david.miller@example.com',
-    name: 'David Miller',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-09-03T16:20:00Z',
-    lastLoginAt: '2026-09-04T12:00:00Z',
-    phone: '+1 (555) 234-5678',
-    profileCompletion: 60,
-    onboardingCompletion: 0,
-    notes: 'Free account created via Google Auth. Browsed the calorie & macro calculator.',
-    profile: {
-      email: 'david.miller@example.com',
-      firstName: 'David',
-      lastName: 'Miller',
-      dateOfBirth: '1988-08-22',
-      age: '38',
-      gender: 'Male',
-      phone: '+1 (555) 234-5678',
-      address: '742 Evergreen Terrace',
-      city: 'Austin',
-      state: 'Texas',
-      zipcode: '78701',
-      preferredContact: 'Email',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'O-',
-      livingWith: 'Spouse and 2 kids',
-      primaryCareProvider: 'Austin Health Center',
-      lastCheckupDate: '2025-11-10',
-    },
-    onboarding: {
-      completedSections: [],
-      isSubmitted: false,
-    },
-  },
-  {
-    id: 'usr_005_vikram',
-    email: 'vikram.singh@example.com',
-    name: 'Vikram Singh',
-    role: 'paid',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-06-15T08:00:00Z',
-    lastLoginAt: '2026-09-05T06:30:00Z',
-    phone: '+91 98190 12345',
-    planId: '24-weeks-coaching',
-    planName: '24-Week Lifestyle Transformation',
-    planPurchasedAt: '2026-06-15T09:00:00Z',
-    profileCompletion: 100,
-    onboardingCompletion: 100,
-    notes: 'Senior executive. Down 11 kg in 12 weeks. Maintaining high energy and athletic conditioning.',
-    profile: {
-      email: 'vikram.singh@example.com',
-      firstName: 'Vikram',
-      lastName: 'Singh',
-      dateOfBirth: '1982-05-19',
-      age: '44',
-      gender: 'Male',
-      phone: '+91 98190 12345',
-      address: 'Penthouse 18, Golf Course Road',
-      city: 'Gurugram',
-      state: 'Haryana',
-      zipcode: '122003',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'A+',
-      livingWith: 'Wife, two teenage sons',
-      primaryCareProvider: 'Dr. Verma, Medanta The Medicity',
-      lastCheckupDate: '2026-07-05',
-    },
-    onboarding: {
-      foodAllergies: 'None',
-      dislikedFoods: 'Karela, pumpkin',
-      whoCooks: 'Family Cook / Chef',
-      cookingDifficulty: 'no',
-      dietPreferences: ['Non-Vegetarian', 'High Protein'],
-      currentSpecificDiet: ['Calorie Deficit / Macro Tracking'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
-      dailyBeverageOfChoice: ['Americano', 'Sparkling Water'],
-      beverageSnacks: 'Handful of Brazil nuts and almonds',
-      beverageFrequencyQuantity: '2 black coffees per day, 3.5L water',
-      breakfastDetails: '3 whole eggs scrambled with spinach, 1 slice sourdough toast, avocado (8:00 AM)',
-      lunchDetails: 'Grilled salmon or chicken breast (220g), quinoa (100g cooked), asparagus (1:00 PM)',
-      snackDetails: 'Whey protein isolate shake with berries (5:00 PM)',
-      dinnerDetails: 'Grilled fish tikka or lean steak, large garden salad with vinaigrette (8:00 PM)',
-      foodCravings: 'Rare now. Occasional single malt on business dinners.',
-      cravingFrequency: '1 or 2 times a month',
-      specialDietRestrictions: 'None',
-      outsideFoodFrequency: 'Once a week',
-      outsideFoodItems: 'Japanese sashimi or Mediterranean grilled meats',
-      artificialSweeteners: 'None',
-      heartburnFrequency: 'Never',
-      gasFrequency: 'Never',
-      bloatingFrequency: 'Never',
-      stomachPainFrequency: 'Never',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Never',
-      constipationFrequency: 'Never',
-      missedDetails: 'Digestive regularity has improved drastically with 35g daily fiber.',
-      currentWeightKg: '79.2',
-      heightCm: '181',
-      waistInches: '32.0',
-      hipInches: '38.0',
-      neckInches: '16.0',
-      chestInches: '42.0',
-      upperArmInches: '15.0',
-      quadricepsInches: '23.5',
-      medicalAndSurgicalHistory: 'ACL reconstruction surgery left knee (2018). Completely cleared for squats and deadlifts.',
-      familyDeathsAndCauses: 'Father had heart disease in his late 70s.',
-      knowsBloodPressure: 'yes',
-      bpAbove14090: 'no',
-      knowsCholesterol: 'yes',
-      cholesterolAbove200: 'no',
-      headachesScore: 1,
-      faintnessScore: 1,
-      dizzinessScore: 1,
-      insomniaScore: 1,
-      digestiveIssuesScore: 1,
-      emotionalIssuesScore: 1,
-      currentMedications: 'CoQ10 100mg, Creatine Monohydrate 5g daily, Vitamin D3 + K2',
-      medicationAllergies: 'Penicillin (developed mild hives in childhood)',
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-    },
-  },
-  {
-    id: 'usr_atul_gupta',
-    email: 'akg.atulgupta@gmail.com',
-    name: 'Atul Gupta',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-09-11T07:15:00Z',
-    lastLoginAt: '2026-09-22T09:30:00Z',
-    phone: '+91 98114 00612',
-    profileCompletion: 100,
-    onboardingCompletion: 100,
-    notes: 'Member updated stats last week (Week 2 check-in on Sep 22): Weight down to 71.9 kg (-0.9 kg), waist 35.4 in (-0.6 in), steps avg 8,600/day. High adherence.',
-    profile: {
-      email: 'akg.atulgupta@gmail.com',
-      firstName: 'Atul',
-      lastName: 'Gupta',
-      dateOfBirth: '1985-11-20',
-      age: '40',
-      gender: 'Male',
-      phone: '+91 98114 00612',
-      address: 'Pocket B, Sarita Vihar',
-      city: 'New Delhi',
-      state: 'Delhi',
-      zipcode: '110076',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'B+',
-      livingWith: 'Family',
-      primaryCareProvider: 'Max Healthcare Delhi',
-      lastCheckupDate: '2026-05-10',
-      healthDataConsent: true,
-      notificationsConsent: true,
-      isConsentWithdrawn: false,
-    },
-    onboarding: {
-      healthGoal: 'Weight Loss & Lean Muscle',
-      coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
-      pastDietsAndTechniques: 'Intermittent fasting',
-      biggestNutritionChallenges: 'Managing evening cravings after work',
-      desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength workouts.',
-      currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
-      physicalActivityDaysPerWeek: '4',
-      physicalActivityDurationMinutes: '45',
-      gymAccess: 'yes',
-      foodAllergies: 'None',
-      dislikedFoods: 'Bitter gourd',
-      dietPreferences: ['Vegetarian', 'High Protein'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
-      dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
-      currentWeightKg: '71.9',
-      heightCm: '174',
-      waistInches: '35.4',
-      hipInches: '38.6',
-      neckInches: '15.4',
-      chestInches: '39.2',
-      upperArmInches: '13.4',
-      quadricepsInches: '21.8',
-      headachesScore: 1,
-      insomniaScore: 1,
-      digestiveIssuesScore: 1,
-      dizzinessScore: 1,
-      faintnessScore: 1,
-      emotionalIssuesScore: 1,
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-      healthDataConsent: true,
-      notificationsConsent: true,
-      isConsentWithdrawn: false,
-    },
-  },
-];
+// In-memory member repository (populated at startup from .server_data/server_members.json)
+const serverMembers: any[] = [];
 
-// In-memory weekly entries repository with pre-seeded sample data
-const serverWeeklyEntries: any[] = [
-  // Pre-seeded Atul Gupta check-ins
-  {
-    id: 'chk_atul_w2',
-    userId: 'usr_atul_gupta',
-    userEmail: 'akg.atulgupta@gmail.com',
-    firstName: 'Atul',
-    lastName: 'Gupta',
-    checkInDate: '2026-09-22',
-    weekNumber: 2,
-    avgStepsPerDay: 8600,
-    weightKg: 71.9,
-    waistInches: 35.4,
-    hipsInches: 38.6,
-    neckInches: 15.4,
-    quadsInches: 21.8,
-    chestInches: 39.2,
-    upperRightArmInches: 13.4,
-    resistanceWorkoutDays: 4,
-    hiitCardioDays: 2,
-    avgCaloriesPerDay: 1980,
-    frontPicUrl: '',
-    leftPicUrl: '',
-    rightPicUrl: '',
-    backPicUrl: '',
-    challengesFaced: 'Managed to hit 8.6k daily steps by taking 15-min post-meal walking breaks between meetings. Evening hunger was much better with the roasted chana snack.',
-    coachFeedback: 'Outstanding progress Atul! Down 0.9kg and more than half an inch off your waist in Week 2. Strength training consistency is paying off.',
-    createdAt: '2026-09-22T08:30:00Z',
-  },
-  {
-    id: 'chk_atul_w1',
-    userId: 'usr_atul_gupta',
-    userEmail: 'akg.atulgupta@gmail.com',
-    firstName: 'Atul',
-    lastName: 'Gupta',
-    checkInDate: '2026-09-11',
-    weekNumber: 1,
-    avgStepsPerDay: 8000,
-    weightKg: 72.8,
-    waistInches: 36.0,
-    hipsInches: 39.0,
-    neckInches: 15.5,
-    quadsInches: 22.0,
-    chestInches: 39.5,
-    upperRightArmInches: 13.5,
-    resistanceWorkoutDays: 3,
-    hiitCardioDays: 1,
-    avgCaloriesPerDay: 2050,
-    frontPicUrl: '',
-    leftPicUrl: '',
-    rightPicUrl: '',
-    backPicUrl: '',
-    challengesFaced: 'Sedentary desk job during week, but hit 8k daily steps and completed 3 strength workouts.',
-    coachFeedback: 'Excellent baseline Atul! Great adherence on workouts and steps. Let us maintain this momentum for Week 2.',
-    createdAt: '2026-09-11T08:00:00Z',
-  },
-  // Pre-seeded Priya Sharma weekly entries
-  {
-    id: 'chk_priya_w1',
-    userId: 'usr_001_priya',
-    userEmail: 'priya.sharma@example.com',
-    firstName: 'Priya',
-    lastName: 'Sharma',
-    checkInDate: '2026-08-15',
-    weekNumber: 1,
-    avgStepsPerDay: 8200,
-    weightKg: 67.2,
-    waistInches: 32.5,
-    hipsInches: 40.0,
-    neckInches: 13.5,
-    quadsInches: 22.5,
-    chestInches: 36.5,
-    upperRightArmInches: 12.0,
-    resistanceWorkoutDays: 3,
-    hiitCardioDays: 2,
-    avgCaloriesPerDay: 1950,
-    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'Getting back into a rhythm post-partum was tough the first 3 days. Struggled with evening hunger around 6 PM.',
-    coachFeedback: 'Great baseline kickoff Priya! Adjusted your evening snack to sprouted moong chaat with cucumber for higher satiety.',
-    createdAt: '2026-08-15T09:00:00Z',
-  },
-  {
-    id: 'chk_priya_w2',
-    userId: 'usr_001_priya',
-    userEmail: 'priya.sharma@example.com',
-    firstName: 'Priya',
-    lastName: 'Sharma',
-    checkInDate: '2026-08-22',
-    weekNumber: 2,
-    avgStepsPerDay: 9100,
-    weightKg: 66.3,
-    waistInches: 31.8,
-    hipsInches: 39.5,
-    neckInches: 13.5,
-    quadsInches: 22.0,
-    chestInches: 36.0,
-    upperRightArmInches: 12.0,
-    resistanceWorkoutDays: 4,
-    hiitCardioDays: 2,
-    avgCaloriesPerDay: 1880,
-    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'Energy levels much better throughout work days. Managed to hit 9k steps comfortably.',
-    coachFeedback: 'Consistent downward trend in weight and waist! Increasing water intake recommendation to 3.5L.',
-    createdAt: '2026-08-22T08:30:00Z',
-  },
-  {
-    id: 'chk_priya_w3',
-    userId: 'usr_001_priya',
-    userEmail: 'priya.sharma@example.com',
-    firstName: 'Priya',
-    lastName: 'Sharma',
-    checkInDate: '2026-08-29',
-    weekNumber: 3,
-    avgStepsPerDay: 9800,
-    weightKg: 65.4,
-    waistInches: 31.2,
-    hipsInches: 39.0,
-    neckInches: 13.0,
-    quadsInches: 21.8,
-    chestInches: 36.0,
-    upperRightArmInches: 11.8,
-    resistanceWorkoutDays: 4,
-    hiitCardioDays: 3,
-    avgCaloriesPerDay: 1820,
-    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'Felt slight soreness in hamstrings on Wednesday after Romanian Deadlifts, but rested adequately.',
-    coachFeedback: 'Hamstring soreness is normal adaptation. Make sure to do the post-workout dynamic hip stretches.',
-    createdAt: '2026-08-29T08:45:00Z',
-  },
-  {
-    id: 'chk_priya_w4',
-    userId: 'usr_001_priya',
-    userEmail: 'priya.sharma@example.com',
-    firstName: 'Priya',
-    lastName: 'Sharma',
-    checkInDate: '2026-09-05',
-    weekNumber: 4,
-    avgStepsPerDay: 10400,
-    weightKg: 64.5,
-    waistInches: 30.5,
-    hipsInches: 38.0,
-    neckInches: 13.0,
-    quadsInches: 21.5,
-    chestInches: 35.5,
-    upperRightArmInches: 11.5,
-    resistanceWorkoutDays: 4,
-    hiitCardioDays: 3,
-    avgCaloriesPerDay: 1780,
-    frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'No major hurdles! Clothes feel significantly looser around waist and hips. Loving the daily consistency.',
-    coachFeedback: 'Milestone achievement! -2.7 kg and -2 full inches off the waist in 1 month. Maintaining protocol for Month 2.',
-    createdAt: '2026-09-05T09:15:00Z',
-  },
-  // Pre-seeded Rahul Mehta weekly entries
-  {
-    id: 'chk_rahul_w1',
-    userId: 'usr_002_rahul',
-    userEmail: 'rahul.mehta@example.com',
-    firstName: 'Rahul',
-    lastName: 'Mehta',
-    checkInDate: '2026-08-20',
-    weekNumber: 1,
-    avgStepsPerDay: 6200,
-    weightKg: 84.8,
-    waistInches: 36.0,
-    hipsInches: 40.5,
-    neckInches: 16.0,
-    quadsInches: 22.8,
-    chestInches: 39.8,
-    upperRightArmInches: 13.8,
-    resistanceWorkoutDays: 3,
-    hiitCardioDays: 1,
-    avgCaloriesPerDay: 2400,
-    frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'Sedentary desk job made hitting 6k steps tough during conference calls.',
-    coachFeedback: 'Let us introduce 10-minute post-meal brisk walks to push your daily step baseline up to 8,000.',
-    createdAt: '2026-08-20T10:00:00Z',
-  },
-  {
-    id: 'chk_rahul_w2',
-    userId: 'usr_002_rahul',
-    userEmail: 'rahul.mehta@example.com',
-    firstName: 'Rahul',
-    lastName: 'Mehta',
-    checkInDate: '2026-08-28',
-    weekNumber: 2,
-    avgStepsPerDay: 7900,
-    weightKg: 83.6,
-    waistInches: 35.2,
-    hipsInches: 39.8,
-    neckInches: 15.8,
-    quadsInches: 22.5,
-    chestInches: 39.5,
-    upperRightArmInches: 13.5,
-    resistanceWorkoutDays: 4,
-    hiitCardioDays: 2,
-    avgCaloriesPerDay: 2280,
-    frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'Traveling for business on Thursday, but chose grilled chicken salad and kept steps high.',
-    coachFeedback: 'Outstanding self-discipline while traveling! -1.2 kg in Week 2. Keep prioritizing protein.',
-    createdAt: '2026-08-28T09:30:00Z',
-  },
-  {
-    id: 'chk_rahul_w3',
-    userId: 'usr_002_rahul',
-    userEmail: 'rahul.mehta@example.com',
-    firstName: 'Rahul',
-    lastName: 'Mehta',
-    checkInDate: '2026-09-04',
-    weekNumber: 3,
-    avgStepsPerDay: 8600,
-    weightKg: 82.4,
-    waistInches: 34.5,
-    hipsInches: 39.0,
-    neckInches: 15.5,
-    quadsInches: 22.0,
-    chestInches: 39.0,
-    upperRightArmInches: 13.5,
-    resistanceWorkoutDays: 4,
-    hiitCardioDays: 2,
-    avgCaloriesPerDay: 2150,
-    frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
-    leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
-    rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
-    backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
-    challengesFaced: 'Cardio feeling easier. Lower back stiffness has significantly reduced with the core workouts.',
-    coachFeedback: 'Down 2.4kg in 3 weeks and waist has reduced 1.5 inches. Perfect steady trajectory Rahul!',
-    createdAt: '2026-09-04T08:15:00Z',
-  },
-];
+// In-memory weekly entries repository (populated at startup from .server_data/weekly_tracker_entries.json)
+const serverWeeklyEntries: any[] = [];
 
 // Persistent file storage directory for reliable cross-restart data retention
 const DATA_DIR = path.join(process.cwd(), '.server_data');
@@ -1170,13 +467,22 @@ function persistWeeklyEntries() {
 function loadPersistedWeeklyEntries() {
   const parsed = safeReadJsonFile<any[]>(WEEKLY_ENTRIES_FILE, []);
   if (Array.isArray(parsed) && parsed.length > 0) {
+    let hadDummy = false;
     const existingIds = new Set(serverWeeklyEntries.map((e) => e.id));
     parsed.forEach((item: any) => {
+      const email = (item?.userEmail || '').toLowerCase().trim();
+      if (email.endsWith('@example.com')) {
+        hadDummy = true;
+        return;
+      }
       if (item && item.id && !existingIds.has(item.id)) {
         serverWeeklyEntries.push(item);
         existingIds.add(item.id);
       }
     });
+    if (hadDummy) {
+      persistWeeklyEntries();
+    }
   }
 }
 
@@ -1187,14 +493,22 @@ function persistMembers() {
 function loadPersistedMembers() {
   const parsed = safeReadJsonFile<any[]>(MEMBERS_FILE, []);
   if (Array.isArray(parsed) && parsed.length > 0) {
+    let hadDummy = false;
     const existingEmails = new Set(serverMembers.map((m) => m.email.toLowerCase().trim()));
     parsed.forEach((item: any) => {
       const email = (item?.email || '').toLowerCase().trim();
+      if (email.endsWith('@example.com')) {
+        hadDummy = true;
+        return;
+      }
       if (email && !existingEmails.has(email)) {
         serverMembers.push(item);
         existingEmails.add(email);
       }
     });
+    if (hadDummy) {
+      persistMembers();
+    }
   }
 }
 
@@ -1220,74 +534,103 @@ function loadPersistedWorkoutPlans() {
   }
 }
 
+const AUTH_ENFORCE = process.env.AUTH_ENFORCE === 'true';
+const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === 'true';
+
+if (process.env.NODE_ENV === 'production' && DEV_BYPASS) {
+  throw new Error('DEV_AUTH_BYPASS must not be enabled when NODE_ENV=production');
+}
+
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS || 'chinmay4jain@gmail.com,myfitkode@gmail.com')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+);
+
 function isUserAdmin(email?: string): boolean {
   if (!email) return false;
   const norm = email.trim().toLowerCase();
-  if (DEFAULT_ADMIN_EMAILS.includes(norm)) return true;
+  if (ADMIN_EMAILS.has(norm)) return true;
   const member = serverMembers.find((m) => m.email.toLowerCase() === norm);
   return member?.role === 'admin';
 }
 
-// Short-lived cache of verified Supabase JWT tokens -> email (5 min TTL)
+// Short-lived cache of verified Supabase JWT tokens -> email (5 min TTL, capped at 1,000 entries)
 const verifiedJwtCache = new Map<string, { email: string; expiresAt: number }>();
 
-/**
- * Extracts and verifies the caller's email from the `Authorization: Bearer <jwt>` header
- * when present, falling back to the explicit query/body caller parameter for dev/test sessions.
- */
-async function resolveCallerEmail(req: express.Request, fallbackParam?: string): Promise<string> {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7).trim();
-    if (token) {
-      const cached = verifiedJwtCache.get(token);
-      if (cached && cached.expiresAt > Date.now()) {
-        return cached.email;
-      }
+type CallerResult = { email: string | null; isAdmin: boolean } | 'UNAVAILABLE';
 
-      const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+async function resolveCaller(req: express.Request): Promise<CallerResult> {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7).trim();
+    const cached = verifiedJwtCache.get(token);
+    if (cached && cached.expiresAt > Date.now()) {
+      return { email: cached.email, isAdmin: isUserAdmin(cached.email) };
+    }
 
-      if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
-        try {
-          const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-            headers: {
-              apikey: supabaseAnonKey,
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          if (userRes.ok) {
-            const userData = await userRes.json();
-            const verifiedEmail = (userData?.email || '').toLowerCase().trim();
-            if (verifiedEmail) {
-              verifiedJwtCache.set(token, {
-                email: verifiedEmail,
-                expiresAt: Date.now() + 5 * 60 * 1000,
-              });
-              return verifiedEmail;
-            }
-          }
-        } catch {
-          // Fall through to JWT payload decode if network call fails
-        }
-      }
-
-      // Decode JWT payload as secondary check if offline/unconfigured
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+    if (supabaseUrl.startsWith('http') && supabaseAnonKey) {
       try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-          if (payload?.email && (!payload.exp || payload.exp * 1000 > Date.now())) {
-            return String(payload.email).toLowerCase().trim();
+        const r = await fetch(`${supabaseUrl}/auth/v1/user`, {
+          headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${token}` },
+        });
+        if (r.ok) {
+          const u = await r.json();
+          const email = (u?.email || '').toLowerCase().trim();
+          if (email) {
+            if (verifiedJwtCache.size >= 1000) {
+              const firstKey = verifiedJwtCache.keys().next().value;
+              if (firstKey) verifiedJwtCache.delete(firstKey);
+            }
+            verifiedJwtCache.set(token, { email, expiresAt: Date.now() + 5 * 60_000 });
+            return { email, isAdmin: isUserAdmin(email) };
           }
         }
+        if (r.status === 401 || r.status === 403) {
+          return { email: null, isAdmin: false };
+        }
+        return 'UNAVAILABLE';
       } catch {
-        // ignore
+        return 'UNAVAILABLE';
       }
+    }
+    // No base64 payload decode fallback
+  }
+
+  if (DEV_BYPASS && process.env.NODE_ENV !== 'production') {
+    const devEmail = String(req.headers['x-dev-user-email'] || '').toLowerCase().trim();
+    if (devEmail) {
+      return { email: devEmail, isAdmin: isUserAdmin(devEmail) };
     }
   }
 
-  return (fallbackParam || '').toLowerCase().trim();
+  return { email: null, isAdmin: false };
+}
+
+async function callerFor(
+  req: express.Request,
+  legacyEmail?: string
+): Promise<{ email: string | null; isAdmin: boolean; status?: 503; reason?: string }> {
+  const verified = await resolveCaller(req);
+  if (verified === 'UNAVAILABLE') {
+    return {
+      email: null,
+      isAdmin: false,
+      status: 503,
+      reason: 'Authentication service temporarily unavailable. Please retry in a moment.',
+    };
+  }
+  if (verified.email) return verified;
+
+  if (!AUTH_ENFORCE && legacyEmail) {
+    const clean = legacyEmail.toLowerCase().trim();
+    console.warn(`[AUTH_AUDIT] Unverified caller fallback on ${req.method} ${req.path}: ${clean}`);
+    return { email: clean, isAdmin: isUserAdmin(clean) };
+  }
+  return { email: null, isAdmin: false };
 }
 
 /**
@@ -1481,24 +824,32 @@ async function startServer() {
   // GET /api/members: Admin only! Retrieves all registered members
   app.get('/api/members', async (req, res) => {
     const rawCaller = (req.query.caller as string) || (req.headers['x-user-email'] as string) || '';
-    const callerEmail = await resolveCallerEmail(req, rawCaller);
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
-    if (!isUserAdmin(callerEmail)) {
+    if (!caller.isAdmin) {
       return res.status(403).json({
         error: 'Forbidden. Access restricted to Fitkode Super Admins.',
         hint: 'Only chinmay4jain@gmail.com and authorized admins can view member directory.'
       });
     }
 
-    // Attach latest weeklyEntries to each member for instant access in coach portal
-    const enrichedMembers = serverMembers.map((member) => {
-      const memberEmail = (member.email || '').toLowerCase().trim();
-      const entries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === memberEmail);
-      return {
-        ...member,
-        weeklyEntries: entries,
-      };
-    });
+    // Attach latest weeklyEntries to each real member and sort reverse chronologically by sign-up date
+    const enrichedMembers = serverMembers
+      .filter((member) => !(member?.email || '').toLowerCase().trim().endsWith('@example.com'))
+      .map((member) => {
+        const memberEmail = (member.email || '').toLowerCase().trim();
+        const entries = serverWeeklyEntries.filter(
+          (e) => e.userEmail && e.userEmail.toLowerCase().trim() === memberEmail
+        );
+        return {
+          ...member,
+          weeklyEntries: entries,
+        };
+      })
+      .sort((a, b) => new Date(b.joinedAt || 0).getTime() - new Date(a.joinedAt || 0).getTime());
 
     return res.json({
       success: true,
@@ -1512,7 +863,10 @@ async function startServer() {
   app.get('/api/members/:id', async (req, res) => {
     const { id } = req.params;
     const rawCaller = (req.query.caller as string) || (req.headers['x-user-email'] as string) || '';
-    const callerEmail = await resolveCallerEmail(req, rawCaller);
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
     const member = serverMembers.find(
       (m) => m.id === id || m.email.toLowerCase() === id.toLowerCase().trim()
@@ -1522,8 +876,8 @@ async function startServer() {
       return res.status(404).json({ error: 'Member not found.' });
     }
 
-    const isAdmin = isUserAdmin(callerEmail);
-    const isSelf = callerEmail && member.email.toLowerCase() === callerEmail.toLowerCase().trim();
+    const isAdmin = caller.isAdmin;
+    const isSelf = Boolean(caller.email && member.email.toLowerCase() === caller.email);
 
     if (!isAdmin && !isSelf) {
       return res.status(403).json({
@@ -1539,7 +893,7 @@ async function startServer() {
   });
 
   // POST /api/members/sync: Syncs a user profile / onboarding / tracker data to server
-  app.post('/api/members/sync', (req, res) => {
+  app.post('/api/members/sync', async (req, res) => {
     try {
       const incoming = req.body;
       if (!incoming) {
@@ -1556,81 +910,104 @@ async function startServer() {
         return res.status(400).json({ error: 'Email or valid ID is required for member sync.' });
       }
 
-      const isAdminEmail = DEFAULT_ADMIN_EMAILS.includes(emailKey);
-      
+      const rawCaller =
+        (incoming.callerEmail as string) ||
+        (req.query.caller as string) ||
+        (req.headers['x-user-email'] as string) ||
+        emailKey;
+      const caller = await callerFor(req, rawCaller);
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+
+      if (!caller.email || (!caller.isAdmin && caller.email !== emailKey)) {
+        return res.status(403).json({ error: 'Forbidden: Cannot sync member record for another account.' });
+      }
+
+      const isAdminEmail = ADMIN_EMAILS.has(emailKey);
+      const isCallerAdmin = caller.isAdmin;
+
+      // Strip privileged fields when caller is not an admin
+      const safeIncoming = { ...incoming };
+      if (!isCallerAdmin) {
+        delete safeIncoming.role;
+        delete safeIncoming.planId;
+        delete safeIncoming.planName;
+        delete safeIncoming.planPurchasedAt;
+        delete safeIncoming.notes;
+      }
+
       const existingIndex = serverMembers.findIndex(
         (m) => m.email.toLowerCase() === emailKey || (incoming.id && m.id === incoming.id)
       );
 
-      let finalRole = incoming.role || 'unpaid';
-      if (isAdminEmail) {
-        finalRole = 'admin';
-      }
-
       if (existingIndex >= 0) {
         const existing = serverMembers[existingIndex];
-        const cleanIncomingProfile = incoming.profile
+        const cleanIncomingProfile = safeIncoming.profile
           ? Object.fromEntries(
-              Object.entries(incoming.profile).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+              Object.entries(safeIncoming.profile).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
             )
           : {};
         const mergedProfile = { ...(existing.profile || {}), ...cleanIncomingProfile };
 
-        const cleanIncomingOnboarding = incoming.onboarding
+        const cleanIncomingOnboarding = safeIncoming.onboarding
           ? Object.fromEntries(
-              Object.entries(incoming.onboarding).filter(
+              Object.entries(safeIncoming.onboarding).filter(
                 ([_, v]) => v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
               )
             )
           : {};
         const mergedOnboarding = { ...(existing.onboarding || {}), ...cleanIncomingOnboarding };
 
-        const finalProfileRate = (incoming.profileCompletion && incoming.profileCompletion > 0)
-          ? incoming.profileCompletion
+        const finalProfileRate = (safeIncoming.profileCompletion && safeIncoming.profileCompletion > 0)
+          ? safeIncoming.profileCompletion
           : (existing.profileCompletion || 0);
 
-        const finalOnboardingRate = (incoming.onboardingCompletion && incoming.onboardingCompletion > 0)
-          ? incoming.onboardingCompletion
+        const finalOnboardingRate = (safeIncoming.onboardingCompletion && safeIncoming.onboardingCompletion > 0)
+          ? safeIncoming.onboardingCompletion
           : (existing.onboardingCompletion || 0);
 
         serverMembers[existingIndex] = {
           ...existing,
-          ...incoming,
-          name: incoming.name || existing.name,
-          phone: incoming.phone || existing.phone,
+          ...safeIncoming,
+          name: safeIncoming.name || existing.name,
+          phone: safeIncoming.phone || existing.phone,
           profile: mergedProfile,
           onboarding: mergedOnboarding,
           profileCompletion: finalProfileRate,
           onboardingCompletion: finalOnboardingRate,
-          role: isAdminEmail ? 'admin' : (existing.role || finalRole),
-          notes: incoming.notes !== undefined ? incoming.notes : existing.notes,
+          role: isAdminEmail ? 'admin' : (isCallerAdmin && safeIncoming.role ? safeIncoming.role : (existing.role || 'unpaid')),
+          planId: isCallerAdmin && safeIncoming.planId !== undefined ? safeIncoming.planId : existing.planId,
+          planName: isCallerAdmin && safeIncoming.planName !== undefined ? safeIncoming.planName : existing.planName,
+          planPurchasedAt: isCallerAdmin && safeIncoming.planPurchasedAt !== undefined ? safeIncoming.planPurchasedAt : existing.planPurchasedAt,
+          notes: isCallerAdmin && safeIncoming.notes !== undefined ? safeIncoming.notes : existing.notes,
           lastLoginAt: new Date().toISOString(),
         };
 
-        if (Array.isArray(incoming.weeklyEntries) && incoming.weeklyEntries.length > 0) {
-          serverMembers[existingIndex].weeklyEntries = incoming.weeklyEntries;
+        if (Array.isArray(safeIncoming.weeklyEntries) && safeIncoming.weeklyEntries.length > 0) {
+          serverMembers[existingIndex].weeklyEntries = safeIncoming.weeklyEntries;
         }
 
         persistMembers();
         return res.json({ success: true, member: serverMembers[existingIndex] });
       } else {
         const newMember = {
-          id: incoming.id || `usr_${Date.now()}`,
+          id: safeIncoming.id || `usr_${Date.now()}`,
           email: emailKey,
-          name: incoming.name || emailKey.split('@')[0],
-          role: isAdminEmail ? 'admin' : finalRole,
-          avatarUrl: incoming.avatarUrl,
+          name: safeIncoming.name || emailKey.split('@')[0],
+          role: isAdminEmail ? 'admin' : (isCallerAdmin && safeIncoming.role ? safeIncoming.role : 'unpaid'),
+          avatarUrl: safeIncoming.avatarUrl,
           joinedAt: new Date().toISOString(),
           lastLoginAt: new Date().toISOString(),
-          phone: incoming.phone || '',
-          planId: incoming.planId,
-          planName: incoming.planName,
-          profileCompletion: incoming.profileCompletion || 0,
-          onboardingCompletion: incoming.onboardingCompletion || 0,
-          profile: incoming.profile,
-          onboarding: incoming.onboarding,
-          notes: incoming.notes || '',
-          weeklyEntries: incoming.weeklyEntries || [],
+          phone: safeIncoming.phone || '',
+          planId: isCallerAdmin ? safeIncoming.planId : undefined,
+          planName: isCallerAdmin ? safeIncoming.planName : undefined,
+          profileCompletion: safeIncoming.profileCompletion || 0,
+          onboardingCompletion: safeIncoming.onboardingCompletion || 0,
+          profile: safeIncoming.profile,
+          onboarding: safeIncoming.onboarding,
+          notes: isCallerAdmin ? (safeIncoming.notes || '') : '',
+          weeklyEntries: safeIncoming.weeklyEntries || [],
         };
         serverMembers.unshift(newMember);
         persistMembers();
@@ -1645,9 +1022,12 @@ async function startServer() {
   app.patch('/api/members/:id/role', async (req, res) => {
     const { id } = req.params;
     const { role, callerEmail: rawCaller } = req.body;
-    const callerEmail = await resolveCallerEmail(req, rawCaller);
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
-    if (!isUserAdmin(callerEmail)) {
+    if (!caller.isAdmin) {
       return res.status(403).json({ error: 'Forbidden: Admin access required.' });
     }
 
@@ -1672,9 +1052,12 @@ async function startServer() {
   app.patch('/api/members/:id/notes', async (req, res) => {
     const { id } = req.params;
     const { notes, callerEmail: rawCaller } = req.body;
-    const callerEmail = await resolveCallerEmail(req, rawCaller);
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
-    if (!isUserAdmin(callerEmail)) {
+    if (!caller.isAdmin) {
       return res.status(403).json({ error: 'Forbidden: Admin access required.' });
     }
 
@@ -1694,220 +1077,23 @@ async function startServer() {
   // =========================================================================
   // WEEKLY HEALTH TRACKER ENDPOINTS (Strict Privacy & Admin Visibility)
   // =========================================================================
-  const legacyInitialEntries: any[] = [
-    // Pre-seeded Priya Sharma weekly entries
-    {
-      id: 'chk_priya_w1',
-      userId: 'usr_001_priya',
-      userEmail: 'priya.sharma@example.com',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      checkInDate: '2026-08-15',
-      weekNumber: 1,
-      avgStepsPerDay: 8200,
-      weightKg: 67.2,
-      waistInches: 32.5,
-      hipsInches: 40.0,
-      neckInches: 13.5,
-      quadsInches: 22.5,
-      chestInches: 36.5,
-      upperRightArmInches: 12.0,
-      resistanceWorkoutDays: 3,
-      hiitCardioDays: 2,
-      avgCaloriesPerDay: 1950,
-      frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'Getting back into a rhythm post-partum was tough the first 3 days. Struggled with evening hunger around 6 PM.',
-      coachFeedback: 'Great baseline kickoff Priya! Adjusted your evening snack to sprouted moong chaat with cucumber for higher satiety.',
-      createdAt: '2026-08-15T09:00:00Z',
-    },
-    {
-      id: 'chk_priya_w2',
-      userId: 'usr_001_priya',
-      userEmail: 'priya.sharma@example.com',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      checkInDate: '2026-08-22',
-      weekNumber: 2,
-      avgStepsPerDay: 9100,
-      weightKg: 66.3,
-      waistInches: 31.8,
-      hipsInches: 39.5,
-      neckInches: 13.2,
-      quadsInches: 22.2,
-      chestInches: 36.2,
-      upperRightArmInches: 11.8,
-      resistanceWorkoutDays: 4,
-      hiitCardioDays: 2,
-      avgCaloriesPerDay: 1850,
-      frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'Had a family dinner on Thursday, but managed to stick to grilled paneer and salad. Energy was much better!',
-      coachFeedback: 'Solid discipline at the family dinner! Down 0.9kg and 0.7 inches off the waist already. Keep hydrating.',
-      createdAt: '2026-08-22T08:30:00Z',
-    },
-    {
-      id: 'chk_priya_w3',
-      userId: 'usr_001_priya',
-      userEmail: 'priya.sharma@example.com',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      checkInDate: '2026-08-29',
-      weekNumber: 3,
-      avgStepsPerDay: 9800,
-      weightKg: 65.4,
-      waistInches: 31.0,
-      hipsInches: 38.8,
-      neckInches: 13.0,
-      quadsInches: 21.8,
-      chestInches: 35.8,
-      upperRightArmInches: 11.6,
-      resistanceWorkoutDays: 4,
-      hiitCardioDays: 3,
-      avgCaloriesPerDay: 1800,
-      frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'Felt slight soreness in hamstrings on Wednesday after Romanian Deadlifts, but rested adequately.',
-      coachFeedback: 'Hamstring soreness is normal adaptation. Make sure to do the post-workout dynamic hip stretches.',
-      createdAt: '2026-08-29T08:45:00Z',
-    },
-    {
-      id: 'chk_priya_w4',
-      userId: 'usr_001_priya',
-      userEmail: 'priya.sharma@example.com',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      checkInDate: '2026-09-05',
-      weekNumber: 4,
-      avgStepsPerDay: 10400,
-      weightKg: 64.5,
-      waistInches: 30.5,
-      hipsInches: 38.0,
-      neckInches: 13.0,
-      quadsInches: 21.5,
-      chestInches: 35.5,
-      upperRightArmInches: 11.5,
-      resistanceWorkoutDays: 4,
-      hiitCardioDays: 3,
-      avgCaloriesPerDay: 1780,
-      frontPicUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'No major hurdles! Clothes feel significantly looser around waist and hips. Loving the daily consistency.',
-      coachFeedback: 'Milestone achievement! -2.7 kg and -2 full inches off the waist in 1 month. Maintaining protocol for Month 2.',
-      createdAt: '2026-09-05T09:15:00Z',
-    },
-    // Pre-seeded Rahul Mehta weekly entries
-    {
-      id: 'chk_rahul_w1',
-      userId: 'usr_002_rahul',
-      userEmail: 'rahul.mehta@example.com',
-      firstName: 'Rahul',
-      lastName: 'Mehta',
-      checkInDate: '2026-08-20',
-      weekNumber: 1,
-      avgStepsPerDay: 6200,
-      weightKg: 84.8,
-      waistInches: 36.0,
-      hipsInches: 40.5,
-      neckInches: 16.0,
-      quadsInches: 22.8,
-      chestInches: 39.8,
-      upperRightArmInches: 13.8,
-      resistanceWorkoutDays: 3,
-      hiitCardioDays: 1,
-      avgCaloriesPerDay: 2400,
-      frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'Sedentary desk job made hitting 6k steps tough during conference calls.',
-      coachFeedback: 'Let us introduce 10-minute post-meal brisk walks to push your daily step baseline up to 8,000.',
-      createdAt: '2026-08-20T10:00:00Z',
-    },
-    {
-      id: 'chk_rahul_w2',
-      userId: 'usr_002_rahul',
-      userEmail: 'rahul.mehta@example.com',
-      firstName: 'Rahul',
-      lastName: 'Mehta',
-      checkInDate: '2026-08-27',
-      weekNumber: 2,
-      avgStepsPerDay: 7900,
-      weightKg: 83.5,
-      waistInches: 35.2,
-      hipsInches: 39.8,
-      neckInches: 15.8,
-      quadsInches: 22.4,
-      chestInches: 39.4,
-      upperRightArmInches: 13.6,
-      resistanceWorkoutDays: 4,
-      hiitCardioDays: 2,
-      avgCaloriesPerDay: 2200,
-      frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'Slept late on Tuesday due to production sprint. Drank extra black coffee.',
-      coachFeedback: 'Prioritize turning off screens 45 mins before bedtime to keep cortisol and visceral fat retention low.',
-      createdAt: '2026-08-27T09:30:00Z',
-    },
-    {
-      id: 'chk_rahul_w3',
-      userId: 'usr_002_rahul',
-      userEmail: 'rahul.mehta@example.com',
-      firstName: 'Rahul',
-      lastName: 'Mehta',
-      checkInDate: '2026-09-04',
-      weekNumber: 3,
-      avgStepsPerDay: 8600,
-      weightKg: 82.4,
-      waistInches: 34.5,
-      hipsInches: 39.0,
-      neckInches: 15.5,
-      quadsInches: 22.0,
-      chestInches: 39.0,
-      upperRightArmInches: 13.5,
-      resistanceWorkoutDays: 4,
-      hiitCardioDays: 2,
-      avgCaloriesPerDay: 2150,
-      frontPicUrl: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80',
-      leftPicUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80',
-      rightPicUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80',
-      backPicUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&auto=format&fit=crop&q=80',
-      challengesFaced: 'Cardio feeling easier. Lower back stiffness has significantly reduced with the core workouts.',
-      coachFeedback: 'Down 2.4kg in 3 weeks and waist has reduced 1.5 inches. Perfect steady trajectory Rahul!',
-      createdAt: '2026-09-04T08:15:00Z',
-    },
-  ];
-
-  // Merge seed items into module-scoped serverWeeklyEntries if not already present
-  legacyInitialEntries.forEach((entry) => {
-    if (!serverWeeklyEntries.some((e) => e.id === entry.id)) {
-      serverWeeklyEntries.push(entry);
-    }
-  });
 
   // GET /api/weekly-tracker: Returns check-ins for a specific user
   // STRICT PRIVACY: Caller can ONLY fetch their own records, unless caller is Super Admin Chinmay!
   app.get('/api/weekly-tracker', async (req, res) => {
     const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
     const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
-    const callerEmail = await resolveCallerEmail(req, rawCaller);
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
     if (!userEmail) {
       return res.status(400).json({ error: 'userEmail parameter is required.' });
     }
 
-    const isSelf = callerEmail === userEmail;
-    const isAdmin = isUserAdmin(callerEmail);
+    const isSelf = Boolean(caller.email && caller.email === userEmail);
+    const isAdmin = caller.isAdmin;
 
     if (!isSelf && !isAdmin) {
       return res.status(403).json({
@@ -1926,9 +1112,12 @@ async function startServer() {
   // STRICT PRIVACY: Super Admin Chinmay ONLY!
   app.get('/api/weekly-tracker/all', async (req, res) => {
     const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
-    const callerEmail = await resolveCallerEmail(req, rawCaller);
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
-    if (!isUserAdmin(callerEmail)) {
+    if (!caller.isAdmin) {
       return res.status(403).json({
         error: 'Forbidden: Only Super Admin Chinmay can inspect all members’ weekly health statistics and photos.',
       });
@@ -1960,10 +1149,13 @@ async function startServer() {
     }
 
     const entryEmail = entry.userEmail.toLowerCase().trim();
-    const caller = await resolveCallerEmail(req, callerEmail);
+    const caller = await callerFor(req, callerEmail);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
-    const isSelf = caller === entryEmail;
-    const isAdmin = isUserAdmin(caller);
+    const isSelf = Boolean(caller.email && caller.email === entryEmail);
+    const isAdmin = caller.isAdmin;
 
     if (!isSelf && !isAdmin) {
       return res.status(403).json({
@@ -2031,29 +1223,36 @@ async function startServer() {
   });
 
   // DELETE /api/weekly-tracker/:id: Delete a check-in
-  app.delete('/api/weekly-tracker/:id', (req, res) => {
+  app.delete('/api/weekly-tracker/:id', async (req, res) => {
     const { id } = req.params;
-    const caller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
     const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
 
-    const isSelf = caller === userEmail;
-    const isAdmin = isUserAdmin(caller);
+    const index = serverWeeklyEntries.findIndex((e) => e.id === id);
+    if (index < 0) {
+      return res.json({ success: true, message: 'Check-in already absent.' });
+    }
+
+    const existingOwner = (serverWeeklyEntries[index].userEmail || '').toLowerCase().trim();
+    const isSelf = Boolean(caller.email && caller.email === existingOwner);
+    const isAdmin = caller.isAdmin;
 
     if (!isSelf && !isAdmin) {
       return res.status(403).json({ error: 'Forbidden: Unauthorized delete request.' });
     }
 
-    const index = serverWeeklyEntries.findIndex((e) => e.id === id);
-    if (index >= 0) {
-      const deleted = serverWeeklyEntries.splice(index, 1)[0];
-      persistWeeklyEntries();
+    const deleted = serverWeeklyEntries.splice(index, 1)[0];
+    persistWeeklyEntries();
 
-      const targetEmail = (deleted.userEmail || userEmail).toLowerCase().trim();
-      const memIdx = serverMembers.findIndex((m) => m.email.toLowerCase().trim() === targetEmail);
-      if (memIdx >= 0) {
-        serverMembers[memIdx].weeklyEntries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === targetEmail);
-        persistMembers();
-      }
+    const targetEmail = (deleted.userEmail || userEmail).toLowerCase().trim();
+    const memIdx = serverMembers.findIndex((m) => m.email.toLowerCase().trim() === targetEmail);
+    if (memIdx >= 0) {
+      serverMembers[memIdx].weeklyEntries = serverWeeklyEntries.filter((e) => e.userEmail && e.userEmail.toLowerCase().trim() === targetEmail);
+      persistMembers();
     }
 
     return res.json({ success: true, message: 'Check-in deleted.' });
@@ -2064,26 +1263,72 @@ async function startServer() {
   // =========================================================================
 
   // GET /api/meal-plans: Fetch meal plans
-  app.get('/api/meal-plans', (req, res) => {
+  app.get('/api/meal-plans', async (req, res) => {
     const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
+    const rawCaller = (req.query.callerEmail as string) || userEmail;
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
+    if (!caller.email) {
+      return res.status(401).json({ error: 'Authentication required to fetch meal plans.' });
+    }
+
     if (userEmail) {
+      if (!caller.isAdmin && caller.email !== userEmail) {
+        return res.status(403).json({ error: 'Forbidden: Cannot view another member’s meal plans.' });
+      }
       const filtered = serverMealPlans.filter(
         (p) => (p.userEmail && p.userEmail.toLowerCase().trim() === userEmail) ||
                (p.userId && p.userId.toLowerCase().trim() === userEmail)
       );
       return res.json({ success: true, plans: filtered });
     }
+
+    if (!caller.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required to fetch all meal plans.' });
+    }
     return res.json({ success: true, plans: serverMealPlans });
   });
 
   // POST /api/meal-plans: Save or sync meal plans
-  app.post('/api/meal-plans', (req, res) => {
+  app.post('/api/meal-plans', async (req, res) => {
     try {
       const incoming = req.body;
-      const plansToSync: any[] = Array.isArray(incoming) ? incoming : (incoming?.plans || [incoming]);
+      const plansToSync: any[] = (Array.isArray(incoming) ? incoming : (incoming?.plans || [incoming])).filter(
+        (p: any) => p && p.id
+      );
+
+      const firstPlanOwner = (plansToSync[0]?.userEmail || plansToSync[0]?.userId || '').toLowerCase().trim();
+      const rawCaller = (req.body?.callerEmail as string) || (req.query.callerEmail as string) || firstPlanOwner;
+      const caller = await callerFor(req, rawCaller);
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+      if (!caller.email) {
+        return res.status(401).json({ error: 'Authentication required to save meal plans.' });
+      }
+
+      if (!caller.isAdmin) {
+        if (plansToSync.length === 0) {
+          return res.status(403).json({ error: 'Forbidden: Non-admin must specify at least one own meal plan.' });
+        }
+        for (const plan of plansToSync) {
+          const owner = (plan.userEmail || plan.userId || '').toLowerCase().trim();
+          if (!owner || owner !== caller.email) {
+            return res.status(403).json({ error: 'Forbidden: Cannot save meal plan for another user.' });
+          }
+          const existing = serverMealPlans.find((p) => p.id === plan.id);
+          if (existing) {
+            const existingOwner = (existing.userEmail || existing.userId || '').toLowerCase().trim();
+            if (existingOwner && existingOwner !== caller.email) {
+              return res.status(403).json({ error: 'Forbidden: Cannot overwrite another user’s meal plan.' });
+            }
+          }
+        }
+      }
 
       plansToSync.forEach((plan) => {
-        if (!plan || !plan.id) return;
         const idx = serverMealPlans.findIndex((p) => p.id === plan.id);
         if (idx >= 0) {
           serverMealPlans[idx] = { ...serverMealPlans[idx], ...plan, updatedAt: plan.updatedAt || new Date().toISOString() };
@@ -2092,7 +1337,12 @@ async function startServer() {
         }
       });
       persistMealPlans();
-      return res.json({ success: true, plans: serverMealPlans });
+      const responsePlans = caller.isAdmin
+        ? serverMealPlans
+        : serverMealPlans.filter(
+            (p) => (p.userEmail || p.userId || '').toLowerCase().trim() === caller.email
+          );
+      return res.json({ success: true, plans: responsePlans });
     } catch (err: any) {
       return res.status(500).json({ error: err.message || 'Failed to save meal plans' });
     }
@@ -2774,26 +2024,72 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   // =========================================================================
 
   // GET /api/workout-plans: Fetch workout plans
-  app.get('/api/workout-plans', (req, res) => {
+  app.get('/api/workout-plans', async (req, res) => {
     const userEmail = (req.query.userEmail as string || '').toLowerCase().trim();
+    const rawCaller = (req.query.callerEmail as string) || userEmail;
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
+    if (!caller.email) {
+      return res.status(401).json({ error: 'Authentication required to fetch workout plans.' });
+    }
+
     if (userEmail) {
+      if (!caller.isAdmin && caller.email !== userEmail) {
+        return res.status(403).json({ error: 'Forbidden: Cannot view another member’s workout plans.' });
+      }
       const filtered = serverWorkoutPlans.filter(
         (p) => (p.userEmail && p.userEmail.toLowerCase().trim() === userEmail) ||
                (p.userId && p.userId.toLowerCase().trim() === userEmail)
       );
       return res.json({ success: true, plans: filtered });
     }
+
+    if (!caller.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required to fetch all workout plans.' });
+    }
     return res.json({ success: true, plans: serverWorkoutPlans });
   });
 
   // POST /api/workout-plans: Save or sync workout plans
-  app.post('/api/workout-plans', (req, res) => {
+  app.post('/api/workout-plans', async (req, res) => {
     try {
       const incoming = req.body;
-      const plansToSync: any[] = Array.isArray(incoming) ? incoming : (incoming?.plans || [incoming]);
+      const plansToSync: any[] = (Array.isArray(incoming) ? incoming : (incoming?.plans || [incoming])).filter(
+        (p: any) => p && p.id
+      );
+
+      const firstPlanOwner = (plansToSync[0]?.userEmail || plansToSync[0]?.userId || '').toLowerCase().trim();
+      const rawCaller = (req.body?.callerEmail as string) || (req.query.callerEmail as string) || firstPlanOwner;
+      const caller = await callerFor(req, rawCaller);
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+      if (!caller.email) {
+        return res.status(401).json({ error: 'Authentication required to save workout plans.' });
+      }
+
+      if (!caller.isAdmin) {
+        if (plansToSync.length === 0) {
+          return res.status(403).json({ error: 'Forbidden: Non-admin must specify at least one own workout plan.' });
+        }
+        for (const plan of plansToSync) {
+          const owner = (plan.userEmail || plan.userId || '').toLowerCase().trim();
+          if (!owner || owner !== caller.email) {
+            return res.status(403).json({ error: 'Forbidden: Cannot save workout plan for another user.' });
+          }
+          const existing = serverWorkoutPlans.find((p) => p.id === plan.id);
+          if (existing) {
+            const existingOwner = (existing.userEmail || existing.userId || '').toLowerCase().trim();
+            if (existingOwner && existingOwner !== caller.email) {
+              return res.status(403).json({ error: 'Forbidden: Cannot overwrite another user’s workout plan.' });
+            }
+          }
+        }
+      }
 
       plansToSync.forEach((plan) => {
-        if (!plan || !plan.id) return;
         const idx = serverWorkoutPlans.findIndex((p) => p.id === plan.id);
         if (idx >= 0) {
           serverWorkoutPlans[idx] = { ...serverWorkoutPlans[idx], ...plan, updatedAt: plan.updatedAt || new Date().toISOString() };
@@ -2802,7 +2098,12 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
         }
       });
       persistWorkoutPlans();
-      return res.json({ success: true, plans: serverWorkoutPlans });
+      const responsePlans = caller.isAdmin
+        ? serverWorkoutPlans
+        : serverWorkoutPlans.filter(
+            (p) => (p.userEmail || p.userId || '').toLowerCase().trim() === caller.email
+          );
+      return res.json({ success: true, plans: responsePlans });
     } catch (err: any) {
       return res.status(500).json({ error: err.message || 'Failed to save workout plans' });
     }
@@ -2859,10 +2160,10 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
               <h2 style="color: #15803d; margin-top: 0;">New Consultation Request Received!</h2>
               <p>A new potential client has submitted the consultation form on Fitkode:</p>
               <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                <tr><td style="padding: 8px; font-weight: bold; width: 140px;">Name:</td><td style="padding: 8px;">${cleanName}</td></tr>
-                <tr><td style="padding: 8px; font-weight: bold;">Email:</td><td style="padding: 8px;"><a href="mailto:${cleanEmail}">${cleanEmail}</a></td></tr>
-                <tr><td style="padding: 8px; font-weight: bold;">Phone / WhatsApp:</td><td style="padding: 8px;">${cleanPhone}</td></tr>
-                <tr><td style="padding: 8px; font-weight: bold;">Fitness Goal:</td><td style="padding: 8px; background: #f9fafb; border-radius: 6px;">${goal || 'Not specified'}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; width: 140px;">Name:</td><td style="padding: 8px;">${escapeHtml(cleanName)}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Email:</td><td style="padding: 8px;"><a href="mailto:${escapeHtml(cleanEmail)}">${escapeHtml(cleanEmail)}</a></td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Phone / WhatsApp:</td><td style="padding: 8px;">${escapeHtml(cleanPhone)}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Fitness Goal:</td><td style="padding: 8px; background: #f9fafb; border-radius: 6px;">${escapeHtml(goal || 'Not specified')}</td></tr>
               </table>
               <p style="color: #6b7280; font-size: 13px;">This client has been added to your Admin Portal under Unpaid / Leads.</p>
             </div>
@@ -2888,12 +2189,19 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   // Dispatches notification to Coach Chinmay (myfitkode@gmail.com)
   app.post('/api/communication/notify-weekly-tracker', async (req, res) => {
     try {
-      const { entry, clientName } = req.body;
+      const { entry, clientName, callerEmail } = req.body;
       if (!entry || !entry.userEmail) {
         return res.status(400).json({ error: 'Weekly entry with userEmail is required.' });
       }
 
       const userEmail = entry.userEmail.toLowerCase().trim();
+      const caller = await callerFor(req, callerEmail || userEmail);
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+      if (!caller.email || (!caller.isAdmin && caller.email !== userEmail)) {
+        return res.status(403).json({ error: 'Forbidden: Cannot send weekly tracker notification for another user.' });
+      }
 
       // Ensure notified weekly entry is also saved into server repository
       if (entry.id) {
@@ -2946,7 +2254,15 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   // Dispatches notification to Client when a Diet Plan or Workout Plan is assigned by Coach
   app.post('/api/communication/notify-plan-assigned', async (req, res) => {
     try {
-      const { type, targetEmail, clientName, plan, coachName = 'Chinmay Jain' } = req.body;
+      const { type, targetEmail, clientName, plan, coachName = 'Chinmay Jain', callerEmail } = req.body;
+
+      const caller = await callerFor(req, callerEmail);
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+      if (!caller.isAdmin) {
+        return res.status(403).json({ error: 'Forbidden: Only admins can send plan assignment notifications.' });
+      }
 
       if (!targetEmail || typeof targetEmail !== 'string' || !targetEmail.trim() || !targetEmail.includes('@') || !plan) {
         return res.status(400).json({ error: 'A valid targetEmail (with @) and plan are required.' });
@@ -3006,12 +2322,19 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   // Dispatches energetic Welcome to Fitkode email when a member logs in with Gmail
   app.post('/api/communication/notify-welcome', async (req, res) => {
     try {
-      const { email, name, force = false } = req.body;
+      const { email, name, force = false, callerEmail } = req.body;
       if (!email || typeof email !== 'string' || !email.trim() || !email.includes('@')) {
         return res.status(400).json({ error: 'A valid email address is required to dispatch welcome notification.' });
       }
 
       const normalizedEmail = email.toLowerCase().trim();
+      const caller = await callerFor(req, callerEmail || normalizedEmail);
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+      if (!caller.email || (!caller.isAdmin && caller.email !== normalizedEmail)) {
+        return res.status(403).json({ error: 'Forbidden: Cannot trigger welcome email for another account.' });
+      }
 
       // Check if already dispatched in this session and not forced
       if (!force && sentWelcomeEmails.has(normalizedEmail)) {
@@ -3053,9 +2376,13 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
 
   // GET /api/communication/logs
   // Returns communication logs (Super Admin Chinmay only)
-  app.get('/api/communication/logs', (req, res) => {
-    const caller = (req.query.callerEmail as string || '').toLowerCase().trim();
-    if (!isUserAdmin(caller)) {
+  app.get('/api/communication/logs', async (req, res) => {
+    const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
+    if (!caller.isAdmin) {
       return res.status(403).json({ error: 'Forbidden: Admin access required to inspect communication logs.' });
     }
 
@@ -3065,9 +2392,13 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
 
   // GET /api/communication/config
   // Returns communication transporter configuration status
-  app.get('/api/communication/config', (req, res) => {
-    const caller = (req.query.callerEmail as string || '').toLowerCase().trim();
-    if (!isUserAdmin(caller)) {
+  app.get('/api/communication/config', async (req, res) => {
+    const rawCaller = (req.query.callerEmail as string || '').toLowerCase().trim();
+    const caller = await callerFor(req, rawCaller);
+    if (caller.status === 503) {
+      return res.status(503).json({ error: caller.reason });
+    }
+    if (!caller.isAdmin) {
       return res.status(403).json({ error: 'Forbidden: Admin access required.' });
     }
 
@@ -3080,8 +2411,11 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   app.post('/api/communication/send-test', async (req, res) => {
     try {
       const { targetEmail, callerEmail } = req.body;
-      const caller = (callerEmail || '').toLowerCase().trim();
-      if (!isUserAdmin(caller)) {
+      const caller = await callerFor(req, (callerEmail || '').toLowerCase().trim());
+      if (caller.status === 503) {
+        return res.status(503).json({ error: caller.reason });
+      }
+      if (!caller.isAdmin) {
         return res.status(403).json({ error: 'Forbidden: Admin access required.' });
       }
 
@@ -3098,10 +2432,10 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
           <h2 style="color: #064e3b; margin: 0 0 10px 0; font-size: 18px;">Email System Verification</h2>
           <p style="color: #374151; font-size: 14px; line-height: 1.5;">This confirms that your Fitkode notification pipeline is active and dispatching emails with automatic copies to myfitkode@gmail.com.</p>
           <div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 12px; color: #065f46; margin: 16px 0;">
-            <strong>Coach Email:</strong> ${process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com'}<br>
-            <strong>Triggered at:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+            <strong>Coach Email:</strong> ${escapeHtml(process.env.COACH_NOTIFICATION_EMAIL || 'myfitkode@gmail.com')}<br>
+            <strong>Triggered at:</strong> ${escapeHtml(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))} IST
           </div>
-          <p style="font-size: 12px; color: #6b7280;">Fitkode Coaching Platform • <a href="${appUrl}" style="color: #047857;">Open Platform</a></p>
+          <p style="font-size: 12px; color: #6b7280;">Fitkode Coaching Platform • <a href="${escapeHtml(appUrl)}" style="color: #047857;">Open Platform</a></p>
         </div>
       `;
       const text = `Fitkode Communication System Verification\nTest notification sent to ${to} at ${new Date().toISOString()}`;
@@ -3126,10 +2460,11 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   // Create Razorpay Order endpoint
   app.post('/api/razorpay/create-order', async (req, res) => {
     try {
-      const { planId, planName, amount, customerInfo } = req.body;
+      const { planId, customerInfo } = req.body;
+      const plan = PLAN_CATALOG[planId as string];
 
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ error: 'Invalid plan amount specified.' });
+      if (!plan) {
+        return res.status(400).json({ error: 'Unknown planId.' });
       }
 
       const rzp = getRazorpay();
@@ -3140,7 +2475,7 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
         });
       }
 
-      const amountInPaise = Math.round(Number(amount) * 100);
+      const amountInPaise = plan.amountInr * 100;
       const receiptId = `rcpt_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
       const order = await rzp.orders.create({
@@ -3148,11 +2483,11 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
         currency: 'INR',
         receipt: receiptId,
         notes: {
-          planId: planId || '',
-          planName: planName || '',
-          customerName: customerInfo?.name || '',
-          customerEmail: customerInfo?.email || '',
-          customerPhone: customerInfo?.phone || '',
+          planId: planId as string,
+          planName: plan.name,
+          customerName: (customerInfo?.name || '').trim(),
+          customerEmail: (customerInfo?.email || '').toLowerCase().trim(),
+          customerPhone: (customerInfo?.phone || '').trim(),
         }
       });
 
@@ -3173,9 +2508,9 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
   });
 
   // Verify Razorpay Payment Signature endpoint
-  app.post('/api/razorpay/verify-payment', (req, res) => {
+  app.post('/api/razorpay/verify-payment', async (req, res) => {
     try {
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planName, customerInfo } = req.body;
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
       const secret = process.env.RAZORPAY_KEY_SECRET;
       if (!secret) {
@@ -3191,55 +2526,87 @@ Provide an expertly periodized program with exercise cues, sets, reps, and rest 
       }
 
       const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-      const expectedSignature = crypto
+      const expectedHex = crypto
         .createHmac('sha256', secret)
         .update(body)
         .digest('hex');
 
-      const isAuthentic = expectedSignature === razorpay_signature;
+      const a = Buffer.from(expectedHex, 'hex');
+      const b = Buffer.from(String(razorpay_signature || ''), 'hex');
+      const isAuthentic = a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
 
-      if (isAuthentic) {
-        console.log(`[Payment Verified] Order: ${razorpay_order_id}, Payment: ${razorpay_payment_id}, Customer: ${customerInfo?.email || 'N/A'}`);
-        
-        // If customer email was provided, upgrade customer to 'paid' in server registry
-        if (customerInfo?.email) {
-          const emailKey = customerInfo.email.toLowerCase().trim();
-          const memberIndex = serverMembers.findIndex(m => m.email.toLowerCase() === emailKey);
-          if (memberIndex >= 0) {
-            serverMembers[memberIndex].role = serverMembers[memberIndex].role === 'admin' ? 'admin' : 'paid';
-            serverMembers[memberIndex].planName = planName;
-            serverMembers[memberIndex].planPurchasedAt = new Date().toISOString();
-          } else {
-            serverMembers.unshift({
-              id: `usr_pay_${Date.now()}`,
-              email: emailKey,
-              name: customerInfo.name || emailKey.split('@')[0],
-              role: 'paid',
-              joinedAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-              phone: customerInfo.phone || '',
-              planName,
-              planPurchasedAt: new Date().toISOString(),
-              profileCompletion: 30,
-              onboardingCompletion: 0,
-            });
-          }
-          persistMembers();
-        }
-
-        return res.json({
-          success: true,
-          message: 'Payment verified successfully',
-          paymentId: razorpay_payment_id,
-          orderId: razorpay_order_id,
-          planName
-        });
-      } else {
+      if (!isAuthentic) {
         return res.status(400).json({
           success: false,
           error: 'Invalid signature. Payment verification failed.'
         });
       }
+
+      const rzp = getRazorpay();
+      if (!rzp) {
+        return res.status(503).json({
+          error: 'Razorpay keys not configured on server.'
+        });
+      }
+
+      const [payment, order] = await Promise.all([
+        rzp.payments.fetch(razorpay_payment_id),
+        rzp.orders.fetch(razorpay_order_id),
+      ]);
+
+      if (payment.order_id !== razorpay_order_id || !['captured', 'authorized'].includes(payment.status)) {
+        return res.status(400).json({ error: 'Payment not captured for this order.' });
+      }
+
+      const planId = String(order.notes?.planId || '');
+      const plan = PLAN_CATALOG[planId];
+      if (!plan || Number(order.amount) !== plan.amountInr * 100 || Number(payment.amount) !== plan.amountInr * 100) {
+        return res.status(400).json({ error: 'Order amount does not match plan price.' });
+      }
+
+      const emailKey = String(order.notes?.customerEmail || '').toLowerCase().trim();
+      const customerName = String(order.notes?.customerName || '');
+      const customerPhone = String(order.notes?.customerPhone || '');
+
+      console.log(`[Payment Verified] Order: ${razorpay_order_id}, Payment: ${razorpay_payment_id}, Plan: ${plan.name}, Customer: ${emailKey || 'N/A'}`);
+
+      if (emailKey) {
+        const memberIndex = serverMembers.findIndex(m => m.email.toLowerCase() === emailKey);
+        if (memberIndex >= 0) {
+          if (plan.grantsPaid && serverMembers[memberIndex].role !== 'admin') {
+            serverMembers[memberIndex].role = 'paid';
+          }
+          serverMembers[memberIndex].planId = planId;
+          serverMembers[memberIndex].planName = plan.name;
+          serverMembers[memberIndex].planPurchasedAt = new Date().toISOString();
+        } else {
+          serverMembers.unshift({
+            id: `usr_pay_${Date.now()}`,
+            email: emailKey,
+            name: customerName || emailKey.split('@')[0],
+            role: ADMIN_EMAILS.has(emailKey) ? 'admin' : (plan.grantsPaid ? 'paid' : 'unpaid'),
+            joinedAt: new Date().toISOString(),
+            lastLoginAt: new Date().toISOString(),
+            phone: customerPhone,
+            planId,
+            planName: plan.name,
+            planPurchasedAt: new Date().toISOString(),
+            profileCompletion: 30,
+            onboardingCompletion: 0,
+          });
+        }
+        persistMembers();
+      }
+
+      return res.json({
+        success: true,
+        message: 'Payment verified successfully',
+        paymentId: razorpay_payment_id,
+        orderId: razorpay_order_id,
+        planId,
+        planName: plan.name,
+        grantsPaid: plan.grantsPaid,
+      });
     } catch (err: any) {
       console.error('Error verifying payment signature:', err);
       return res.status(500).json({

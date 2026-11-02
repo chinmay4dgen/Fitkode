@@ -1,4 +1,5 @@
 import { WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
+import { getSupabaseAuthHeaders } from './supabase';
 
 export interface CommunicationLogItem {
   id: string;
@@ -38,9 +39,10 @@ export async function notifyWeeklyTrackerSubmitted(
   callerEmail?: string
 ): Promise<{ success: boolean; log?: CommunicationLogItem; error?: string }> {
   try {
+    const authHeaders = await getSupabaseAuthHeaders();
     const res = await fetch('/api/communication/notify-weekly-tracker', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         entry,
         clientName,
@@ -74,9 +76,10 @@ export async function notifyPlanAssigned(params: {
   callerEmail?: string;
 }): Promise<{ success: boolean; log?: CommunicationLogItem; error?: string }> {
   try {
+    const authHeaders = await getSupabaseAuthHeaders();
     const res = await fetch('/api/communication/notify-plan-assigned', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify(params),
     });
 
@@ -98,7 +101,10 @@ export async function notifyPlanAssigned(params: {
  */
 export async function fetchCommunicationLogs(callerEmail: string): Promise<CommunicationLogItem[]> {
   try {
-    const res = await fetch(`/api/communication/logs?callerEmail=${encodeURIComponent(callerEmail)}`);
+    const authHeaders = await getSupabaseAuthHeaders();
+    const res = await fetch(`/api/communication/logs?callerEmail=${encodeURIComponent(callerEmail)}`, {
+      headers: { ...authHeaders },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return data.logs || [];
@@ -113,7 +119,10 @@ export async function fetchCommunicationLogs(callerEmail: string): Promise<Commu
  */
 export async function fetchCommunicationConfig(callerEmail: string): Promise<CommunicationConfig | null> {
   try {
-    const res = await fetch(`/api/communication/config?callerEmail=${encodeURIComponent(callerEmail)}`);
+    const authHeaders = await getSupabaseAuthHeaders();
+    const res = await fetch(`/api/communication/config?callerEmail=${encodeURIComponent(callerEmail)}`, {
+      headers: { ...authHeaders },
+    });
     if (!res.ok) return null;
     const data = await res.json();
     return data.config || null;
@@ -131,9 +140,10 @@ export async function sendTestCommunication(
   callerEmail: string
 ): Promise<{ success: boolean; log?: CommunicationLogItem; error?: string }> {
   try {
+    const authHeaders = await getSupabaseAuthHeaders();
     const res = await fetch('/api/communication/send-test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ targetEmail, callerEmail }),
     });
 
@@ -158,9 +168,10 @@ export async function notifyWelcomeUser(params: {
   force?: boolean;
 }): Promise<{ success: boolean; log?: CommunicationLogItem; alreadySent?: boolean; error?: string }> {
   try {
+    const authHeaders = await getSupabaseAuthHeaders();
     const res = await fetch('/api/communication/notify-welcome', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify(params),
     });
 

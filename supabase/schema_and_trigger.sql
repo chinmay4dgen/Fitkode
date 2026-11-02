@@ -57,7 +57,7 @@ DECLARE
   user_role TEXT;
 BEGIN
   jwt_email := LOWER(COALESCE(auth.jwt() ->> 'email', ''));
-  IF jwt_email IN ('chinmay4jain@gmail.com', 'chinma4jain@gmail.com') THEN
+  IF jwt_email IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com') THEN
     RETURN TRUE;
   END IF;
 
@@ -132,6 +132,52 @@ WITH CHECK (
 );
 
 -- ==============================================================================
+-- 3B. Privileged Column Protection Trigger on public.profiles
+-- ==============================================================================
+-- Blocks non-admin authenticated callers from escalating their own role, plan, or notes.
+CREATE OR REPLACE FUNCTION public.protect_profile_privileged_columns()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Allow service_role, postgres/trigger context (auth.uid() IS NULL), or verified admins
+  IF current_setting('request.jwt.claim.role', true) = 'service_role'
+     OR auth.uid() IS NULL
+     OR public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    NEW.role := CASE
+      WHEN LOWER(NEW.email) IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com') THEN 'admin'
+      ELSE 'unpaid'
+    END;
+    NEW.plan_id := NULL;
+    NEW.plan_name := NULL;
+    NEW.plan_purchased_at := NULL;
+    NEW.notes := '';
+  ELSIF TG_OP = 'UPDATE' THEN
+    NEW.role := OLD.role;
+    NEW.email := OLD.email;
+    NEW.plan_id := OLD.plan_id;
+    NEW.plan_name := OLD.plan_name;
+    NEW.plan_purchased_at := OLD.plan_purchased_at;
+    NEW.notes := OLD.notes;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_privileged_columns ON public.profiles;
+CREATE TRIGGER trg_protect_profile_privileged_columns
+  BEFORE INSERT OR UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_privileged_columns();
+
+-- ==============================================================================
 -- 4. Automatic Trigger Function for Google Authentication & New Signups
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -176,7 +222,7 @@ BEGIN
     ''
   );
 
-  IF LOWER(NEW.email) IN ('chinmay4jain@gmail.com', 'chinma4jain@gmail.com') THEN
+  IF LOWER(NEW.email) IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com') THEN
     assigned_role := 'admin';
   ELSE
     assigned_role := 'unpaid';
@@ -256,7 +302,7 @@ SELECT
   COALESCE(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture', ''),
   COALESCE(u.raw_user_meta_data->>'phone', ''),
   CASE 
-    WHEN LOWER(u.email) IN ('chinmay4jain@gmail.com', 'chinma4jain@gmail.com') THEN 'admin' 
+    WHEN LOWER(u.email) IN ('chinmay4jain@gmail.com', 'myfitkode@gmail.com') THEN 'admin' 
     ELSE 'unpaid' 
   END,
   jsonb_build_object(
@@ -421,34 +467,59 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 VALUES (
   'progress-photos',
   'progress-photos',
-  true,
+  false,
   2097152,
   ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
 ON CONFLICT (id) DO UPDATE SET
-  public = true,
+  public = false,
   file_size_limit = 2097152;
 
+CREATE OR REPLACE FUNCTION public.my_photo_folder()
+RETURNS TEXT LANGUAGE sql STABLE AS $$
+  SELECT regexp_replace(LOWER(TRIM(COALESCE(auth.jwt() ->> 'email', ''))), '[^a-z0-9]', '_', 'g');
+$$;
+
 DROP POLICY IF EXISTS "Authenticated users can upload progress photos" ON storage.objects;
-CREATE POLICY "Authenticated users can upload progress photos"
-ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'progress-photos');
-
 DROP POLICY IF EXISTS "Authenticated users can update progress photos" ON storage.objects;
-CREATE POLICY "Authenticated users can update progress photos"
-ON storage.objects
-FOR UPDATE
-TO authenticated
-USING (bucket_id = 'progress-photos');
-
 DROP POLICY IF EXISTS "Public read access for progress photos" ON storage.objects;
-CREATE POLICY "Public read access for progress photos"
-ON storage.objects
-FOR SELECT
-TO public
-USING (bucket_id = 'progress-photos');
+DROP POLICY IF EXISTS "Users upload own progress photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users update own progress photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users and admins read progress photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users and admins delete progress photos" ON storage.objects;
+
+CREATE POLICY "Users upload own progress photos"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'progress-photos'
+  AND ((storage.foldername(name))[1] = public.my_photo_folder() OR public.is_admin())
+);
+
+CREATE POLICY "Users update own progress photos"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'progress-photos'
+  AND ((storage.foldername(name))[1] = public.my_photo_folder() OR public.is_admin())
+);
+
+CREATE POLICY "Users and admins read progress photos"
+ON storage.objects FOR SELECT TO authenticated
+USING (
+  bucket_id = 'progress-photos'
+  AND ((storage.foldername(name))[1] = public.my_photo_folder() OR public.is_admin())
+);
+
+CREATE POLICY "Users and admins delete progress photos"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'progress-photos'
+  AND ((storage.foldername(name))[1] = public.my_photo_folder() OR public.is_admin())
+);
+
+-- Demote any profile row that ever registered the typo email chinma4jain@gmail.com
+UPDATE public.profiles
+SET role = 'unpaid'
+WHERE LOWER(email) = 'chinma4jain@gmail.com';
 
 -- ==============================================================================
 -- 10. Enable Realtime Broadcast for Core Tables (Safe Idempotency)

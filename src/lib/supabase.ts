@@ -5,6 +5,7 @@ import {
   removeOfflineSyncItem,
   stripHeavyBase64ForLocalCache,
 } from './storageGuard';
+import { isLiveProductionSite } from './environment';
 
 let supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
 let supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
@@ -119,18 +120,36 @@ async function getCurrentSessionUser() {
 /**
  * Returns HTTP Authorization headers with the active Supabase JWT access token (if signed in)
  * so Express `/api/*` endpoints can cryptographically verify the caller's identity.
+ * In non-production preview environments, falls back to `x-dev-user-email` if a dev preset session is active.
  */
 export async function getSupabaseAuthHeaders(): Promise<Record<string, string>> {
-  if (!client) return {};
-  try {
-    const { data } = await client.auth.getSession();
-    const token = data?.session?.access_token;
-    if (token) {
-      return { Authorization: `Bearer ${token}` };
+  if (client) {
+    try {
+      const { data } = await client.auth.getSession();
+      const token = data?.session?.access_token;
+      if (token) {
+        return { Authorization: `Bearer ${token}` };
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
+
+  if (!isLiveProductionSite()) {
+    try {
+      const raw = localStorage.getItem('fitkode_dev_user_session');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const email = parsed?.user?.email?.toLowerCase?.()?.trim?.();
+        if (email) {
+          return { 'x-dev-user-email': email };
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return {};
 }
 
@@ -579,6 +598,31 @@ export async function uploadProgressPhotoToSupabase(
   }
 
   return dataUrl;
+}
+
+const signedCache = new Map<string, { url: string; exp: number }>();
+
+export function photoPathFromStoredValue(val?: string): string | null {
+  if (!val || val.startsWith('data:')) return null;
+  const marker = '/storage/v1/object/public/progress-photos/';
+  const i = val.indexOf(marker);
+  if (i >= 0) return decodeURIComponent(val.slice(i + marker.length).split('?')[0]);
+  if (!val.startsWith('http')) return val;
+  return null;
+}
+
+export async function resolvePhotoUrl(stored?: string): Promise<string> {
+  if (!stored) return '';
+  const path = photoPathFromStoredValue(stored);
+  if (!path || !client) return stored; // external URL (e.g., Unsplash) or data: URL
+  const hit = signedCache.get(path);
+  if (hit && hit.exp > Date.now()) return hit.url;
+  const { data } = await client.storage.from('progress-photos').createSignedUrl(path, 86400);
+  if (data?.signedUrl) {
+    signedCache.set(path, { url: data.signedUrl, exp: Date.now() + 82800_000 });
+    return data.signedUrl;
+  }
+  return stored;
 }
 
 /**

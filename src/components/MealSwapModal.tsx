@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, Check, X, Sparkles, AlertCircle, Clock } from 'lucide-react';
 import { MealSlot, MealItem } from '../types';
+import { getSupabaseAuthHeaders } from '../lib/supabase';
 
 interface MealSwapModalProps {
   isOpen: boolean;
@@ -38,9 +39,10 @@ export default function MealSwapModal({
     setSelectedIdx(null);
 
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       const res = await fetch('/api/swap-meal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           mealName: slot.name,
           targetCalories: totalCalories || 450,

@@ -36,109 +36,18 @@ export function getCoachCopyEmails(excludeRecipient?: string): string[] {
   return unique.filter((e) => e !== normExclude);
 }
 
-// Seed initial communication history for demonstration in admin portal
-const communicationLogs: CommunicationLog[] = [
-  {
-    id: 'comm_seed_atul_workout',
-    type: 'workout_plan_assigned',
-    to: 'akg.atulgupta@gmail.com',
-    bcc: 'myfitkode@gmail.com',
-    from: FROM_EMAIL,
-    subject: '🏋️ Your Personalized 4-Day Workout Plan has been Assigned by Coach Chinmay!',
-    previewText: 'Coach Chinmay has prescribed your 4-Day Resistance & Conditioning Plan with daily warm-up/cool-down routines and video demos.',
-    html: `<p>Coach Chinmay Jain has assigned your customized 4-Day Resistance & Conditioning Plan for Atul Gupta with daily 12,000 steps target and guided exercise video tutorials.</p>`,
-    text: 'Coach Chinmay has assigned your 4-Day Workout Plan. Target: 12,000 steps daily with warm up & cool down.',
-    status: 'sent',
-    sentAt: '2026-09-29T10:00:00Z',
-    recipientName: 'Atul Gupta',
-    metadata: {
-      clientEmail: 'akg.atulgupta@gmail.com',
-      clientName: 'Atul Gupta',
-      planName: '4 Days workout',
-      coachName: 'Chinmay Jain',
-      coachCopySentTo: 'myfitkode@gmail.com',
-    },
-  },
-  {
-    id: 'comm_seed_atul_w2',
-    type: 'weekly_tracker_submission',
-    to: 'myfitkode@gmail.com',
-    from: FROM_EMAIL,
-    subject: '[Fitkode Weekly Check-in] New Tracker Submission: Atul Gupta (Week 2)',
-    previewText: 'Atul Gupta submitted Week 2 check-in. Weight: 71.9 kg (-0.9kg). Waist: 35.4 in (-0.6 in). Steps: 8,600/day.',
-    html: `<p>Atul Gupta submitted Week 2 check-in. Weight: 71.9 kg (-0.9kg). Waist: 35.4 in (-0.6 in). Steps: 8,600/day. Consistency: 4 workout days, 2 cardio days.</p>`,
-    text: 'Atul Gupta submitted Week 2 check-in. Weight: 71.9 kg (-0.9kg). Waist: 35.4 in. Steps: 8,600/day.',
-    status: 'sent',
-    sentAt: '2026-09-22T08:30:00Z',
-    recipientName: 'Coach Chinmay',
-    metadata: {
-      clientEmail: 'akg.atulgupta@gmail.com',
-      clientName: 'Atul Gupta',
-      weekNumber: 2,
-      weightKg: 71.9,
-      waistInches: 35.4,
-      avgStepsPerDay: 8600,
-    },
-  },
-  {
-    id: 'comm_seed_001',
-    type: 'weekly_tracker_submission',
-    to: 'myfitkode@gmail.com',
-    from: FROM_EMAIL,
-    subject: '[Fitkode Weekly Check-in] New Tracker Submission: Priya Sharma (Week 3)',
-    previewText: 'Priya Sharma submitted Week 3 check-in. Weight: 64.2 kg (-0.9kg). Steps: 9,200/day.',
-    html: `<p>Sample check-in email for Priya Sharma</p>`,
-    text: 'Priya Sharma submitted Week 3 check-in. Weight: 64.2 kg. Waist: 29.5 in.',
-    status: 'sent',
-    sentAt: '2026-09-04T08:15:00Z',
-    recipientName: 'Coach Chinmay',
-    metadata: {
-      clientEmail: 'priya.sharma@example.com',
-      clientName: 'Priya Sharma',
-      weekNumber: 3,
-      weightKg: 64.2,
-    },
-  },
-  {
-    id: 'comm_seed_002',
-    type: 'diet_plan_assigned',
-    to: 'priya.sharma@example.com',
-    bcc: 'myfitkode@gmail.com',
-    from: FROM_EMAIL,
-    subject: '🥗 Your Tailored Nutrition Plan is Ready: Post-Pregnancy Lean Muscle & Core Restoration',
-    previewText: 'Coach Chinmay has assigned your nutrition plan: 1,850 kcal, 125g Protein, Vegetarian.',
-    html: `<p>Sample diet plan assigned email for Priya Sharma</p>`,
-    text: 'Your tailored nutrition plan is ready. Target: 1,850 kcal, 125g Protein.',
-    status: 'sent',
-    sentAt: '2026-09-01T10:30:00Z',
-    recipientName: 'Priya Sharma',
-    metadata: {
-      planName: 'Post-Pregnancy Lean Muscle & Core Restoration',
-      targetCalories: 1850,
-      dietType: 'Vegetarian',
-      coachCopySentTo: 'myfitkode@gmail.com',
-    },
-  },
-  {
-    id: 'comm_seed_003',
-    type: 'welcome_email',
-    to: 'ananya.verma@example.com',
-    bcc: 'myfitkode@gmail.com',
-    from: FROM_EMAIL,
-    subject: 'Welcome to Fitkode, Ananya! 🔥 You’ve made the right choice — let’s crush your goals together!',
-    previewText: 'Your journey to peak fitness starts right now. Coach Chinmay and Team Fitkode have your back every step of the way.',
-    html: `<p>Welcome to Fitkode email for Ananya Verma</p>`,
-    text: 'Welcome to Fitkode, Ananya! You have made the very right choice.',
-    status: 'sent',
-    sentAt: '2026-09-05T09:45:00Z',
-    recipientName: 'Ananya Verma',
-    metadata: {
-      authProvider: 'google',
-      clientEmail: 'ananya.verma@example.com',
-      coachCopySentTo: 'myfitkode@gmail.com',
-    },
-  },
-];
+// In-memory communication history for admin portal (populated at runtime)
+const communicationLogs: CommunicationLog[] = [];
+
+export function escapeHtml(raw: unknown): string {
+  return String(raw ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 
 let mailTransporter: any = null;
 
@@ -218,6 +127,21 @@ export function buildWeeklyTrackerEmail(params: {
   const previewText = `${fullName} submitted Week ${weekNum} check-in. Weight: ${entry.weightKg || 'N/A'} kg, Steps: ${entry.avgStepsPerDay || 0}/day.`;
 
   const adminReviewUrl = `${appUrl}/admin/members?email=${encodeURIComponent(entry.userEmail)}`;
+  const safeSubject = escapeHtml(subject);
+  const safeFullName = escapeHtml(fullName);
+  const safeUserEmail = escapeHtml(entry.userEmail);
+  const safeCheckInDate = escapeHtml(checkInDate);
+  const safeWeekNum = escapeHtml(weekNum);
+  const safeWeight = entry.weightKg ? `${escapeHtml(entry.weightKg)} kg` : 'N/A';
+  const safeWaist = entry.waistInches ? `${escapeHtml(entry.waistInches)} in` : 'N/A';
+  const safeHips = entry.hipsInches ? `${escapeHtml(entry.hipsInches)} in` : 'N/A';
+  const safeChest = entry.chestInches ? `${escapeHtml(entry.chestInches)} in` : 'N/A';
+  const safeSteps = entry.avgStepsPerDay ? escapeHtml(entry.avgStepsPerDay.toLocaleString()) : 'N/A';
+  const safeResistance = entry.resistanceWorkoutDays ? `${escapeHtml(entry.resistanceWorkoutDays)} days` : '0 days';
+  const safeChallenges = entry.challengesFaced
+    ? escapeHtml(entry.challengesFaced).replace(/\r?\n/g, '<br/>')
+    : 'No specific challenges reported for this week.';
+  const safeAdminReviewUrl = escapeHtml(adminReviewUrl);
 
   const html = `
 <!DOCTYPE html>
@@ -225,7 +149,7 @@ export function buildWeeklyTrackerEmail(params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
+  <title>${safeSubject}</title>
 </head>
 <body style="${getEmailBaseStyles()}">
   <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -268,19 +192,19 @@ export function buildWeeklyTrackerEmail(params: {
                     <table width="100%" border="0" cellspacing="0" cellpadding="4">
                       <tr>
                         <td width="35%" style="font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Member Name:</td>
-                        <td style="font-size: 14px; font-weight: 700; color: #111827;">${fullName}</td>
+                        <td style="font-size: 14px; font-weight: 700; color: #111827;">${safeFullName}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Email Address:</td>
-                        <td style="font-size: 13px; color: #047857; font-weight: 600;">${entry.userEmail}</td>
+                        <td style="font-size: 13px; color: #047857; font-weight: 600;">${safeUserEmail}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Check-in Date:</td>
-                        <td style="font-size: 13px; color: #374151;">${checkInDate}</td>
+                        <td style="font-size: 13px; color: #374151;">${safeCheckInDate}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Program Week:</td>
-                        <td style="font-size: 13px; color: #111827; font-weight: 700;"><span style="background-color: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 6px;">Week ${weekNum}</span></td>
+                        <td style="font-size: 13px; color: #111827; font-weight: 700;"><span style="background-color: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 6px;">Week ${safeWeekNum}</span></td>
                       </tr>
                     </table>
                   </td>
@@ -296,36 +220,36 @@ export function buildWeeklyTrackerEmail(params: {
                 <tr>
                   <td width="48%" style="padding: 12px; background-color: #ecfdf5; border-radius: 12px; border: 1px solid #a7f3d0; text-align: center;">
                     <div style="font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase;">Current Weight</div>
-                    <div style="font-size: 22px; font-weight: 800; color: #064e3b; margin-top: 4px;">${entry.weightKg ? `${entry.weightKg} kg` : 'N/A'}</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #064e3b; margin-top: 4px;">${safeWeight}</div>
                   </td>
                   <td width="4%"></td>
                   <td width="48%" style="padding: 12px; background-color: #f0fdf4; border-radius: 12px; border: 1px solid #bbf7d0; text-align: center;">
                     <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">Waist Circumference</div>
-                    <div style="font-size: 22px; font-weight: 800; color: #14532d; margin-top: 4px;">${entry.waistInches ? `${entry.waistInches} in` : 'N/A'}</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #14532d; margin-top: 4px;">${safeWaist}</div>
                   </td>
                 </tr>
                 <tr><td colspan="3" height="10"></td></tr>
                 <tr>
                   <td width="48%" style="padding: 12px; background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Hips</div>
-                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${entry.hipsInches ? `${entry.hipsInches} in` : 'N/A'}</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${safeHips}</div>
                   </td>
                   <td width="4%"></td>
                   <td width="48%" style="padding: 12px; background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Chest</div>
-                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${entry.chestInches ? `${entry.chestInches} in` : 'N/A'}</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${safeChest}</div>
                   </td>
                 </tr>
                 <tr><td colspan="3" height="10"></td></tr>
                 <tr>
                   <td width="48%" style="padding: 12px; background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Daily Steps (Avg)</div>
-                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${entry.avgStepsPerDay ? entry.avgStepsPerDay.toLocaleString() : 'N/A'}</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${safeSteps}</div>
                   </td>
                   <td width="4%"></td>
                   <td width="48%" style="padding: 12px; background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Resistance Training</div>
-                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${entry.resistanceWorkoutDays ? `${entry.resistanceWorkoutDays} days` : '0 days'}</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-top: 2px;">${safeResistance}</div>
                   </td>
                 </tr>
               </table>
@@ -336,7 +260,7 @@ export function buildWeeklyTrackerEmail(params: {
                   Client Feedback &amp; Challenges Faced
                 </h3>
                 <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 14px; color: #92400e; font-size: 13px; line-height: 1.6;">
-                  <em>&ldquo;${entry.challengesFaced ? entry.challengesFaced : 'No specific challenges reported for this week.'}&rdquo;</em>
+                  <em>&ldquo;${safeChallenges}&rdquo;</em>
                 </div>
               </div>
 
@@ -344,7 +268,7 @@ export function buildWeeklyTrackerEmail(params: {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 16px;">
                 <tr>
                   <td align="center">
-                    <a href="${adminReviewUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 14px 28px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <a href="${safeAdminReviewUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 14px 28px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                       Review Member in Coach Portal &rarr;
                     </a>
                   </td>
@@ -415,11 +339,26 @@ export function buildDietPlanAssignedEmail(params: {
   const subject = `🥗 Your Tailored Nutrition Plan is Ready: ${plan.name}`;
   const previewText = `Coach ${coachName} has designed and assigned your personalized meal plan (${plan.targetCalories} kcal, ${plan.targetProtein}g Protein).`;
 
+  const safeSubject = escapeHtml(subject);
+  const safeCoachName = escapeHtml(coachName);
+  const safeFirstName = escapeHtml(firstName);
+  const safePlanName = escapeHtml(plan.name);
+  const safeDietType = escapeHtml(plan.dietType || 'Custom');
+  const safeTargetCalories = escapeHtml(plan.targetCalories);
+  const safeTargetProtein = escapeHtml(plan.targetProtein);
+  const safeTargetCarbs = escapeHtml(plan.targetCarbs);
+  const safeTargetFats = escapeHtml(plan.targetFats);
+  const safeCoachNotes = plan.coachNotes
+    ? escapeHtml(plan.coachNotes).replace(/\r?\n/g, '<br/>')
+    : '';
+  const safePlanUrl = escapeHtml(planUrl);
+  const safeAppUrl = escapeHtml(appUrl);
+
   const mealsList = (plan.meals || []).map((m: any, idx: number) => {
-    const itemsSummary = (m.items || []).map((it: any) => it.name).join(', ') || 'Custom foods';
+    const itemsSummary = (m.items || []).map((it: any) => escapeHtml(it.name)).join(', ') || 'Custom foods';
     return `
       <tr style="border-bottom: 1px solid #f3f4f6;">
-        <td style="padding: 10px 0; font-size: 13px; font-weight: 700; color: #111827;">${m.name || `Meal ${idx + 1}`}</td>
+        <td style="padding: 10px 0; font-size: 13px; font-weight: 700; color: #111827;">${escapeHtml(m.name || `Meal ${idx + 1}`)}</td>
         <td style="padding: 10px 0; font-size: 12px; color: #4b5563; text-align: right;">${itemsSummary}</td>
       </tr>
     `;
@@ -431,7 +370,7 @@ export function buildDietPlanAssignedEmail(params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
+  <title>${safeSubject}</title>
 </head>
 <body style="${getEmailBaseStyles()}">
   <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -452,7 +391,7 @@ export function buildDietPlanAssignedEmail(params: {
                       Your Nutrition Plan is Ready!
                     </h1>
                     <p style="color: #a7f3d0; font-size: 13px; margin: 0;">
-                      Assigned by Coach ${coachName}
+                      Assigned by Coach ${safeCoachName}
                     </p>
                   </td>
                   <td align="right" valign="top" style="font-size: 28px;">
@@ -467,17 +406,17 @@ export function buildDietPlanAssignedEmail(params: {
           <tr>
             <td style="padding: 32px;">
               <p style="font-size: 15px; color: #1f2937; margin: 0 0 16px 0; line-height: 1.6;">
-                Hi <strong>${firstName}</strong>,
+                Hi <strong>${safeFirstName}</strong>,
               </p>
               <p style="font-size: 14px; color: #4b5563; margin: 0 0 24px 0; line-height: 1.6;">
-                Great news! Coach <strong>${coachName}</strong> has carefully reviewed your profile, dietary preferences, and metabolic targets, and has assigned a customized meal plan directly to your Fitkode account:
+                Great news! Coach <strong>${safeCoachName}</strong> has carefully reviewed your profile, dietary preferences, and metabolic targets, and has assigned a customized meal plan directly to your Fitkode account:
               </p>
 
               <!-- Plan Name Card -->
               <div style="background-color: #ecfdf5; border-left: 4px solid #047857; border-radius: 0 12px 12px 0; padding: 16px; margin-bottom: 24px;">
                 <div style="font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Active Nutrition Plan</div>
-                <div style="font-size: 18px; font-weight: 800; color: #064e3b; margin-top: 2px;">${plan.name}</div>
-                <div style="font-size: 12px; color: #047857; margin-top: 4px; font-weight: 600;">Diet Preference: ${plan.dietType || 'Custom'}</div>
+                <div style="font-size: 18px; font-weight: 800; color: #064e3b; margin-top: 2px;">${safePlanName}</div>
+                <div style="font-size: 12px; color: #047857; margin-top: 4px; font-weight: 600;">Diet Preference: ${safeDietType}</div>
               </div>
 
               <!-- Macros Target Grid -->
@@ -488,38 +427,38 @@ export function buildDietPlanAssignedEmail(params: {
                 <tr>
                   <td width="23%" style="padding: 12px 8px; background-color: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Calories</div>
-                    <div style="font-size: 16px; font-weight: 800; color: #111827; margin-top: 2px;">${plan.targetCalories}</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #111827; margin-top: 2px;">${safeTargetCalories}</div>
                     <div style="font-size: 9px; color: #9ca3af;">kcal/day</div>
                   </td>
                   <td width="2%"></td>
                   <td width="23%" style="padding: 12px 8px; background-color: #ecfdf5; border-radius: 10px; border: 1px solid #a7f3d0; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #065f46; text-transform: uppercase;">Protein</div>
-                    <div style="font-size: 16px; font-weight: 800; color: #064e3b; margin-top: 2px;">${plan.targetProtein}g</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #064e3b; margin-top: 2px;">${safeTargetProtein}g</div>
                     <div style="font-size: 9px; color: #047857;">target</div>
                   </td>
                   <td width="2%"></td>
                   <td width="23%" style="padding: 12px 8px; background-color: #fffbeb; border-radius: 10px; border: 1px solid #fde68a; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #92400e; text-transform: uppercase;">Carbs</div>
-                    <div style="font-size: 16px; font-weight: 800; color: #78350f; margin-top: 2px;">${plan.targetCarbs}g</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #78350f; margin-top: 2px;">${safeTargetCarbs}g</div>
                     <div style="font-size: 9px; color: #b45309;">target</div>
                   </td>
                   <td width="2%"></td>
                   <td width="23%" style="padding: 12px 8px; background-color: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #1e40af; text-transform: uppercase;">Fats</div>
-                    <div style="font-size: 16px; font-weight: 800; color: #1e3a8a; margin-top: 2px;">${plan.targetFats}g</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #1e3a8a; margin-top: 2px;">${safeTargetFats}g</div>
                     <div style="font-size: 9px; color: #2563eb;">target</div>
                   </td>
                 </tr>
               </table>
 
               <!-- Coach's Notes -->
-              ${plan.coachNotes ? `
+              ${safeCoachNotes ? `
               <div style="margin-bottom: 24px;">
                 <h3 style="font-size: 13px; font-weight: 700; color: #111827; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.5px;">
                   Coach's Guidelines
                 </h3>
                 <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; color: #374151; font-size: 13px; line-height: 1.6;">
-                  ${plan.coachNotes}
+                  ${safeCoachNotes}
                 </div>
               </div>
               ` : ''}
@@ -540,7 +479,7 @@ export function buildDietPlanAssignedEmail(params: {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 16px;">
                 <tr>
                   <td align="center">
-                    <a href="${planUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <a href="${safePlanUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                       Open Your Meal Plan &rarr;
                     </a>
                   </td>
@@ -558,7 +497,7 @@ export function buildDietPlanAssignedEmail(params: {
             <td style="background-color: #f3f4f6; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center; font-size: 11px; color: #6b7280; line-height: 1.5;">
               <strong>Fitkode Coaching</strong> • Science-Backed Nutrition &amp; Fitness<br>
               Questions about this plan? You can reply to this email or message Coach Chinmay directly at <strong>myfitkode@gmail.com</strong>.<br>
-              To manage communication settings, visit your <a href="${appUrl}/profile" style="color: #047857; text-decoration: underline;">Privacy &amp; Data Center</a>.
+              To manage communication settings, visit your <a href="${safeAppUrl}/profile" style="color: #047857; text-decoration: underline;">Privacy &amp; Data Center</a>.
             </td>
           </tr>
 
@@ -612,12 +551,26 @@ export function buildWorkoutPlanAssignedEmail(params: {
   const subject = `💪 Your Custom Workout Routine is Ready: ${plan.name}`;
   const previewText = `Coach ${coachName} has designed your custom workout routine (${plan.daysPerWeek || 4} days/week, ${plan.goal || 'Hypertrophy'}).`;
 
+  const safeSubject = escapeHtml(subject);
+  const safeCoachName = escapeHtml(coachName);
+  const safeCoachFirstName = escapeHtml(coachName.split(' ')[0]);
+  const safeFirstName = escapeHtml(firstName);
+  const safePlanName = escapeHtml(plan.name);
+  const safeGoal = escapeHtml(plan.goal || 'General Fitness & Muscle Gain');
+  const safeDaysPerWeek = escapeHtml(plan.daysPerWeek || (plan.days ? plan.days.length : 4));
+  const safeDifficulty = escapeHtml(plan.difficulty || 'Intermediate');
+  const safeCoachNotes = plan.coachNotes
+    ? escapeHtml(plan.coachNotes).replace(/\r?\n/g, '<br/>')
+    : '';
+  const safePlanUrl = escapeHtml(planUrl);
+  const safeAppUrl = escapeHtml(appUrl);
+
   const daysList = (plan.days || []).map((d: any, idx: number) => {
     const exCount = (d.exercises || []).length;
     return `
       <tr style="border-bottom: 1px solid #f3f4f6;">
-        <td style="padding: 10px 0; font-size: 13px; font-weight: 700; color: #111827;">${d.dayName || `Day ${idx + 1}`}</td>
-        <td style="padding: 10px 0; font-size: 12px; color: #4b5563;">${d.focus || (d.isRestDay ? 'Active Recovery' : 'Resistance')}</td>
+        <td style="padding: 10px 0; font-size: 13px; font-weight: 700; color: #111827;">${escapeHtml(d.dayName || `Day ${idx + 1}`)}</td>
+        <td style="padding: 10px 0; font-size: 12px; color: #4b5563;">${escapeHtml(d.focus || (d.isRestDay ? 'Active Recovery' : 'Resistance'))}</td>
         <td style="padding: 10px 0; font-size: 12px; color: #047857; text-align: right; font-weight: 600;">
           ${d.isRestDay ? '<span style="color:#6b7280;">Rest Day</span>' : `${exCount} exercises`}
         </td>
@@ -631,7 +584,7 @@ export function buildWorkoutPlanAssignedEmail(params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
+  <title>${safeSubject}</title>
 </head>
 <body style="${getEmailBaseStyles()}">
   <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -652,7 +605,7 @@ export function buildWorkoutPlanAssignedEmail(params: {
                       Your Workout Plan is Ready!
                     </h1>
                     <p style="color: #c7d2fe; font-size: 13px; margin: 0;">
-                      Designed by Coach ${coachName}
+                      Designed by Coach ${safeCoachName}
                     </p>
                   </td>
                   <td align="right" valign="top" style="font-size: 28px;">
@@ -667,17 +620,17 @@ export function buildWorkoutPlanAssignedEmail(params: {
           <tr>
             <td style="padding: 32px;">
               <p style="font-size: 15px; color: #1f2937; margin: 0 0 16px 0; line-height: 1.6;">
-                Hi <strong>${firstName}</strong>,
+                Hi <strong>${safeFirstName}</strong>,
               </p>
               <p style="font-size: 14px; color: #4b5563; margin: 0 0 24px 0; line-height: 1.6;">
-                Coach <strong>${coachName}</strong> has built and assigned a custom training routine tailored to your fitness baseline, weekly schedule, and physique goals:
+                Coach <strong>${safeCoachName}</strong> has built and assigned a custom training routine tailored to your fitness baseline, weekly schedule, and physique goals:
               </p>
 
               <!-- Routine Name Card -->
               <div style="background-color: #eef2ff; border-left: 4px solid #4f46e5; border-radius: 0 12px 12px 0; padding: 16px; margin-bottom: 24px;">
                 <div style="font-size: 11px; font-weight: 700; color: #3730a3; text-transform: uppercase; letter-spacing: 0.5px;">Active Training Split</div>
-                <div style="font-size: 18px; font-weight: 800; color: #1e1b4b; margin-top: 2px;">${plan.name}</div>
-                <div style="font-size: 12px; color: #4338ca; margin-top: 4px; font-weight: 600;">Primary Goal: ${plan.goal || 'General Fitness & Muscle Gain'}</div>
+                <div style="font-size: 18px; font-weight: 800; color: #1e1b4b; margin-top: 2px;">${safePlanName}</div>
+                <div style="font-size: 12px; color: #4338ca; margin-top: 4px; font-weight: 600;">Primary Goal: ${safeGoal}</div>
               </div>
 
               <!-- Training Specs Grid -->
@@ -688,32 +641,32 @@ export function buildWorkoutPlanAssignedEmail(params: {
                 <tr>
                   <td width="32%" style="padding: 12px; background-color: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Frequency</div>
-                    <div style="font-size: 16px; font-weight: 800; color: #111827; margin-top: 2px;">${plan.daysPerWeek || (plan.days ? plan.days.length : 4)} Days</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #111827; margin-top: 2px;">${safeDaysPerWeek} Days</div>
                     <div style="font-size: 9px; color: #9ca3af;">per week</div>
                   </td>
                   <td width="2%"></td>
                   <td width="32%" style="padding: 12px; background-color: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Difficulty</div>
-                    <div style="font-size: 16px; font-weight: 800; color: #111827; margin-top: 2px;">${plan.difficulty || 'Intermediate'}</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #111827; margin-top: 2px;">${safeDifficulty}</div>
                     <div style="font-size: 9px; color: #9ca3af;">level</div>
                   </td>
                   <td width="2%"></td>
                   <td width="32%" style="padding: 12px; background-color: #eef2ff; border-radius: 10px; border: 1px solid #c7d2fe; text-align: center;">
                     <div style="font-size: 10px; font-weight: 700; color: #3730a3; text-transform: uppercase;">Coach</div>
-                    <div style="font-size: 15px; font-weight: 800; color: #1e1b4b; margin-top: 2px;">${coachName.split(' ')[0]}</div>
+                    <div style="font-size: 15px; font-weight: 800; color: #1e1b4b; margin-top: 2px;">${safeCoachFirstName}</div>
                     <div style="font-size: 9px; color: #4338ca;">Assigned</div>
                   </td>
                 </tr>
               </table>
 
               <!-- Coach's Notes -->
-              ${plan.coachNotes ? `
+              ${safeCoachNotes ? `
               <div style="margin-bottom: 24px;">
                 <h3 style="font-size: 13px; font-weight: 700; color: #111827; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.5px;">
                   Coach's Technique &amp; Rest Advice
                 </h3>
                 <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; color: #374151; font-size: 13px; line-height: 1.6;">
-                  ${plan.coachNotes}
+                  ${safeCoachNotes}
                 </div>
               </div>
               ` : ''}
@@ -734,7 +687,7 @@ export function buildWorkoutPlanAssignedEmail(params: {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 16px;">
                 <tr>
                   <td align="center">
-                    <a href="${planUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <a href="${safePlanUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                       Open Your Workout Regimen &rarr;
                     </a>
                   </td>
@@ -752,7 +705,7 @@ export function buildWorkoutPlanAssignedEmail(params: {
             <td style="background-color: #f3f4f6; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center; font-size: 11px; color: #6b7280; line-height: 1.5;">
               <strong>Fitkode Coaching</strong> • Personalized Training &amp; Hypertrophy<br>
               Questions about this workout split? Reply directly to this email or reach Coach Chinmay at <strong>myfitkode@gmail.com</strong>.<br>
-              To manage notifications, visit your <a href="${appUrl}/profile" style="color: #4f46e5; text-decoration: underline;">Privacy &amp; Data Center</a>.
+              To manage notifications, visit your <a href="${safeAppUrl}/profile" style="color: #4f46e5; text-decoration: underline;">Privacy &amp; Data Center</a>.
             </td>
           </tr>
 
@@ -804,6 +757,9 @@ export function buildWelcomeEmail(params: {
   const rawName = (clientName || targetEmail.split('@')[0] || 'Champion').trim();
   const firstName = rawName.split(' ')[0] || rawName;
   const profileUrl = `${appUrl.replace(/\/$/, '')}/profile`;
+  const safeFirstName = escapeHtml(firstName);
+  const safeProfileUrl = escapeHtml(profileUrl);
+  const safeTargetEmail = escapeHtml(targetEmail);
 
   const subject = `Welcome to Fitkode, ${firstName}! 🔥 You’ve made the right choice — let’s crush your goals together!`;
   const previewText = `Your journey to peak fitness starts right now. Coach Chinmay and Team Fitkode have your back every step of the way.`;
@@ -848,7 +804,7 @@ export function buildWelcomeEmail(params: {
           <tr>
             <td style="padding: 32px 32px 24px 32px;">
               <h2 style="font-size: 20px; font-weight: 800; color: #111827; margin: 0 0 16px 0;">
-                Hey ${firstName}, you’re officially in! 💥
+                Hey ${safeFirstName}, you’re officially in! 💥
               </h2>
 
               <p style="font-size: 15px; line-height: 1.65; color: #374151; margin: 0 0 16px 0;">
@@ -939,7 +895,7 @@ export function buildWelcomeEmail(params: {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 28px 0;">
                 <tr>
                   <td align="center">
-                    <a href="${profileUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 15px; padding: 16px 36px; border-radius: 14px; box-shadow: 0 4px 14px rgba(4, 120, 87, 0.35); text-transform: uppercase; letter-spacing: 0.5px;">
+                    <a href="${safeProfileUrl}" style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 15px; padding: 16px 36px; border-radius: 14px; box-shadow: 0 4px 14px rgba(4, 120, 87, 0.35); text-transform: uppercase; letter-spacing: 0.5px;">
                       ⚡ Open Your Fitkode Dashboard &rarr;
                     </a>
                   </td>
@@ -973,7 +929,7 @@ export function buildWelcomeEmail(params: {
                 Fitkode Performance Coaching • DPDPA Compliant Consent Synchronized
               </p>
               <p style="margin: 4px 0 0 0; font-size: 11px; color: #9ca3af;">
-                You received this email because you logged in to Fitkode with your Google account (${targetEmail}).
+                You received this email because you logged in to Fitkode with your Google account (${safeTargetEmail}).
               </p>
             </td>
           </tr>
@@ -1090,7 +1046,7 @@ export async function sendEmailNotification(params: {
         const copyBannerHtml = `
           <div style="background-color:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#065f46;">
             <strong>📬 Fitkode Coach Sent Copy</strong><br/>
-            <span>This is an exact copy of the notification sent to <strong>${recipientName || cleanTo}</strong> (&lt;${cleanTo}&gt;) at ${new Date(now).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST.</span>
+            <span>This is an exact copy of the notification sent to <strong>${escapeHtml(recipientName || cleanTo)}</strong> (&lt;${escapeHtml(cleanTo)}&gt;) at ${new Date(now).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST.</span>
           </div>
         `;
         transporter

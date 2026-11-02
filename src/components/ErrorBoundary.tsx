@@ -16,9 +16,6 @@ interface State {
  * and provides a one-click cache repair + reload action that preserves user authentication.
  */
 export default class ErrorBoundary extends React.Component<Props, State> {
-  declare public props: Readonly<Props>;
-  declare public setState: React.Component<Props, State>['setState'];
-
   public state: State = {
     hasError: false,
     errorMessage: '',
@@ -26,7 +23,6 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   constructor(props: Props) {
     super(props);
-    this.props = props;
     this.state = {
       hasError: false,
       errorMessage: '',

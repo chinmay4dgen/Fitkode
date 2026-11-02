@@ -5,6 +5,19 @@ import { extractYouTubeVideoId } from './youtubeUtils';
 export const NON_MEDICAL_DISCLAIMER =
   'Fitkode provides evidence-based fitness and lifestyle coaching. Coach Chinmay Jain is an INFS Certified Nutrition & Fitness Specialist and not a licensed medical practitioner. Recommendations do not constitute medical diagnosis, treatment, or clinical prescription. Consult a physician before beginning any new diet or training regimen.';
 
+export function escapeHtml(raw: unknown): string {
+  return String(raw ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeHtmlWithBreaks(raw: unknown): string {
+  return escapeHtml(raw).replace(/\r?\n/g, '<br>');
+}
+
 /**
  * Generate a standalone, self-contained printable HTML document for a Meal Plan
  */
@@ -46,13 +59,13 @@ export function generateMealPlanPrintableHtml(
           const itemRecipe = item.suggestedRecipe || slot.suggestedRecipe || '-';
           return `
           <tr>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #111827;">${item.name}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4b5563;">${item.servingSize || '-'}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #92400e; font-size: 11px;">${itemRecipe}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #047857; font-weight: 700;">${item.protein || 0}g</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #b45309;">${item.carbs || 0}g</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #4338ca;">${item.fats || 0}g</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 700; color: #111827;">${item.calories || 0}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #111827;">${escapeHtml(item.name)}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4b5563;">${escapeHtml(item.servingSize || '-')}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #92400e; font-size: 11px;">${escapeHtml(itemRecipe)}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #047857; font-weight: 700;">${escapeHtml(item.protein || 0)}g</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #b45309;">${escapeHtml(item.carbs || 0)}g</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #4338ca;">${escapeHtml(item.fats || 0)}g</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 700; color: #111827;">${escapeHtml(item.calories || 0)}</td>
           </tr>
         `;
         })
@@ -63,8 +76,8 @@ export function generateMealPlanPrintableHtml(
         <div style="background-color: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #10b981; margin-right: 8px;">Meal ${index + 1}</span>
-            <strong style="font-size: 14px; color: #1e293b;">${slot.name}</strong>
-            ${slot.time ? `<span style="font-size: 12px; color: #64748b; margin-left: 8px;">(${slot.time})</span>` : ''}
+            <strong style="font-size: 14px; color: #1e293b;">${escapeHtml(slot.name)}</strong>
+            ${slot.time ? `<span style="font-size: 12px; color: #64748b; margin-left: 8px;">(${escapeHtml(slot.time)})</span>` : ''}
           </div>
           <div style="font-size: 11px; color: #475569; font-weight: 600;">
             <span style="color: #047857;">P: ${Math.round(slotP * 10) / 10}g</span> &bull; 
@@ -91,8 +104,8 @@ export function generateMealPlanPrintableHtml(
         </table>
         ${slot.suggestedRecipe ? `
         <div style="background-color: #fffbeb; border-top: 1px solid #fef3c7; padding: 9px 14px; font-size: 11px; color: #92400e; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-          <div><strong style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; background-color: #fde68a; padding: 2px 6px; border-radius: 4px; margin-right: 6px; color: #78350f;">Suggested Recipe</strong> <strong>${slot.suggestedRecipe}</strong></div>
-          ${slot.recipeInstructions ? `<div style="color: #78350f; font-style: italic; font-size: 11px;">${slot.recipeInstructions}</div>` : ''}
+          <div><strong style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; background-color: #fde68a; padding: 2px 6px; border-radius: 4px; margin-right: 6px; color: #78350f;">Suggested Recipe</strong> <strong>${escapeHtml(slot.suggestedRecipe)}</strong></div>
+          ${slot.recipeInstructions ? `<div style="color: #78350f; font-style: italic; font-size: 11px;">${escapeHtmlWithBreaks(slot.recipeInstructions)}</div>` : ''}
         </div>
         ` : ''}
       </div>
@@ -104,7 +117,7 @@ export function generateMealPlanPrintableHtml(
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${plan.name} - Fitkode Nutrition Prescription</title>
+  <title>${escapeHtml(plan.name)} - Fitkode Nutrition Prescription</title>
   <style>
     @page {
       size: A4 portrait;
@@ -258,14 +271,14 @@ export function generateMealPlanPrintableHtml(
     <div>
       <h1 class="logo-title">FITKODE</h1>
       <div class="logo-subtitle">Personalized Nutrition & Metabolic Coaching</div>
-      <div style="margin-top: 8px; font-size: 16px; font-weight: bold; color: #111827;">${plan.name}</div>
-      <div style="font-size: 12px; color: #6b7280;">Diet Type: <strong>${plan.dietType || 'Vegetarian'}</strong></div>
+      <div style="margin-top: 8px; font-size: 16px; font-weight: bold; color: #111827;">${escapeHtml(plan.name)}</div>
+      <div style="font-size: 12px; color: #6b7280;">Diet Type: <strong>${escapeHtml(plan.dietType || 'Vegetarian')}</strong></div>
     </div>
     <div class="meta-box">
-      <div>Member: <strong style="color: #111827;">${userName}</strong></div>
-      ${userEmail ? `<div style="font-size: 11px; color: #6b7280;">${userEmail}</div>` : ''}
-      <div>Prescription Date: <strong>${currentDate}</strong></div>
-      <div>Coach: <strong style="color: #047857;">${plan.coachName || 'Chinmay Jain (INFS Certified)'}</strong></div>
+      <div>Member: <strong style="color: #111827;">${escapeHtml(userName)}</strong></div>
+      ${userEmail ? `<div style="font-size: 11px; color: #6b7280;">${escapeHtml(userEmail)}</div>` : ''}
+      <div>Prescription Date: <strong>${escapeHtml(currentDate)}</strong></div>
+      <div>Coach: <strong style="color: #047857;">${escapeHtml(plan.coachName || 'Chinmay Jain (INFS Certified)')}</strong></div>
       <div style="margin-top: 4px;"><span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold;">${plan.createdBy === 'coach' ? 'Coach Assigned' : 'Member Custom Plan'}</span></div>
     </div>
   </div>
@@ -274,7 +287,7 @@ export function generateMealPlanPrintableHtml(
     plan.coachNotes
       ? `<div class="coach-notes-box">
           <strong style="display: block; margin-bottom: 4px; color: #6b21a8;">Coach Instructions:</strong>
-          ${plan.coachNotes}
+          ${escapeHtmlWithBreaks(plan.coachNotes)}
         </div>`
       : ''
   }
@@ -323,7 +336,7 @@ export function generateMealPlanPrintableHtml(
 
   <div class="footer">
     <div>Fitkode Coaching &bull; fitkode.com &bull; Coach Chinmay Jain (INFS Certified)</div>
-    <div>Strict Confidentiality Guaranteed &bull; Document ID: ${plan.id}</div>
+    <div>Strict Confidentiality Guaranteed &bull; Document ID: ${escapeHtml(plan.id)}</div>
   </div>
 
 </body>
@@ -350,9 +363,9 @@ export function generateWorkoutPlanPrintableHtml(
 
           const videoCell = videoWatchUrl && videoThumbUrl
             ? `<td style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
-                <a href="${videoWatchUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-flex; flex-direction: column; align-items: center; gap: 3px;">
+                <a href="${escapeHtml(videoWatchUrl)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-flex; flex-direction: column; align-items: center; gap: 3px;">
                   <div style="position: relative; width: 76px; height: 42px; border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; background: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <img src="${videoThumbUrl}" alt="${ex.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" crossorigin="anonymous" />
+                    <img src="${escapeHtml(videoThumbUrl)}" alt="${escapeHtml(ex.name)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" crossorigin="anonymous" />
                     <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25);">
                       <div style="width: 18px; height: 18px; border-radius: 50%; background: #dc2626; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; line-height: 1;">&#9658;</div>
                     </div>
@@ -366,12 +379,12 @@ export function generateWorkoutPlanPrintableHtml(
 
           return `
           <tr>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 700; color: #111827;">${exIdx + 1}. ${ex.name}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 11px;">${ex.targetMuscle || '-'}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-weight: 700; color: #4338ca;">${ex.sets || 3}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-weight: 600; color: #111827;">${ex.reps || '8-12'}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280;">${ex.restSeconds ? `${ex.restSeconds}s` : '90s'}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4b5563; font-size: 11px;">${ex.notes || '-'}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 700; color: #111827;">${exIdx + 1}. ${escapeHtml(ex.name)}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 11px;">${escapeHtml(ex.targetMuscle || '-')}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-weight: 700; color: #4338ca;">${escapeHtml(ex.sets || 3)}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-weight: 600; color: #111827;">${escapeHtml(ex.reps || '8-12')}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280;">${escapeHtml(ex.restSeconds ? `${ex.restSeconds}s` : '90s')}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4b5563; font-size: 11px;">${escapeHtml(ex.notes || '-')}</td>
             ${videoCell}
           </tr>
         `;
@@ -383,8 +396,8 @@ export function generateWorkoutPlanPrintableHtml(
         <div style="background-color: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #6366f1; margin-right: 8px;">Day ${dIdx + 1}</span>
-            <strong style="font-size: 14px; color: #1e293b;">${day.dayName}</strong>
-            <span style="font-size: 12px; color: #64748b; margin-left: 8px;">&bull; ${day.focus}</span>
+            <strong style="font-size: 14px; color: #1e293b;">${escapeHtml(day.dayName)}</strong>
+            <span style="font-size: 12px; color: #64748b; margin-left: 8px;">&bull; ${escapeHtml(day.focus)}</span>
           </div>
           <span style="font-size: 11px; font-weight: bold; background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px;">
             ${(day.exercises || []).length} Exercises
@@ -415,7 +428,7 @@ export function generateWorkoutPlanPrintableHtml(
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${plan.name} - Fitkode Training Routine</title>
+  <title>${escapeHtml(plan.name)} - Fitkode Training Routine</title>
   <style>
     @page {
       size: A4 portrait;
@@ -565,14 +578,14 @@ export function generateWorkoutPlanPrintableHtml(
     <div>
       <h1 class="logo-title">FITKODE</h1>
       <div class="logo-subtitle">Structured Resistance Training & Hypertrophy Program</div>
-      <div style="margin-top: 8px; font-size: 16px; font-weight: bold; color: #111827;">${plan.name}</div>
-      <div style="font-size: 12px; color: #6b7280;">Difficulty: <strong>${plan.difficulty || 'Intermediate'}</strong></div>
+      <div style="margin-top: 8px; font-size: 16px; font-weight: bold; color: #111827;">${escapeHtml(plan.name)}</div>
+      <div style="font-size: 12px; color: #6b7280;">Difficulty: <strong>${escapeHtml(plan.difficulty || 'Intermediate')}</strong></div>
     </div>
     <div class="meta-box">
-      <div>Member: <strong style="color: #111827;">${userName}</strong></div>
-      ${userEmail ? `<div style="font-size: 11px; color: #6b7280;">${userEmail}</div>` : ''}
-      <div>Program Date: <strong>${currentDate}</strong></div>
-      <div>Coach: <strong style="color: #4338ca;">${plan.coachName || 'Chinmay Jain (INFS Certified)'}</strong></div>
+      <div>Member: <strong style="color: #111827;">${escapeHtml(userName)}</strong></div>
+      ${userEmail ? `<div style="font-size: 11px; color: #6b7280;">${escapeHtml(userEmail)}</div>` : ''}
+      <div>Program Date: <strong>${escapeHtml(currentDate)}</strong></div>
+      <div>Coach: <strong style="color: #4338ca;">${escapeHtml(plan.coachName || 'Chinmay Jain (INFS Certified)')}</strong></div>
       <div style="margin-top: 4px;"><span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold;">${plan.createdBy === 'coach' ? 'Coach Prescribed' : 'Member Routine'}</span></div>
     </div>
   </div>
@@ -581,7 +594,7 @@ export function generateWorkoutPlanPrintableHtml(
     plan.coachNotes
       ? `<div class="coach-notes-box">
           <strong style="display: block; margin-bottom: 4px; color: #6b21a8;">Coach Training Directives:</strong>
-          ${plan.coachNotes}
+          ${escapeHtmlWithBreaks(plan.coachNotes)}
         </div>`
       : ''
   }
@@ -589,11 +602,11 @@ export function generateWorkoutPlanPrintableHtml(
   <div class="target-banner">
     <div class="target-col">
       <div class="target-label">Primary Goal</div>
-      <div class="target-value">${plan.goal || 'Hypertrophy'}</div>
+      <div class="target-value">${escapeHtml(plan.goal || 'Hypertrophy')}</div>
     </div>
     <div class="target-col">
       <div class="target-label">Frequency</div>
-      <div class="target-value">${plan.daysPerWeek || (plan.days ? plan.days.length : 4)} Days / Week</div>
+      <div class="target-value">${escapeHtml(plan.daysPerWeek || (plan.days ? plan.days.length : 4))} Days / Week</div>
     </div>
     <div class="target-col">
       <div class="target-label">Total Workout Days</div>
@@ -622,7 +635,7 @@ export function generateWorkoutPlanPrintableHtml(
 
   <div class="footer">
     <div>Fitkode Coaching &bull; fitkode.com &bull; Coach Chinmay Jain (INFS Certified)</div>
-    <div>Strict Confidentiality Guaranteed &bull; Document ID: ${plan.id}</div>
+    <div>Strict Confidentiality Guaranteed &bull; Document ID: ${escapeHtml(plan.id)}</div>
   </div>
 
 </body>

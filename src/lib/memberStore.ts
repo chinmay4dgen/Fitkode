@@ -3,7 +3,7 @@ import { defaultUserProfile, defaultClientOnboarding, getProfileCompletionRate, 
 import { getSupabase, getSupabaseAuthHeaders, loadAllWeeklyEntriesFromSupabaseForAdmin } from './supabase';
 import { safeLocalStorageSet } from './storageGuard';
 
-export const DEFAULT_ADMIN_EMAILS = ['chinma4jain@gmail.com', 'chinmay4jain@gmail.com', 'myfitkode@gmail.com'];
+export const DEFAULT_ADMIN_EMAILS = ['chinmay4jain@gmail.com', 'myfitkode@gmail.com'];
 
 export function isDefaultAdmin(email?: string | null): boolean {
   if (!email) return false;
@@ -11,606 +11,69 @@ export function isDefaultAdmin(email?: string | null): boolean {
   return DEFAULT_ADMIN_EMAILS.includes(normalized);
 }
 
-// Pre-seeded sample members representing members who have enrolled and logged in to Fitkode
-export const SEED_MEMBERS: AppMember[] = [
-  {
-    id: 'usr_001_priya',
-    email: 'priya.sharma@example.com',
-    name: 'Priya Sharma',
-    role: 'paid',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-08-12T09:30:00Z',
-    lastLoginAt: '2026-09-04T18:20:00Z',
-    phone: '+91 98201 45678',
-    planId: '12-weeks-coaching',
-    planName: '12-Week Intensive Coaching',
-    planPurchasedAt: '2026-08-12T10:15:00Z',
-    profileCompletion: 100,
-    onboardingCompletion: 100,
-    notes: 'Focus on post-pregnancy core restoration, fat loss, and vegetarian macro targets. Highly dedicated.',
-    profile: {
-      ...defaultUserProfile,
-      email: 'priya.sharma@example.com',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      dateOfBirth: '1993-04-14',
-      age: '33',
-      gender: 'Female',
-      phone: '+91 98201 45678',
-      address: 'B-402, Raheja Towers, Bandra West',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      zipcode: '400050',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'No',
-      bloodGroup: 'B+',
-      livingWith: 'Husband, 3-year-old daughter, in-laws',
-      primaryCareProvider: 'Dr. Sunita Kulkarni, Lilavati Hospital',
-      lastCheckupDate: '2026-06-20',
-    },
-    onboarding: {
-      ...defaultClientOnboarding,
-      foodAllergies: 'None',
-      dislikedFoods: 'Eggplant, bitter gourd (karela)',
-      whoCooks: 'Maid',
-      cookingDifficulty: 'no',
-      dietPreferences: ['Vegetarian', 'High Protein'],
-      currentSpecificDiet: ['None'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Evening Snack', 'Dinner'],
-      dailyBeverageOfChoice: ['Green Tea', 'Masala Chai'],
-      beverageSnacks: 'Roasted makhana or 2 digestive biscuits',
-      beverageFrequencyQuantity: '2 cups of tea daily with 1/2 tsp jaggery',
-      breakfastDetails: 'Poha or oats cheela with homemade mint chutney (approx 8:30 AM)',
-      lunchDetails: '2 multigrain rotis, 1 katori dal, mixed vegetable subji, bowl of Greek yogurt (1:30 PM)',
-      snackDetails: 'Sprouted moong salad or handful of roasted almonds and walnuts (5:30 PM)',
-      dinnerDetails: 'Tofu stir fry or paneer bhurji with sauteed vegetables and 1 small phulka (8:30 PM)',
-      foodCravings: 'Dark chocolate, baked savory snacks during pre-menstrual cycle',
-      cravingFrequency: '1-2 times a week',
-      specialDietRestrictions: 'No onion and garlic on Tuesdays (religious)',
-      outsideFoodFrequency: 'Once a week',
-      outsideFoodItems: 'South Indian dosas or wood-fired thin crust pizza',
-      artificialSweeteners: 'Not Applicable',
-      heartburnFrequency: 'Rarely',
-      gasFrequency: 'Rarely',
-      bloatingFrequency: 'Sometimes',
-      stomachPainFrequency: 'Never',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Never',
-      constipationFrequency: 'Rarely',
-      missedDetails: 'Bloating occurs after heavy lentils or chickpea dinners.',
-      currentWeightKg: '64.5',
-      heightCm: '162',
-      waistInches: '30.5',
-      hipInches: '38.0',
-      neckInches: '13.0',
-      chestInches: '35.5',
-      upperArmInches: '11.5',
-      quadricepsInches: '21.5',
-      medicalAndSurgicalHistory: 'C-section delivery in 2023. Fully recovered and cleared by obstetrician for weight training.',
-      familyDeathsAndCauses: 'Paternal grandfather passed away at age 82 from natural old age.',
-      knowsBloodPressure: 'yes',
-      bpAbove14090: 'no',
-      knowsCholesterol: 'yes',
-      cholesterolAbove200: 'no',
-      headachesScore: 1,
-      faintnessScore: 1,
-      dizzinessScore: 1,
-      insomniaScore: 2,
-      digestiveIssuesScore: 2,
-      emotionalIssuesScore: 2,
-      currentMedications: 'Multivitamin & Vitamin D3 60,000 IU monthly',
-      medicationAllergies: 'Not applicable',
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-    },
-  },
-  {
-    id: 'usr_002_rahul',
-    email: 'rahul.mehta@example.com',
-    name: 'Rahul Mehta',
-    role: 'paid',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-07-28T14:10:00Z',
-    lastLoginAt: '2026-09-05T08:15:00Z',
-    phone: '+91 99304 88712',
-    planId: '4-weeks-coaching',
-    planName: '4-Week Kickstarter Coaching',
-    planPurchasedAt: '2026-07-28T15:00:00Z',
-    profileCompletion: 92,
-    onboardingCompletion: 100,
-    notes: 'Software engineer with sedentary desk hours. Target: 8kg fat loss, build shoulder mobility, stamina.',
-    profile: {
-      ...defaultUserProfile,
-      email: 'rahul.mehta@example.com',
-      firstName: 'Rahul',
-      lastName: 'Mehta',
-      dateOfBirth: '1990-11-05',
-      age: '35',
-      gender: 'Male',
-      phone: '+91 99304 88712',
-      address: 'Flat 1004, DLF Cyber City',
-      city: 'Gurugram',
-      state: 'Haryana',
-      zipcode: '122002',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Unmarried',
-      children: 'No',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'O+',
-      livingWith: 'Living alone in rented apartment',
-      primaryCareProvider: 'Dr. Rajesh Bhardwaj, Max Healthcare',
-      lastCheckupDate: '2026-05-10',
-    },
-    onboarding: {
-      ...defaultClientOnboarding,
-      foodAllergies: 'Peanuts (mild itching)',
-      dislikedFoods: 'Okra (bhindi), raw onions',
-      whoCooks: 'Myself',
-      cookingDifficulty: 'yes',
-      dietPreferences: ['Eggetarian', 'Non-Vegetarian'],
-      currentSpecificDiet: ['High Protein'],
-      mealsEatenRegularly: ['Lunch', 'Evening Snack', 'Dinner'],
-      dailyBeverageOfChoice: ['Black Coffee', 'Whey Protein Shake'],
-      beverageSnacks: 'Salted peanuts (avoided now due to allergy), roasted chana',
-      beverageFrequencyQuantity: '2 shots of espresso daily without sugar',
-      breakfastDetails: 'Frequently skip breakfast due to 16:8 intermittent fasting or take 1 black coffee',
-      lunchDetails: '3 boiled eggs, 2 rotis, chicken curry or dal with brown rice (1:00 PM)',
-      snackDetails: '1 scoop whey protein in cold water, 1 apple (5:00 PM)',
-      dinnerDetails: 'Grilled chicken breast (200g) with stir fried broccoli, carrots, and sweet potato (8:00 PM)',
-      foodCravings: 'Late night salty snacks, french fries on weekends',
-      cravingFrequency: '3-4 times a week',
-      specialDietRestrictions: 'None',
-      outsideFoodFrequency: '2-3 times a week',
-      outsideFoodItems: 'Subway roasted chicken sandwich, grilled kebabs, Thai green curry',
-      artificialSweeteners: 'Stevia in occasional homemade protein desserts',
-      heartburnFrequency: 'Sometimes',
-      gasFrequency: 'Sometimes',
-      bloatingFrequency: 'Rarely',
-      stomachPainFrequency: 'Never',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Never',
-      constipationFrequency: 'Rarely',
-      missedDetails: 'Acidity strikes when dinner is eaten past 10 PM before sleeping.',
-      currentWeightKg: '82.4',
-      heightCm: '178',
-      waistInches: '34.5',
-      hipInches: '39.0',
-      neckInches: '15.5',
-      chestInches: '39.0',
-      upperArmInches: '13.5',
-      quadricepsInches: '22.0',
-      medicalAndSurgicalHistory: 'Mild right lower back stiffness from prolonged desk sitting (L4-L5 postural)',
-      familyDeathsAndCauses: 'Maternal grandfather had type 2 diabetes and hypertension.',
-      knowsBloodPressure: 'yes',
-      bpAbove14090: 'no',
-      knowsCholesterol: 'yes',
-      cholesterolAbove200: 'no',
-      headachesScore: 2,
-      faintnessScore: 1,
-      dizzinessScore: 1,
-      insomniaScore: 3,
-      digestiveIssuesScore: 2,
-      emotionalIssuesScore: 2,
-      currentMedications: 'Fish Oil (Omega-3 1000mg) and Zinc + Magnesium at bedtime',
-      medicationAllergies: 'Not applicable',
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-    },
-  },
-  {
-    id: 'usr_003_ananya',
-    email: 'ananya.verma@example.com',
-    name: 'Ananya Verma',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-09-01T11:00:00Z',
-    lastLoginAt: '2026-09-05T09:45:00Z',
-    phone: '+91 97112 34567',
-    profileCompletion: 85,
-    onboardingCompletion: 40,
-    notes: 'Registered user exploring coaching plans. Completed profile & dietary intake. Follow up on consultation.',
-    profile: {
-      ...defaultUserProfile,
-      email: 'ananya.verma@example.com',
-      firstName: 'Ananya',
-      lastName: 'Verma',
-      dateOfBirth: '1998-02-18',
-      age: '28',
-      gender: 'Female',
-      phone: '+91 97112 34567',
-      address: 'Villa 12, Sobha City, Thanisandra',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      zipcode: '560077',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Unmarried',
-      children: 'No',
-      isPregnant: 'No',
-      bloodGroup: 'A+',
-      livingWith: 'Roommate in 2BHK flat',
-      primaryCareProvider: 'Manipal Hospital Family Clinic',
-      lastCheckupDate: '2026-03-15',
-    },
-    onboarding: {
-      ...defaultClientOnboarding,
-      foodAllergies: 'Lactose intolerance (switched to almond / oat milk)',
-      dislikedFoods: 'Mushrooms, raw tomatoes',
-      whoCooks: 'Myself',
-      cookingDifficulty: 'yes',
-      dietPreferences: ['Vegetarian', 'Lactose Free'],
-      currentSpecificDiet: ['None'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
-      dailyBeverageOfChoice: ['Herbal Infusion', 'Black Coffee'],
-      beverageSnacks: 'Makhana, fruit bowl',
-      beverageFrequencyQuantity: '1 cup herbal tea, 1 black coffee with stevia',
-      breakfastDetails: 'Chia seed pudding with almond milk and blueberries',
-      lunchDetails: 'Quinoa bowl with paneer cubes, cucumber, grated carrot, olive oil dressing',
-      snackDetails: 'Handful of walnuts',
-      dinnerDetails: 'Moong dal soup with stir-fried zucchini and bell peppers',
-      foodCravings: 'Ice cream, bakery pastries',
-      cravingFrequency: '1-2 times a week',
-      specialDietRestrictions: 'Strictly avoid dairy milk and heavy cream',
-      outsideFoodFrequency: 'Once a week',
-      outsideFoodItems: 'Italian pasta (arrabbiata) or avocado toast',
-      artificialSweeteners: 'Stevia drops',
-      heartburnFrequency: 'Never',
-      gasFrequency: 'Sometimes',
-      bloatingFrequency: 'Often',
-      stomachPainFrequency: 'Rarely',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Rarely',
-      constipationFrequency: 'Rarely',
-      missedDetails: 'Experienced bloating after consuming whey concentrate in the past.',
-      currentWeightKg: '58.0',
-      heightCm: '165',
-      waistInches: '28.0',
-      hipInches: '36.5',
-      neckInches: '12.5',
-      chestInches: '34.0',
-      upperArmInches: '10.5',
-      quadricepsInches: '20.0',
-      completedSections: [1, 2],
-      isSubmitted: false,
-    },
-  },
-  {
-    id: 'usr_004_david',
-    email: 'david.miller@example.com',
-    name: 'David Miller',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-09-03T16:20:00Z',
-    lastLoginAt: '2026-09-04T12:00:00Z',
-    phone: '+1 (555) 234-5678',
-    profileCompletion: 60,
-    onboardingCompletion: 0,
-    notes: 'Free account created via Google Auth. Browsed the calorie & macro calculator.',
-    profile: {
-      ...defaultUserProfile,
-      email: 'david.miller@example.com',
-      firstName: 'David',
-      lastName: 'Miller',
-      dateOfBirth: '1988-08-22',
-      age: '38',
-      gender: 'Male',
-      phone: '+1 (555) 234-5678',
-      address: '742 Evergreen Terrace',
-      city: 'Austin',
-      state: 'Texas',
-      zipcode: '78701',
-      preferredContact: 'Email',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'O-',
-      livingWith: 'Spouse and 2 kids',
-      primaryCareProvider: 'Austin Health Center',
-      lastCheckupDate: '2025-11-10',
-    },
-    onboarding: {
-      ...defaultClientOnboarding,
-      completedSections: [],
-      isSubmitted: false,
-    },
-  },
-  {
-    id: 'usr_005_vikram',
-    email: 'vikram.singh@example.com',
-    name: 'Vikram Singh',
-    role: 'paid',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-06-15T08:00:00Z',
-    lastLoginAt: '2026-09-05T06:30:00Z',
-    phone: '+91 98190 12345',
-    planId: '24-weeks-coaching',
-    planName: '24-Week Lifestyle Transformation',
-    planPurchasedAt: '2026-06-15T09:00:00Z',
-    profileCompletion: 100,
-    onboardingCompletion: 100,
-    notes: 'Senior executive. Already down 11 kg in 12 weeks. Maintaining high energy and athletic conditioning.',
-    profile: {
-      ...defaultUserProfile,
-      email: 'vikram.singh@example.com',
-      firstName: 'Vikram',
-      lastName: 'Singh',
-      dateOfBirth: '1982-05-19',
-      age: '44',
-      gender: 'Male',
-      phone: '+91 98190 12345',
-      address: 'Penthouse 18, Golf Course Road',
-      city: 'Gurugram',
-      state: 'Haryana',
-      zipcode: '122003',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'A+',
-      livingWith: 'Wife, two teenage sons',
-      primaryCareProvider: 'Dr. Verma, Medanta The Medicity',
-      lastCheckupDate: '2026-07-05',
-    },
-    onboarding: {
-      ...defaultClientOnboarding,
-      foodAllergies: 'None',
-      dislikedFoods: 'Karela, pumpkin',
-      whoCooks: 'Other',
-      cookingDifficulty: 'no',
-      dietPreferences: ['Non-Vegetarian', 'High Protein'],
-      currentSpecificDiet: ['Calorie Deficit / Macro Tracking'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
-      dailyBeverageOfChoice: ['Americano', 'Sparkling Water'],
-      beverageSnacks: 'Handful of Brazil nuts and almonds',
-      beverageFrequencyQuantity: '2 black coffees per day, 3.5L water',
-      breakfastDetails: '3 whole eggs scrambled with spinach, 1 slice sourdough toast, avocado (8:00 AM)',
-      lunchDetails: 'Grilled salmon or chicken breast (220g), quinoa (100g cooked), asparagus (1:00 PM)',
-      snackDetails: 'Whey protein isolate shake with berries (5:00 PM)',
-      dinnerDetails: 'Grilled fish tikka or lean steak, large garden salad with vinaigrette (8:00 PM)',
-      foodCravings: 'Rare now. Occasional single malt with sparkling water on business dinners.',
-      cravingFrequency: '1 or 2 times a month',
-      specialDietRestrictions: 'None',
-      outsideFoodFrequency: 'Once a week',
-      outsideFoodItems: 'Japanese sashimi or Mediterranean grilled meats',
-      artificialSweeteners: 'None',
-      heartburnFrequency: 'Never',
-      gasFrequency: 'Never',
-      bloatingFrequency: 'Never',
-      stomachPainFrequency: 'Never',
-      nauseaVomitingFrequency: 'Never',
-      diarrheaFrequency: 'Never',
-      constipationFrequency: 'Never',
-      missedDetails: 'Digestive regularity has improved drastically with 35g daily dietary fiber.',
-      currentWeightKg: '79.2',
-      heightCm: '181',
-      waistInches: '32.0',
-      hipInches: '38.0',
-      neckInches: '16.0',
-      chestInches: '42.0',
-      upperArmInches: '15.0',
-      quadricepsInches: '23.5',
-      medicalAndSurgicalHistory: 'ACL reconstruction surgery left knee (2018). Completely cleared for squats and deadlifts.',
-      familyDeathsAndCauses: 'Father had heart disease in his late 70s.',
-      knowsBloodPressure: 'yes',
-      bpAbove14090: 'no',
-      knowsCholesterol: 'yes',
-      cholesterolAbove200: 'no',
-      headachesScore: 1,
-      faintnessScore: 1,
-      dizzinessScore: 1,
-      insomniaScore: 1,
-      digestiveIssuesScore: 1,
-      emotionalIssuesScore: 1,
-      currentMedications: 'CoQ10 100mg, Creatine Monohydrate 5g daily, Vitamin D3 + K2',
-      medicationAllergies: 'Penicillin (developed mild hives in childhood)',
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-    },
-  },
-  {
-    id: 'usr_atul_gupta',
-    email: 'akg.atulgupta@gmail.com',
-    name: 'Atul Gupta',
-    role: 'unpaid',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    joinedAt: '2026-09-11T07:15:00Z',
-    lastLoginAt: '2026-09-22T09:30:00Z',
-    phone: '+91 98114 00612',
-    profileCompletion: 100,
-    onboardingCompletion: 100,
-    notes: 'Member updated stats last week (Week 2 check-in on Sep 22): Weight down to 71.9 kg (-0.9 kg), waist 35.4 in (-0.6 in), steps avg 8,600/day. High adherence.',
-    profile: {
-      ...defaultUserProfile,
-      email: 'akg.atulgupta@gmail.com',
-      firstName: 'Atul',
-      lastName: 'Gupta',
-      dateOfBirth: '1985-11-20',
-      age: '40',
-      gender: 'Male',
-      phone: '+91 98114 00612',
-      address: 'Pocket B, Sarita Vihar',
-      city: 'New Delhi',
-      state: 'Delhi',
-      zipcode: '110076',
-      preferredContact: 'Whatsapp Audio/Video/Message',
-      maritalStatus: 'Married',
-      children: 'Yes',
-      isPregnant: 'Not applicable',
-      bloodGroup: 'B+',
-      livingWith: 'Family',
-      primaryCareProvider: 'Max Healthcare Delhi',
-      lastCheckupDate: '2026-05-10',
-      healthDataConsent: true,
-      notificationsConsent: true,
-      isConsentWithdrawn: false,
-    },
-    onboarding: {
-      ...defaultClientOnboarding,
-      healthGoal: 'Weight Loss',
-      coreReasonWhy: 'Increase daily stamina and reduce waistline while managing corporate desk work.',
-      pastDietsAndTechniques: 'Tried intermittent fasting and low carb intermittently.',
-      biggestNutritionChallenges: 'Managing evening hunger after long work calls.',
-      desiredHealthHabitChanges: 'Consistent 8,000+ daily steps and regular strength training.',
-      currentPhysicalActivities: ['Walking / Brisk Walking', 'Gym Strength Training'],
-      physicalActivityDaysPerWeek: '4',
-      physicalActivityDurationMinutes: '45',
-      gymAccess: 'yes',
-      foodAllergies: 'None',
-      dislikedFoods: 'Bitter gourd',
-      dietPreferences: ['Vegetarian', 'High Protein'],
-      mealsEatenRegularly: ['Breakfast', 'Lunch', 'Dinner'],
-      dailyBeverageOfChoice: ['Black Coffee', 'Green Tea'],
-      currentWeightKg: '71.9',
-      heightCm: '174',
-      waistInches: '35.4',
-      hipInches: '38.6',
-      neckInches: '15.4',
-      chestInches: '39.2',
-      upperArmInches: '13.4',
-      quadricepsInches: '21.8',
-      headachesScore: 1,
-      insomniaScore: 1,
-      digestiveIssuesScore: 1,
-      dizzinessScore: 1,
-      faintnessScore: 1,
-      emotionalIssuesScore: 1,
-      completedSections: [1, 2, 3, 4, 5],
-      isSubmitted: true,
-      healthDataConsent: true,
-      notificationsConsent: true,
-      isConsentWithdrawn: false,
-    },
-    weeklyEntries: [
-      {
-        id: 'chk_atul_w2',
-        userId: 'usr_atul_gupta',
-        userEmail: 'akg.atulgupta@gmail.com',
-        firstName: 'Atul',
-        lastName: 'Gupta',
-        checkInDate: '2026-09-22',
-        weekNumber: 2,
-        avgStepsPerDay: 8600,
-        weightKg: 71.9,
-        waistInches: 35.4,
-        hipsInches: 38.6,
-        neckInches: 15.4,
-        quadsInches: 21.8,
-        chestInches: 39.2,
-        upperRightArmInches: 13.4,
-        resistanceWorkoutDays: 4,
-        hiitCardioDays: 2,
-        avgCaloriesPerDay: 1980,
-        frontPicUrl: '',
-        leftPicUrl: '',
-        rightPicUrl: '',
-        backPicUrl: '',
-        challengesFaced: 'Managed to hit 8.6k daily steps by taking 15-min post-meal walking breaks between meetings. Evening hunger was much better with the roasted chana snack.',
-        coachFeedback: 'Outstanding progress Atul! Down 0.9kg and more than half an inch off your waist in Week 2. Strength training consistency is paying off.',
-        createdAt: '2026-09-22T08:30:00Z',
-      },
-      {
-        id: 'chk_atul_w1',
-        userId: 'usr_atul_gupta',
-        userEmail: 'akg.atulgupta@gmail.com',
-        firstName: 'Atul',
-        lastName: 'Gupta',
-        checkInDate: '2026-09-11',
-        weekNumber: 1,
-        avgStepsPerDay: 8000,
-        weightKg: 72.8,
-        waistInches: 36.0,
-        hipsInches: 39.0,
-        neckInches: 15.5,
-        quadsInches: 22.0,
-        chestInches: 39.5,
-        upperRightArmInches: 13.5,
-        resistanceWorkoutDays: 3,
-        hiitCardioDays: 1,
-        avgCaloriesPerDay: 2050,
-        frontPicUrl: '',
-        leftPicUrl: '',
-        rightPicUrl: '',
-        backPicUrl: '',
-        challengesFaced: 'Sedentary desk job during week, but hit 8k daily steps and completed 3 strength workouts.',
-        coachFeedback: 'Excellent baseline Atul! Great adherence on workouts and steps. Let us maintain this momentum for Week 2.',
-        createdAt: '2026-09-11T08:00:00Z',
-      },
-    ],
-  },
-];
+export const DUMMY_MEMBER_IDS = new Set([
+  'usr_001_priya',
+  'usr_002_rahul',
+  'usr_003_ananya',
+  'usr_004_david',
+  'usr_005_vikram',
+]);
+
+export function isDummyMember(memberOrEmail?: AppMember | string | null): boolean {
+  if (!memberOrEmail) return false;
+  if (typeof memberOrEmail === 'string') {
+    const norm = memberOrEmail.trim().toLowerCase();
+    return norm.endsWith('@example.com') || DUMMY_MEMBER_IDS.has(norm);
+  }
+  const email = (memberOrEmail.email || '').trim().toLowerCase();
+  const id = (memberOrEmail.id || '').trim();
+  return email.endsWith('@example.com') || DUMMY_MEMBER_IDS.has(id);
+}
+
+export function sortMembersBySignupDesc(members: AppMember[]): AppMember[] {
+  return [...members].sort(
+    (a, b) => new Date(b.joinedAt || 0).getTime() - new Date(a.joinedAt || 0).getTime()
+  );
+}
+
+// Client bundle never ships hardcoded member PII; members load from Supabase and the authenticated API
+export const SEED_MEMBERS: AppMember[] = [];
 
 const LOCAL_STORAGE_KEY = 'fitkode_members_registry_v1';
 
 export function getStoredMembers(): AppMember[] {
-  if (typeof window === 'undefined') return SEED_MEMBERS;
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Ensure default seed members (including Atul Gupta) are present and have their latest weeklyEntries
+      const parsedRaw = JSON.parse(raw);
+      if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {
         let changed = false;
-        for (const seed of SEED_MEMBERS) {
-          const seedEmail = seed.email?.toLowerCase().trim();
-          const existingIndex = parsed.findIndex(
-            (m: AppMember) => m.email?.toLowerCase().trim() === seedEmail
-          );
-          if (existingIndex === -1) {
-            parsed.push(seed);
+        const parsed: AppMember[] = parsedRaw.filter((m: AppMember) => {
+          if (isDummyMember(m)) {
             changed = true;
-          } else {
-            // If seed has weeklyEntries that cached object lacks, enrich it!
-            if (seed.weeklyEntries && seed.weeklyEntries.length > 0) {
-              const currentEntries = parsed[existingIndex].weeklyEntries || [];
-              if (currentEntries.length === 0) {
-                parsed[existingIndex].weeklyEntries = seed.weeklyEntries;
-                changed = true;
-              }
-            }
-            // If seed has rich profile that cached object lacks, enrich it!
-            if (seed.profile) {
-              const curProfile = parsed[existingIndex].profile;
-              if (!curProfile || !curProfile.phone || !curProfile.age) {
-                parsed[existingIndex].profile = {
-                  ...(seed.profile || {}),
-                  ...(curProfile || {}),
-                };
-                parsed[existingIndex].profileCompletion = getProfileCompletionRate(parsed[existingIndex].profile);
-                changed = true;
-              }
-            }
-            // If seed has rich onboarding that cached object lacks, enrich it!
-            if (seed.onboarding) {
-              const curOnboarding = parsed[existingIndex].onboarding;
-              if (!curOnboarding || !curOnboarding.completedSections || curOnboarding.completedSections.length === 0 || !curOnboarding.coreReasonWhy) {
-                parsed[existingIndex].onboarding = {
-                  ...(seed.onboarding || {}),
-                  ...(curOnboarding || {}),
-                };
-                parsed[existingIndex].onboardingCompletion = getOnboardingCompletionRate(parsed[existingIndex].onboarding);
-                changed = true;
-              }
-            }
+            return false;
           }
-        }
+          return true;
+        });
+
+        const sorted = sortMembersBySignupDesc(parsed);
         if (changed) {
-          safeLocalStorageSet(LOCAL_STORAGE_KEY, parsed);
+          safeLocalStorageSet(LOCAL_STORAGE_KEY, sorted);
         }
-        return parsed;
+        return sorted;
       }
     }
   } catch (err) {
     console.warn('Error reading members from localStorage:', err);
   }
-  // Initialize with seed members
-  safeLocalStorageSet(LOCAL_STORAGE_KEY, SEED_MEMBERS);
-  return SEED_MEMBERS;
+  return [];
 }
 
 export function saveStoredMembers(members: AppMember[]): void {
   if (typeof window === 'undefined') return;
-  safeLocalStorageSet(LOCAL_STORAGE_KEY, members);
+  const cleanMembers = sortMembersBySignupDesc(members.filter((m) => !isDummyMember(m)));
+  safeLocalStorageSet(LOCAL_STORAGE_KEY, cleanMembers);
 }
 
 export function updateMemberWeeklyEntries(userEmail: string, entries: WeeklyTrackerEntry[]): void {
@@ -628,7 +91,7 @@ export function updateMemberWeeklyEntries(userEmail: string, entries: WeeklyTrac
 
 /**
  * Resolves the role for a given user email.
- * Defaults chinma4jain@gmail.com and chinmay4jain@gmail.com to 'admin'.
+ * Defaults chinmay4jain@gmail.com and myfitkode@gmail.com to 'admin'.
  */
 export function determineUserRole(email?: string | null, customRole?: UserRole): UserRole {
   if (!email) return customRole || 'unpaid';
@@ -645,7 +108,7 @@ export function determineUserRole(email?: string | null, customRole?: UserRole):
 
 /**
  * Syncs the current logged-in user with the central registry.
- * If user is chinma4jain@gmail.com, ensures role is 'admin'.
+ * If user is a default admin, ensures role is 'admin'.
  */
 export async function syncMemberToStore(memberData: {
   id: string;
@@ -785,14 +248,14 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.members)) {
-        baseMembers = data.members;
+        baseMembers = data.members.filter((m: AppMember) => !isDummyMember(m));
       }
     }
   } catch {
     // Fall back to local storage
   }
 
-  const localStored = getStoredMembers();
+  const localStored = getStoredMembers().filter((m) => !isDummyMember(m));
   if (baseMembers.length === 0) {
     baseMembers = localStored;
   } else {
@@ -813,7 +276,7 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
   if (supabase) {
     try {
       const [profilesRes, allSupabaseWeeklyByEmail] = await Promise.all([
-        supabase.from('profiles').select('*').order('updated_at', { ascending: false }),
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         loadAllWeeklyEntriesFromSupabaseForAdmin(),
       ]);
 
@@ -834,6 +297,7 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
             row.email?.split('@')[0] ||
             'Member';
           const email = (row.email || profileData.email || '').toLowerCase().trim();
+          if (isDummyMember(email)) continue;
           const isEmailAdmin = isDefaultAdmin(email);
           const resolvedRole: UserRole = isEmailAdmin ? 'admin' : (row.role || 'unpaid');
 
@@ -960,68 +424,69 @@ export async function fetchAllMembersForAdmin(callerEmail?: string | null): Prom
             }
           }
 
+          const existingMember = existingIndex >= 0 ? mergedList[existingIndex] : undefined;
+
           const memberObj: AppMember = {
-            id: row.id,
-            email,
-            name: fullName,
+            id: row.id || existingMember?.id || `usr_${Date.now()}`,
+            email: email || existingMember?.email || '',
+            name: fullName || existingMember?.name || 'Member',
             role: resolvedRole,
-            avatarUrl: row.avatar_url || cleanProfileFields.avatarUrl || '',
-            joinedAt: row.created_at || new Date().toISOString(),
-            lastLoginAt: row.updated_at || row.created_at || new Date().toISOString(),
-            phone: row.phone || cleanProfileFields.phone || '',
-            planId: row.plan_id || cleanProfileFields.planId,
-            planName: row.plan_name || cleanProfileFields.planName,
-            planPurchasedAt: row.plan_purchased_at || cleanProfileFields.planPurchasedAt,
+            avatarUrl: row.avatar_url || cleanProfileFields.avatarUrl || existingMember?.avatarUrl || '',
+            joinedAt: row.created_at || existingMember?.joinedAt || new Date().toISOString(),
+            lastLoginAt: row.updated_at || row.created_at || existingMember?.lastLoginAt || new Date().toISOString(),
+            phone: row.phone || cleanProfileFields.phone || existingMember?.phone || '',
+            planId: row.plan_id || cleanProfileFields.planId || existingMember?.planId,
+            planName: row.plan_name || cleanProfileFields.planName || existingMember?.planName,
+            planPurchasedAt: row.plan_purchased_at || cleanProfileFields.planPurchasedAt || existingMember?.planPurchasedAt,
             profileCompletion: profileRate,
             onboardingCompletion: onboardingRate,
-            notes: row.notes || (existingIndex >= 0 ? mergedList[existingIndex].notes : ''),
+            notes: row.notes || existingMember?.notes || '',
             profile: constructedProfile,
             onboarding: hasRemoteOnboarding
               ? {
                   ...defaultClientOnboarding,
                   ...onboardingData,
                 }
-              : existingIndex >= 0
-              ? mergedList[existingIndex].onboarding
-              : undefined,
+              : existingMember?.onboarding,
             weeklyEntries: mergedWeekly,
           };
 
-          if (existingIndex >= 0) {
-            const existing = mergedList[existingIndex];
-            const hasRemoteProfile = Object.keys(cleanProfileFields).length > 0 && profileRate >= existing.profileCompletion;
+          if (existingIndex >= 0 && existingMember) {
+            const hasRemoteProfile = Object.keys(cleanProfileFields).length > 0 && profileRate >= (existingMember.profileCompletion || 0);
 
             mergedList[existingIndex] = {
-              ...existing,
+              ...existingMember,
               ...memberObj,
-              profileCompletion: Math.max(profileRate, existing.profileCompletion || 0),
+              profileCompletion: Math.max(profileRate, existingMember.profileCompletion || 0),
               onboardingCompletion: hasRemoteOnboarding
                 ? onboardingRate
-                : Math.max(onboardingRate, existing.onboardingCompletion || 0),
+                : Math.max(onboardingRate, existingMember.onboardingCompletion || 0),
               profile: hasRemoteProfile
-                ? { ...(existing.profile || defaultUserProfile), ...constructedProfile }
-                : existing.profile || constructedProfile,
+                ? { ...(existingMember.profile || defaultUserProfile), ...constructedProfile }
+                : existingMember.profile || constructedProfile,
               onboarding: hasRemoteOnboarding
-                ? { ...(existing.onboarding || defaultClientOnboarding), ...onboardingData }
-                : existing.onboarding || memberObj.onboarding,
+                ? { ...(existingMember.onboarding || defaultClientOnboarding), ...onboardingData }
+                : existingMember.onboarding || memberObj.onboarding,
               weeklyEntries: mergedWeekly,
-              notes: row.notes || existing.notes || '',
+              notes: row.notes || existingMember.notes || '',
             };
           } else {
-            mergedList.unshift(memberObj);
+            mergedList.push(memberObj);
           }
         }
 
-        saveStoredMembers(mergedList);
-        return mergedList;
+        const sortedMerged = sortMembersBySignupDesc(mergedList.filter((m) => !isDummyMember(m)));
+        saveStoredMembers(sortedMerged);
+        return sortedMerged;
       }
     } catch (supaErr) {
       console.warn('Supabase profiles query notice:', supaErr);
     }
   }
 
-  saveStoredMembers(baseMembers);
-  return baseMembers;
+  const sortedBase = sortMembersBySignupDesc(baseMembers.filter((m) => !isDummyMember(m)));
+  saveStoredMembers(sortedBase);
+  return sortedBase;
 }
 
 /**

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, ShieldCheck, CreditCard, ArrowRight, Zap, RefreshCw, Key, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Seo from './Seo';
+import { getSupabaseAuthHeaders } from '../lib/supabase';
 
 interface Plan {
   id: string;
@@ -77,9 +78,10 @@ export default function TestPaymentPage() {
       // 1. Call backend to create Razorpay Order
       let orderData: { orderId?: string; keyId?: string; amount?: number; currency?: string } | null = null;
       try {
+        const authHeaders = await getSupabaseAuthHeaders();
         const orderResponse = await fetch('/api/razorpay/create-order', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({
             planId: testPlan.id,
             planName: testPlan.name,
@@ -135,9 +137,10 @@ export default function TestPaymentPage() {
             setIsLoading(true);
             try {
               if (response.razorpay_signature && response.razorpay_order_id) {
+                const authHeaders = await getSupabaseAuthHeaders();
                 const verifyRes = await fetch('/api/razorpay/verify-payment', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', ...authHeaders },
                   body: JSON.stringify({
                     razorpay_order_id: response.razorpay_order_id,
                     razorpay_payment_id: response.razorpay_payment_id,

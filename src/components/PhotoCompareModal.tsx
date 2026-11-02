@@ -13,6 +13,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { WeeklyTrackerEntry } from '../types';
+import { ProgressPhoto } from './ProgressPhoto';
+import { resolvePhotoUrl } from '../lib/supabase';
 
 interface PhotoCompareModalProps {
   entries: WeeklyTrackerEntry[];
@@ -87,9 +89,11 @@ export default function PhotoCompareModal({
       : 1;
 
   // Helper to load an image safely for Canvas rendering
-  const loadImageForCanvas = (url?: string): Promise<HTMLImageElement | null> => {
+  const loadImageForCanvas = async (url?: string): Promise<HTMLImageElement | null> => {
+    if (!url) return null;
+    const resolved = await resolvePhotoUrl(url);
     return new Promise((resolve) => {
-      if (!url) {
+      if (!resolved) {
         resolve(null);
         return;
       }
@@ -97,7 +101,7 @@ export default function PhotoCompareModal({
       img.crossOrigin = 'anonymous';
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
-      img.src = url;
+      img.src = resolved;
     });
   };
 
@@ -545,7 +549,7 @@ export default function PhotoCompareModal({
               {/* Photo Display */}
               <div className="w-full aspect-[3/4] max-h-[52vh] rounded-2xl overflow-hidden bg-black/50 border border-gray-800 flex items-center justify-center relative shadow-inner">
                 {getPoseUrl(primaryEntry, selectedPose) ? (
-                  <img
+                  <ProgressPhoto
                     src={getPoseUrl(primaryEntry, selectedPose)}
                     alt={`${poseLabels[selectedPose]} - Week ${primaryEntry.weekNumber}`}
                     className="w-full h-full object-contain"
@@ -600,7 +604,7 @@ export default function PhotoCompareModal({
 
                 <div className="w-full aspect-[3/4] max-h-[44vh] rounded-xl overflow-hidden bg-black/60 border border-gray-800 flex items-center justify-center relative shadow-inner">
                   {getPoseUrl(secondaryEntry, selectedPose) ? (
-                    <img
+                    <ProgressPhoto
                       src={getPoseUrl(secondaryEntry, selectedPose)}
                       alt={`Reference Week ${secondaryEntry.weekNumber}`}
                       className="w-full h-full object-contain"
@@ -640,7 +644,7 @@ export default function PhotoCompareModal({
 
                 <div className="w-full aspect-[3/4] max-h-[44vh] rounded-xl overflow-hidden bg-black/60 border border-gray-800 flex items-center justify-center relative shadow-inner">
                   {getPoseUrl(primaryEntry, selectedPose) ? (
-                    <img
+                    <ProgressPhoto
                       src={getPoseUrl(primaryEntry, selectedPose)}
                       alt={`Current Week ${primaryEntry.weekNumber}`}
                       className="w-full h-full object-contain"

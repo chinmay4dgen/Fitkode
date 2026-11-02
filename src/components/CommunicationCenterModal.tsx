@@ -601,9 +601,11 @@ export const CommunicationCenterModal: React.FC<CommunicationCenterModalProps> =
             {/* Body Preview */}
             <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
               {previewTab === 'html' ? (
-                <div
-                  className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden"
-                  dangerouslySetInnerHTML={{ __html: selectedLog.html }}
+                <iframe
+                  srcDoc={selectedLog.html}
+                  sandbox="allow-popups allow-popups-to-escape-sandbox"
+                  title="Email preview"
+                  className="w-full h-[480px] border-0 rounded-lg bg-white"
                 />
               ) : (
                 <pre className="p-4 bg-gray-900 text-green-400 rounded-xl text-xs whitespace-pre-wrap font-mono overflow-x-auto leading-relaxed">

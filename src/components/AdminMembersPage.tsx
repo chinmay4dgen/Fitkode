@@ -40,6 +40,7 @@ import {
   Plus,
   Download,
   MessageCircle,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AppMember, UserRole, WeeklyTrackerEntry, MealPlan, WorkoutPlan } from '../types';
@@ -48,6 +49,7 @@ import {
   updateMemberRole,
   updateMemberNotes,
   isDefaultAdmin,
+  isDummyMember,
   DEFAULT_ADMIN_EMAILS,
 } from '../lib/memberStore';
 import { getSupabase, runSupabaseDiagnostics, SupabaseDiagnosticResult } from '../lib/supabase';
@@ -98,6 +100,14 @@ export default function AdminMembersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'paid' | 'unpaid' | 'admin'>('all');
   const [checkinFilter, setCheckinFilter] = useState<'all' | 'overdue' | 'due-soon' | 'on-track' | 'no-checkins'>('all');
+  type MemberSortOption =
+    | 'joined-desc'
+    | 'joined-asc'
+    | 'active-desc'
+    | 'name-asc'
+    | 'name-desc'
+    | 'completion-desc';
+  const [sortBy, setSortBy] = useState<MemberSortOption>('joined-desc');
   const [selectedMember, setSelectedMember] = useState<AppMember | null>(null);
   const [showDirectory, setShowDirectory] = useState(true);
   const [quickSwitchOpen, setQuickSwitchOpen] = useState(false);
@@ -957,45 +967,81 @@ export default function AdminMembersPage() {
   };
 
   // ----------------------------------------------------
-  // FILTERING & STATS
+  // FILTERING, SORTING & STATS
   // ----------------------------------------------------
+  const realMembers = members.filter((m) => !isDummyMember(m));
+
   const memberCheckinMap = new Map<string, ReturnType<typeof getMemberCheckinStatus>>();
-  members.forEach((m) => {
+  realMembers.forEach((m) => {
     memberCheckinMap.set(m.id, getMemberCheckinStatus(m));
   });
 
-  const overdueCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'overdue').length;
-  const dueSoonCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'due-soon').length;
-  const onTrackCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'on-track').length;
-  const noCheckinsCount = members.filter((m) => memberCheckinMap.get(m.id)?.status === 'no-checkins').length;
+  const overdueCount = realMembers.filter((m) => memberCheckinMap.get(m.id)?.status === 'overdue').length;
+  const dueSoonCount = realMembers.filter((m) => memberCheckinMap.get(m.id)?.status === 'due-soon').length;
+  const onTrackCount = realMembers.filter((m) => memberCheckinMap.get(m.id)?.status === 'on-track').length;
+  const noCheckinsCount = realMembers.filter((m) => memberCheckinMap.get(m.id)?.status === 'no-checkins').length;
 
-  const filteredMembers = members.filter((m) => {
-    // Role filter
-    if (roleFilter !== 'all' && m.role !== roleFilter) {
-      return false;
-    }
-    // Check-in Retention Radar filter
-    if (checkinFilter !== 'all') {
-      const st = memberCheckinMap.get(m.id)?.status || 'no-checkins';
-      if (st !== checkinFilter) return false;
-    }
-    // Search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const matchName = m.name?.toLowerCase().includes(q);
-      const matchEmail = m.email?.toLowerCase().includes(q);
-      const matchPhone = m.phone?.toLowerCase().includes(q) || m.profile?.phone?.includes(q);
-      const matchPlan = m.planName?.toLowerCase().includes(q);
-      if (!matchName && !matchEmail && !matchPhone && !matchPlan) return false;
-    }
-    return true;
-  });
+  const getLatestActivityTime = (m: AppMember): number => {
+    const loginTime = m.lastLoginAt ? new Date(m.lastLoginAt).getTime() : 0;
+    const joinedTime = m.joinedAt ? new Date(m.joinedAt).getTime() : 0;
+    const checkinInfo = memberCheckinMap.get(m.id);
+    const checkinDateStr = checkinInfo?.latestEntry?.checkInDate;
+    const checkinTime = checkinDateStr ? new Date(checkinDateStr).getTime() : 0;
+    return Math.max(loginTime || 0, checkinTime || 0, joinedTime || 0);
+  };
 
-  const totalMembers = members.length;
-  const paidCount = members.filter((m) => m.role === 'paid').length;
-  const unpaidCount = members.filter((m) => m.role === 'unpaid').length;
-  const adminCount = members.filter((m) => m.role === 'admin').length;
-  const completedOnboardingCount = members.filter((m) => (m.onboardingCompletion || 0) === 100).length;
+  const filteredMembers = realMembers
+    .filter((m) => {
+      // Role filter
+      if (roleFilter !== 'all') {
+        const effectiveRole = m.role === 'admin' || isDefaultAdmin(m.email) ? 'admin' : m.role;
+        if (effectiveRole !== roleFilter) return false;
+      }
+      // Check-in Retention Radar filter
+      if (checkinFilter !== 'all') {
+        const st = memberCheckinMap.get(m.id)?.status || 'no-checkins';
+        if (st !== checkinFilter) return false;
+      }
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = m.name?.toLowerCase().includes(q);
+        const matchEmail = m.email?.toLowerCase().includes(q);
+        const matchPhone = m.phone?.toLowerCase().includes(q) || m.profile?.phone?.toLowerCase().includes(q);
+        const matchPlan = m.planName?.toLowerCase().includes(q);
+        const matchCity = m.profile?.city?.toLowerCase().includes(q);
+        const matchGoal = m.onboarding?.healthGoal?.toLowerCase().includes(q);
+        if (!matchName && !matchEmail && !matchPhone && !matchPlan && !matchCity && !matchGoal) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'joined-asc':
+          return new Date(a.joinedAt || 0).getTime() - new Date(b.joinedAt || 0).getTime();
+        case 'active-desc':
+          return getLatestActivityTime(b) - getLatestActivityTime(a);
+        case 'name-asc':
+          return (a.name || '').localeCompare(b.name || '');
+        case 'name-desc':
+          return (b.name || '').localeCompare(a.name || '');
+        case 'completion-desc': {
+          const scoreA = (a.onboardingCompletion || 0) * 2 + (a.profileCompletion || 0);
+          const scoreB = (b.onboardingCompletion || 0) * 2 + (b.profileCompletion || 0);
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return new Date(b.joinedAt || 0).getTime() - new Date(a.joinedAt || 0).getTime();
+        }
+        case 'joined-desc':
+        default:
+          return new Date(b.joinedAt || 0).getTime() - new Date(a.joinedAt || 0).getTime();
+      }
+    });
+
+  const totalMembers = realMembers.length;
+  const paidCount = realMembers.filter((m) => m.role === 'paid').length;
+  const unpaidCount = realMembers.filter((m) => m.role === 'unpaid').length;
+  const adminCount = realMembers.filter((m) => m.role === 'admin' || isDefaultAdmin(m.email)).length;
+  const completedOnboardingCount = realMembers.filter((m) => (m.onboardingCompletion || 0) === 100).length;
 
   // Selected member index within filtered list for seamless Prev / Next navigation
   const selectedMemberIndex = selectedMember
@@ -1227,10 +1273,26 @@ export default function AdminMembersPage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Filter members..."
+                      placeholder="Search by name, email, phone..."
                       className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 bg-gray-50 focus:bg-white"
                       autoFocus
                     />
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <select
+                      aria-label="Sort members in quick switcher"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as MemberSortOption)}
+                      className="w-full py-1 px-2 text-[11px] font-semibold rounded-lg border border-gray-200 bg-gray-50 text-gray-700"
+                    >
+                      <option value="joined-desc">Sign-up: Newest First (Default)</option>
+                      <option value="joined-asc">Sign-up: Oldest First</option>
+                      <option value="active-desc">Last Active / Latest Check-in</option>
+                      <option value="name-asc">Name (A to Z)</option>
+                      <option value="name-desc">Name (Z to A)</option>
+                      <option value="completion-desc">Onboarding &amp; Profile Completion %</option>
+                    </select>
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
                     {filteredMembers.map((m) => (
@@ -2793,9 +2855,9 @@ export default function AdminMembersPage() {
             </div>
           )}
 
-          {/* Search and Filters Bar */}
+          {/* Search, Sort and Filters Bar */}
           <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-200 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               {/* Search Input */}
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -2803,66 +2865,89 @@ export default function AdminMembersPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name, email, phone, or plan..."
-                  className="w-full pl-10 pr-12 py-2.5 rounded-2xl border border-gray-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 text-xs transition-all bg-gray-50/50"
+                  placeholder="Search by name, email, phone, city, goal, or plan..."
+                  className="w-full pl-10 pr-14 py-2.5 rounded-2xl border border-gray-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 text-xs transition-all bg-gray-50/50"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer"
                   >
                     Clear
                   </button>
                 )}
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs shrink-0 no-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => setRoleFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    roleFilter === 'all'
-                      ? 'bg-gray-900 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  All ({members.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRoleFilter('paid')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    roleFilter === 'paid'
-                      ? 'bg-emerald-700 text-white shadow-sm'
-                      : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                  }`}
-                >
-                  Paid ({paidCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRoleFilter('unpaid')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    roleFilter === 'unpaid'
-                      ? 'bg-blue-700 text-white shadow-sm'
-                      : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
-                  }`}
-                >
-                  Unpaid ({unpaidCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRoleFilter('admin')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    roleFilter === 'admin'
-                      ? 'bg-purple-700 text-white shadow-sm'
-                      : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
-                  }`}
-                >
-                  Admin ({adminCount})
-                </button>
+              {/* Sort Dropdown & Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                {/* Sort Control */}
+                <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-1.5">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-brand-green shrink-0" />
+                  <span className="text-[11px] font-bold text-gray-500 whitespace-nowrap">Sort by:</span>
+                  <select
+                    id="member-directory-sort-select"
+                    aria-label="Sort members"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as MemberSortOption)}
+                    className="bg-transparent text-xs font-bold text-gray-800 focus:outline-none cursor-pointer pr-1"
+                  >
+                    <option value="joined-desc">Sign-up Date: Newest First (Default)</option>
+                    <option value="joined-asc">Sign-up Date: Oldest First</option>
+                    <option value="active-desc">Last Active / Latest Check-in Date</option>
+                    <option value="name-asc">Name (A to Z)</option>
+                    <option value="name-desc">Name (Z to A)</option>
+                    <option value="completion-desc">Onboarding &amp; Profile Completion %</option>
+                  </select>
+                </div>
+
+                {/* Role Filter Tabs */}
+                <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5 text-xs shrink-0 no-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setRoleFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      roleFilter === 'all'
+                        ? 'bg-gray-900 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    All ({totalMembers})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoleFilter('paid')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      roleFilter === 'paid'
+                        ? 'bg-emerald-700 text-white shadow-sm'
+                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    }`}
+                  >
+                    Paid ({paidCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoleFilter('unpaid')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      roleFilter === 'unpaid'
+                        ? 'bg-blue-700 text-white shadow-sm'
+                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                    }`}
+                  >
+                    Unpaid ({unpaidCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoleFilter('admin')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      roleFilter === 'admin'
+                        ? 'bg-purple-700 text-white shadow-sm'
+                        : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
+                    }`}
+                  >
+                    Admin ({adminCount})
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -3006,6 +3091,13 @@ export default function AdminMembersPage() {
                           {(member.phone || member.profile?.phone) && (
                             <p className="text-[11px] text-gray-400 truncate mt-0.5">
                               {member.phone || member.profile?.phone}
+                            </p>
+                          )}
+
+                          {member.joinedAt && (
+                            <p className="text-[11px] text-gray-400 flex items-center space-x-1 mt-1">
+                              <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                              <span>Joined {formatISTDate(member.joinedAt)}</span>
                             </p>
                           )}
                         </div>

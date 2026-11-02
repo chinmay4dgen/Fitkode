@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Plan } from '../types';
 import { Check, Info, HelpCircle, ShieldCheck, Sparkles, CreditCard, X, Settings } from 'lucide-react';
 import Seo from './Seo';
+import { PLAN_CATALOG } from '../shared/plans';
+import { getSupabaseAuthHeaders } from '../lib/supabase';
 
 interface PlansPricingProps {
   searchTerm: string;
@@ -37,8 +39,8 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
   const plans: Plan[] = [
     {
       id: 'plan_3m',
-      name: '3 Months Plan - Fitness Fundamentals',
-      price: 20999,
+      name: PLAN_CATALOG.plan_3m.name,
+      price: PLAN_CATALOG.plan_3m.amountInr,
       duration: 'Valid for 3 months',
       description: 'Our 3 Months Plan includes comprehensive health guidance with customized diet plans - veg/non-veg/festive days, tailored workouts - Home/ Gym/ Travel/ Hybrid, Supervised Workout sessions and classes.',
       coverImage: 'https://static.wixstatic.com/media/176a3f_905e2b96ff964858a3e648b25c7ffee6~mv2.jpg/v1/fill/w_310,h_200,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/176a3f_905e2b96ff964858a3e648b25c7ffee6~mv2.jpg',
@@ -58,8 +60,8 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     },
     {
       id: 'plan_6m',
-      name: '6 Months Plan - Comprehensive',
-      price: 38999,
+      name: PLAN_CATALOG.plan_6m.name,
+      price: PLAN_CATALOG.plan_6m.amountInr,
       duration: 'Valid for 6 months',
       description: "Transform your wellness journey with Fitkode's 6 Months Plan. Access comprehensive health guidance, customized diets, meditation basics, and tailored workouts for lasting results.",
       coverImage: 'https://static.wixstatic.com/media/176a3f_a5611edd8fdc415eb7825ae02ab32d42~mv2.jpg/v1/fill/w_310,h_200,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/176a3f_a5611edd8fdc415eb7825ae02ab32d42~mv2.jpg',
@@ -80,8 +82,8 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     },
     {
       id: 'plan_annual',
-      name: 'Annual Plan - Longevity & Habits Builder',
-      price: 71999,
+      name: PLAN_CATALOG.plan_annual.name,
+      price: PLAN_CATALOG.plan_annual.amountInr,
       duration: 'Valid for 12 months',
       description: 'Comprehensive Health Guidance including Customized Diet Plan, Basics of Meditation & Workouts. Only For the most serious people committed to Fitness as Lifestyle and with their focus on Longevity,',
       coverImage: 'https://static.wixstatic.com/media/176a3f_19167d8eb4fe43dca2dd13819b65a2c8~mv2.jpg/v1/fill/w_310,h_200,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/176a3f_19167d8eb4fe43dca2dd13819b65a2c8~mv2.jpg',
@@ -98,8 +100,8 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     },
     {
       id: 'plan_nutrition',
-      name: 'Diet & Nutrition Plan',
-      price: 3999,
+      name: PLAN_CATALOG.plan_nutrition.name,
+      price: PLAN_CATALOG.plan_nutrition.amountInr,
       duration: 'Valid for one month',
       description: 'Learn the art and science of Diet and Nutrition for you and your family with Fitkode. Transform your health and wellness through personalized guidance.',
       coverImage: 'https://static.wixstatic.com/media/176a3f_39c21fb0734f481eb17c4cf5acef4995~mv2.jpg/v1/fill/w_310,h_200,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/176a3f_39c21fb0734f481eb17c4cf5acef4995~mv2.jpg',
@@ -113,8 +115,8 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
     },
     {
       id: 'plan_workout',
-      name: 'Workout Science Plan',
-      price: 3999,
+      name: PLAN_CATALOG.plan_workout.name,
+      price: PLAN_CATALOG.plan_workout.amountInr,
       duration: 'Valid for one month',
       description: 'Master workout science with Fitkode! Create personalized training plans and achieve wellness with expert-guided methods. Plus, get a custom workout plan!',
       coverImage: 'https://static.wixstatic.com/media/176a3f_626a09993c10498295f4ab73dcbdb433~mv2.jpg/v1/fill/w_310,h_200,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/176a3f_626a09993c10498295f4ab73dcbdb433~mv2.jpg',
@@ -164,9 +166,10 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
       let orderData: { orderId?: string; keyId?: string; amount?: number; currency?: string } | null = null;
       
       try {
+        const authHeaders = await getSupabaseAuthHeaders();
         const orderResponse = await fetch('/api/razorpay/create-order', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({
             planId: selectedPlan.id,
             planName: selectedPlan.name,
@@ -222,9 +225,10 @@ export default function PlansPricing({ searchTerm }: PlansPricingProps) {
             try {
               // 2. Verify signature on backend if order_id is present
               if (response.razorpay_signature && response.razorpay_order_id) {
+                const authHeaders = await getSupabaseAuthHeaders();
                 const verifyRes = await fetch('/api/razorpay/verify-payment', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', ...authHeaders },
                   body: JSON.stringify({
                     razorpay_order_id: response.razorpay_order_id,
                     razorpay_payment_id: response.razorpay_payment_id,

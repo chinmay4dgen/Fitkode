@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Phone, Mail, MapPin, CheckCircle, Clock } from 'lucide-react';
 import Seo from './Seo';
+import { getSupabaseAuthHeaders } from '../lib/supabase';
 
 interface ContactFormProps {
   title?: string;
@@ -42,18 +43,21 @@ export default function ContactForm({
     }
 
     setIsSubmitting(true);
-    fetch('/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        firstName: sanitizedFirstName,
-        lastName: sanitizedLastName,
-        email: sanitizedEmail,
-        phone: sanitizedPhone,
-        goal: sanitizedGoal,
-        code: formData.code,
-      }),
-    })
+    getSupabaseAuthHeaders()
+      .then((authHeaders) =>
+        fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            firstName: sanitizedFirstName,
+            lastName: sanitizedLastName,
+            email: sanitizedEmail,
+            phone: sanitizedPhone,
+            goal: sanitizedGoal,
+            code: formData.code,
+          }),
+        })
+      )
       .catch((err) => {
         console.warn('Consultation submission notice:', err);
       })

@@ -26,6 +26,7 @@ import {
 import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
 import { getStoredMembers } from '../lib/memberStore';
 import { loadUserProfile } from '../lib/profileStorage';
+import { getSupabaseAuthHeaders } from '../lib/supabase';
 
 interface AIWorkoutPlanGeneratorModalProps {
   isOpen: boolean;
@@ -150,9 +151,10 @@ export default function AIWorkoutPlanGeneratorModal({
 
     try {
       setFallbackNotice(null);
+      const authHeaders = await getSupabaseAuthHeaders();
       const res = await fetch('/api/generate-workout-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           memberEmail: userEmail,
           memberName: userName,

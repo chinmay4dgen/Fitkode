@@ -21,7 +21,7 @@ import { loadClientOnboarding, loadUserProfile } from '../lib/profileStorage';
 import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
 import { getStoredMembers } from '../lib/memberStore';
 import { ActivityLevel, MealPlan, MealSlot, MealItem, DietType } from '../types';
-import { saveMealPlanToSupabase } from '../lib/supabase';
+import { saveMealPlanToSupabase, getSupabaseAuthHeaders } from '../lib/supabase';
 
 interface AIMealPlanGeneratorModalProps {
   isOpen: boolean;
@@ -207,9 +207,10 @@ export default function AIMealPlanGeneratorModal({
 
     try {
       setFallbackNotice(null);
+      const authHeaders = await getSupabaseAuthHeaders();
       const res = await fetch('/api/generate-meal-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           profile: profileData,
           targets: computedTargets,

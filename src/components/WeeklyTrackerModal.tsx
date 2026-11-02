@@ -12,6 +12,7 @@ import {
 import { WeeklyTrackerEntry } from '../types';
 import { compressImageFile, loadUserWeeklyEntries } from '../lib/weeklyTrackerStore';
 import { safeLocalStorageSet } from '../lib/storageGuard';
+import { ProgressPhoto } from './ProgressPhoto';
 
 interface WeeklyTrackerModalProps {
   existingEntry?: WeeklyTrackerEntry | null;
@@ -666,7 +667,7 @@ export default function WeeklyTrackerModal({
                 <span className="text-[10px] font-bold text-gray-600 uppercase">Front Pose</span>
                 {formData.frontPicUrl ? (
                   <div className="relative w-full h-24 rounded-xl overflow-hidden group">
-                    <img src={formData.frontPicUrl} alt="Front" className="w-full h-full object-cover" />
+                    <ProgressPhoto src={formData.frontPicUrl} alt="Front" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setFormData((p) => ({ ...p, frontPicUrl: '' }))}
@@ -697,7 +698,7 @@ export default function WeeklyTrackerModal({
                 <span className="text-[10px] font-bold text-gray-600 uppercase">Left Side Pose</span>
                 {formData.leftPicUrl ? (
                   <div className="relative w-full h-24 rounded-xl overflow-hidden group">
-                    <img src={formData.leftPicUrl} alt="Left" className="w-full h-full object-cover" />
+                    <ProgressPhoto src={formData.leftPicUrl} alt="Left" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setFormData((p) => ({ ...p, leftPicUrl: '' }))}
@@ -728,7 +729,7 @@ export default function WeeklyTrackerModal({
                 <span className="text-[10px] font-bold text-gray-600 uppercase">Right Side Pose</span>
                 {formData.rightPicUrl ? (
                   <div className="relative w-full h-24 rounded-xl overflow-hidden group">
-                    <img src={formData.rightPicUrl} alt="Right" className="w-full h-full object-cover" />
+                    <ProgressPhoto src={formData.rightPicUrl} alt="Right" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setFormData((p) => ({ ...p, rightPicUrl: '' }))}
@@ -759,7 +760,7 @@ export default function WeeklyTrackerModal({
                 <span className="text-[10px] font-bold text-gray-600 uppercase">Back Pose</span>
                 {formData.backPicUrl ? (
                   <div className="relative w-full h-24 rounded-xl overflow-hidden group">
-                    <img src={formData.backPicUrl} alt="Back" className="w-full h-full object-cover" />
+                    <ProgressPhoto src={formData.backPicUrl} alt="Back" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setFormData((p) => ({ ...p, backPicUrl: '' }))}

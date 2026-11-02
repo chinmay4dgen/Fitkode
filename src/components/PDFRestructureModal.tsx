@@ -22,7 +22,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { MealPlan, MealSlot, MealItem, DietType } from '../types';
-import { saveMealPlanToSupabase } from '../lib/supabase';
+import { saveMealPlanToSupabase, getSupabaseAuthHeaders } from '../lib/supabase';
 import { getMemberOnboarding, extractMedicalSynopsis } from '../lib/medicalAssessmentHelper';
 
 interface PDFRestructureModalProps {
@@ -212,9 +212,10 @@ export default function PDFRestructureModal({
     setError(null);
 
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       const res = await fetch('/api/extract-pdf-meal-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           pdfBase64: fileBase64,
           fileName: fileName || 'meal-plan.pdf',
@@ -274,9 +275,10 @@ export default function PDFRestructureModal({
 
       const allergyList = clientOnboarding?.foodAllergies || [];
 
+      const authHeaders = await getSupabaseAuthHeaders();
       const res = await fetch('/api/restructure-pdf-meal-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           originalPlan: extractedPlan,
           preferredFoods: preferredFoodsList,
