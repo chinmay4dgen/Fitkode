@@ -39,6 +39,32 @@ export function sortMembersBySignupDesc(members: AppMember[]): AppMember[] {
 // Pre-populated real enrolled Fitkode members (dummy @example.com accounts remain excluded)
 export const SEED_MEMBERS: AppMember[] = [
   {
+    id: 'usr_maitreyee_kulkarni',
+    email: 'maikulkarni10@gmail.com',
+    name: 'Maitreyee Kulkarni',
+    role: 'unpaid',
+    avatarUrl: '',
+    joinedAt: '2026-10-28T10:00:00Z',
+    lastLoginAt: '2026-11-07T20:42:00Z',
+    phone: '',
+    profileCompletion: 17,
+    onboardingCompletion: 0,
+    notes: '',
+    profile: {
+      ...defaultUserProfile,
+      email: 'maikulkarni10@gmail.com',
+      firstName: 'Maitreyee',
+      lastName: 'Kulkarni',
+      preferredContact: 'Whatsapp Audio/Video/Message',
+      healthDataConsent: true,
+      notificationsConsent: true,
+      isConsentWithdrawn: false,
+    },
+    onboarding: {
+      ...defaultClientOnboarding,
+    },
+  },
+  {
     id: 'usr_jyothi_varma',
     email: 'jyothi.varmagl@gmail.com',
     name: 'Jyothi Varma',

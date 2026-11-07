@@ -1111,6 +1111,16 @@ export default function AdminMembersPage() {
               <span>Vault Backup (.json)</span>
             </button>
 
+            <a
+              href="/Fitkode_Guardrails_and_Evaluation_Framework.docx"
+              download="Fitkode_Guardrails_and_Evaluation_Framework.docx"
+              className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-all cursor-pointer border border-amber-400/30 shadow-xs"
+              title="Download Fitkode Guardrails and Evaluation Framework (.docx)"
+            >
+              <FileText className="w-3.5 h-3.5 text-amber-300" />
+              <span>Guardrails (.docx)</span>
+            </a>
+
             <button
               onClick={() => loadData(true)}
               className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer border border-white/10"
@@ -1161,7 +1171,7 @@ export default function AdminMembersPage() {
                   Super Admin (Active)
                 </button>
                 <div className="border-t border-gray-100 my-1.5 pt-1.5">
-                  <p className="text-[10px] uppercase font-bold text-gray-400 px-3 py-1">System Diagnostics</p>
+                  <p className="text-[10px] uppercase font-bold text-gray-400 px-3 py-1">System Diagnostics &amp; Docs</p>
                   <button
                     type="button"
                     onClick={handleOpenDbDiagnostics}
@@ -1170,6 +1180,14 @@ export default function AdminMembersPage() {
                     <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span>DB Health &amp; SQL Setup</span>
                   </button>
+                  <a
+                    href="/Fitkode_Guardrails_and_Evaluation_Framework.docx"
+                    download="Fitkode_Guardrails_and_Evaluation_Framework.docx"
+                    className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-purple-50 text-purple-800 font-semibold transition-colors flex items-center gap-1.5 cursor-pointer mt-0.5"
+                  >
+                    <Download className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <span>Guardrails &amp; Eval (.docx)</span>
+                  </a>
                 </div>
               </div>
             </div>
