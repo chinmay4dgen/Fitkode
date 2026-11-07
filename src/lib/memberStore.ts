@@ -47,6 +47,8 @@ export const SEED_MEMBERS: AppMember[] = [
     joinedAt: '2026-10-28T10:00:00Z',
     lastLoginAt: '2026-11-07T20:42:00Z',
     phone: '',
+    planId: 'workout_coach_maitreyee_3day',
+    planName: 'Akku 3-Day Workout',
     profileCompletion: 17,
     onboardingCompletion: 0,
     notes: '',
